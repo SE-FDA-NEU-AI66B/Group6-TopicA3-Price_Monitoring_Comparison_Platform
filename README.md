@@ -1,7 +1,11 @@
 # Price Monitoring Comparison Platform
 ## Role Assignment
-Hieu - ChatGPT engineer
+Hieu - Leader
 
-Hoang Le - Gemini pro engineer to repo
+Hoang Le - Member
 
-Viet - Claude pro engineer Tiến
+Viet - Member
+
+Tien - Member
+
+Huy Minh - Member
