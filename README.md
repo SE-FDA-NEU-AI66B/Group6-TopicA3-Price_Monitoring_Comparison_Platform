@@ -2,6 +2,7 @@
 ## Role Assignment
 
 | Name | GitHub username | Role |
+| --- | --- | --- |
 | Luong The Hieu | adcc17 | Scrum Master |
 | Pham Ba Viet | davvph | Product Owner |
 | Be Thanh Tien | Tienachilles | Member |
