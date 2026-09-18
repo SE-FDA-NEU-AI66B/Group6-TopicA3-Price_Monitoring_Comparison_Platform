@@ -86,5 +86,15 @@ As a shopper, I want to see when a product's price was last updated so that I ca
 
 ## 5. Business Rules
 
+| ID | Rule | Worked example |
+|---|---|---|
+| **BR1** | A user may have no more than 20 active price alerts at the same time. Inactive, deleted or expired alerts do not count toward this limit. | Minh already has 20 active alerts. When he attempts to create a 21st active alert, the request is rejected and the number of active alerts remains 20. If he deactivates 1 alert, the number of active alerts becomes 19 and he may create 1 new active alert. |
+| **BR2** | A target price must be greater than 0 and strictly lower than the product's current valid price at the time the alert is created. | The current price is 20,000,000 VND. A target price of 19,500,000 VND is accepted. Target prices of 20,000,000 VND, 20,500,000 VND and 0 VND are rejected. |
+| **BR3** | Price data whose last successful update is 24 hours old or older must be marked as stale until a new valid price is recorded. | A product price was last updated at 08:00 on 15 September. At 07:59 on 16 September it is not stale. At 08:00 on 16 September it is exactly 24 hours old and must be marked `"Stale data"`. |
+| **BR4** | An active price alert must send exactly one notification when a product's valid price changes from above the target price to equal to or below the target price. No additional notification may be sent while the price remains at or below that target. The alert may trigger again only after the price rises above the target and later falls to the target or below. | The target price is 5,000,000 VND. The price changes from 5,200,000 VND to 4,900,000 VND, so exactly 1 notification is sent. A later price of 4,800,000 VND sends no additional notification. If the price later rises to 5,100,000 VND and then falls to 5,000,000 VND, exactly 1 new notification is sent. |
+| **BR5** | PriceLens may compare offers only when they refer to the same product variant, including the same brand, model and capacity or size attributes that affect the price. | An iPhone 15 with 128 GB from Source A priced at 18,900,000 VND may be compared with an iPhone 15 with 128 GB from Source B priced at 18,500,000 VND. An iPhone 15 with 256 GB priced at 21,000,000 VND must not be included in that comparison. |
+| **BR6** | Each user may have only one watchlist record for the same normalized product URL. URL tracking parameters must be removed before duplicate checking. | Minh has 5 products in his watchlist, including `https://shop.example/product/123`. He submits `https://shop.example/product/123?utm_source=email`. After URL normalization, both URLs identify the same product, so the second request is rejected and his watchlist remains at exactly 5 products. |
+
+
 
 ## 6. Screens and Flow
