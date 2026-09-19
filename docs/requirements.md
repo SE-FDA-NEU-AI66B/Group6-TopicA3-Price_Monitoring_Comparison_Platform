@@ -6,6 +6,84 @@ For online shoppers who struggle to monitor changing prices and compare equivale
 
 ## 2. Personas
 
+## 2. Personas
+
+### Persona 1 — Nguyễn Minh Anh: Budget-Conscious University Student
+
+**Profile:** Minh Anh is a 20-year-old second-year university student living in Hanoi. She mainly uses her smartphone to shop online and has a limited monthly budget for study equipment and personal electronics.
+
+*Role:* A budget-conscious student researching and purchasing study equipment online.
+
+*Goal:* Track the price of a suitable laptop and receive a notification when it falls within her budget of approximately 15,000,000 VND.
+
+**Blocked by:**
+
+* She must repeatedly check Shopee, Lazada and official retailer websites.
+* Prices and discount vouchers change frequently.
+* She cannot determine whether a displayed discount is genuine without historical price data.
+* She is unsure whether the displayed price was updated recently.
+
+*Shopping behaviour:* Minh Anh normally checks three different sources and may monitor a product for several weeks before purchasing it.
+
+*Notification preference:* She wants exactly one email when the product reaches or falls below her target price. She does not want repeated emails while the price remains below that target.
+
+**In her words:**
+"I can compare prices myself, but I do not have time to check three applications every day."
+
+**Technical skill:** Comfortable using mobile shopping applications but unlikely to use complex configuration options.
+
+---
+
+### Persona 2 — Trần Quốc Huy: Careful Big-Ticket Buyer
+
+**Profile:** Quốc Huy is a 31-year-old software engineer living in Hanoi. He is technically experienced and researches expensive electronic products carefully before making a purchase.
+
+*Role:* A working professional comparing high-value electronics across several online sources.
+
+*Goal:* Compare the same product variant across trusted retailers and use price history to determine whether the current offer is a genuine deal.
+
+**Blocked by:**
+
+* Similar listings may refer to different storage capacities, specifications or warranty options.
+* A lower displayed price may belong to a different product variant.
+* Discounts can be misleading without historical price information.
+* Checking multiple sources manually takes considerable time.
+
+*Shopping behaviour:* Quốc Huy normally checks four sources, including major marketplaces and authorised retailers. For example, he may track an iPhone 15 with 256 GB of storage for one month before purchasing it.
+
+*Notification preference:* He wants an email containing the product name, current price, target price and source. The system should notify him only when the price crosses the target.
+
+**In his words:**
+"A lower price is not useful if the system is comparing a different storage capacity or warranty option."
+
+**Technical skill:** High; comfortable with detailed filters, charts and product specifications.
+
+---
+
+### Persona 3 — Lê Thu Hà: Busy Repeat Online Shopper
+
+**Profile:** Thu Hà is a 38-year-old office administrator living in Bắc Ninh. She regularly purchases household products and gifts online but has limited time to monitor prices manually.
+
+*Role:* A busy repeat shopper who saves products for planned household and gift purchases.
+
+*Goal:* Add products quickly using their URLs, organise them in one watchlist and receive one clear notification when a product reaches her preferred price.
+
+**Blocked by:**
+
+* She does not have time to reopen every saved product link.
+* She may accidentally save the same product URL more than once.
+* Products become difficult to find when her list grows.
+* Excessive or repeated notifications cause her to ignore useful messages.
+
+*Shopping behaviour:* Thu Hà normally checks two or three marketplaces. She often saves product links so that she can return to them later, such as when monitoring the price of an air fryer before buying it as a gift.
+
+*Notification preference:* She wants one concise email containing the product name, new price and source link when the target price is reached.
+
+**In her words:**
+"I want to save the product once and receive one useful message when the price is right."
+
+**Technical skill:** Average; primarily uses a smartphone and prefers simple interactions.
+
 ## 3. Scenarios
 
 ## 4. User Stories

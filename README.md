@@ -1,4 +1,4 @@
-# Price Monitoring Comparison Platform
+﻿# Price Monitoring Comparison Platform
 ## Role Assignment
 
 | Name | GitHub username | Role |
