@@ -86,6 +86,70 @@ For online shoppers who struggle to monitor changing prices and compare equivale
 
 ## 3. Scenarios
 
+### Scenario 1 — Nguyễn Minh Anh sets a target price and receives a notification
+
+*Persona:* Nguyễn Minh Anh — Budget-Conscious University Student
+
+*Goal:* Track a laptop and receive a notification when its price falls within her budget.
+
+*Steps:*
+
+1. At the beginning of the week, Minh Anh is saving for a laptop that currently costs 15,000,000 VND.
+2. She signs in to PriceLens and finds the laptop among the products she is tracking.
+3. She sees that its price was updated 2 hours ago and confirms that the information is not marked as stale.
+4. She reviews its prices over the previous 30 days and decides that she can afford it at 14,000,000 VND.
+5. She provides 14,000,000 VND as her target price.
+6. PriceLens confirms that the target is valid and saves the alert with the status "Active".
+7. Several days later, PriceLens records a new valid price of 13,900,000 VND, which is below her target.
+8. Within 5 minutes, Minh Anh receives exactly one email with the subject "Price Drop Alert: Laptop ABC".
+9. She reviews the new price and decides whether to purchase the laptop.
+10. When the next recorded price is 13,800,000 VND, she does not receive another email because the price has remained below the same target.
+
+*Alternative flow:* If the target price is 0 VND, equal to or higher than the current price, or Minh Anh already has 20 active alerts, PriceLens rejects the request and explains the reason. If the product has not received a valid update for 24 hours, Minh Anh sees a "Stale data" warning before making her decision.
+
+---
+
+### Scenario 2 — Trần Quốc Huy evaluates and compares a high-value product
+
+*Persona:* Trần Quốc Huy — Careful Big-Ticket Buyer
+
+*Goal:* Determine whether the current price is a genuine deal and identify the lowest valid offer for the same product variant.
+
+*Steps:*
+
+1. Quốc Huy wants to purchase an iPhone 15 with 256 GB of storage.
+2. He signs in to PriceLens and finds the product among the items he is tracking.
+3. He confirms that the displayed price was updated recently.
+4. He reviews the product's prices over the previous 30 days and compares the current price with its recent price range.
+5. He reviews the current offers collected from supported sources.
+6. PriceLens includes only offers for the iPhone 15 with 256 GB and excludes offers for variants such as the 128 GB model.
+7. He sees that Source A offers the product for 18,900,000 VND while Source B offers it for 18,500,000 VND.
+8. He identifies Source B as 400,000 VND cheaper and follows its source link to consider completing the purchase.
+
+*Alternative flow:* If the product does not have enough valid records, PriceLens explains that a 30-day price history is not yet available. If only one matching offer exists, Quốc Huy is informed that no multi-source comparison can currently be made.
+
+---
+
+### Scenario 3 — Lê Thu Hà adds and later finds a tracked product
+
+*Persona:* Lê Thu Hà — Busy Repeat Online Shopper
+
+*Goal:* Save a product quickly and find it again without reopening multiple saved links.
+
+*Steps:*
+
+1. Thu Hà finds an air fryer that she may purchase as a gift from a supported online store.
+2. She copies the product's URL and signs in to PriceLens.
+3. She provides the URL so that PriceLens can begin monitoring the product.
+4. PriceLens confirms that the URL is supported and adds the air fryer to her tracked products with the status "Tracking".
+5. Several days later, Thu Hà has 15 tracked products and wants to find the air fryer again.
+6. She searches using the words "air fryer".
+7. PriceLens displays only the tracked products whose names match those words.
+8. She chooses the correct air fryer and reviews its latest recorded price.
+9. She clears the search text and sees all 15 tracked products again.
+
+*Alternative flow:* If Thu Hà provides a malformed URL or a URL from an unsupported source, PriceLens rejects it and explains the reason. If the normalized URL already belongs to one of her tracked products, PriceLens does not create a duplicate record.
+
 ## 4. User Stories
 
 ### 4.1 User Story Summary
