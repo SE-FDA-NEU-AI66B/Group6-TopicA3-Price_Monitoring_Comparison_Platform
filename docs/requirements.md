@@ -162,6 +162,12 @@ For online shoppers who struggle to monitor changing prices and compare equivale
 | **US04** | Add a product using its URL | P0 | 3 |
 | **US05** | Receive a price-drop notification | P0 | 8 |
 | **US06** | Identify stale price data | P1 | 3 |
+| **US07** | Deactivate a price alert | P1 | 2 |
+| **US08** | Delete a tracked product | P1 | 2 |
+| **US09** | Compare prices across retailers | P0 | 8 |
+| **US10** | Handle out-of-stock products | P1 | 3 |
+| **US11** | View multi-variant products | P2 | 5 |
+| **US12** | Export price history | P2 | 3 |
 
 ### US01 - Search tracked products
 
@@ -225,6 +231,65 @@ As a shopper, I want to see when a product's price was last updated so that I ca
 * Given a product's last successful price update occurred at 08:00 on 15 September, when I view the product at 08:00 on 16 September, then the price is marked with the warning `"Stale data"` because it is 24 hours old (BR3).
 * Given a product is currently marked as stale, when a new valid price is successfully recorded, then the `"Stale data"` warning is removed and the system displays exactly `"Updated just now"`.
 
+### US07 - Deactivate a price alert
+
+As a shopper, I want to temporarily deactivate a price alert without deleting it so that I stop receiving notifications but keep my target price saved for future use.
+
+**Acceptance criteria**
+
+* Given I have an active alert with a target price of 15,000,000 VND, when I click the "Deactivate" toggle, then the alert status changes to `"Inactive"` and no notifications are sent even if the price drops below the target.
+* Given I have 20 active alerts and 1 inactive alert, when I attempt to reactivate the inactive alert, then the request is rejected with the message `"Maximum 20 active alerts reached"` (BR1).
+* Given an alert is marked as `"Inactive"`, when I view my active alerts count, then this deactivated alert is not counted towards the 20-alert limit (BR1).
+
+### US08 - Delete a tracked product
+
+As a shopper, I want to remove a tracked product from my watchlist so that I can keep my list organized after purchasing the item or losing interest.
+
+**Acceptance criteria**
+
+* Given my watchlist contains exactly 15 products, when I delete 1 product, then the system confirms the deletion and my watchlist now contains exactly 14 products.
+* Given I delete a tracked product that has 2 active price alerts attached to it, when the deletion is confirmed, then those 2 alerts are permanently deleted along with the product.
+* Given I click the delete button for a product, when the confirmation prompt appears, then it displays the exact message: `"Are you sure you want to stop tracking this product?"`.
+
+### US09 - Compare prices across retailers
+
+As a shopper, I want to see current offers from different supported retailers for the same product variant so that I can easily identify the cheapest reliable source.
+
+**Acceptance criteria**
+
+* Given I am viewing the price comparison for an "iPhone 15 128GB", when the page loads, then it displays only offers for the 128GB variant and strictly excludes offers for the 256GB variant (BR5).
+* Given 3 supported retailers offer the same product at 18,500,000 VND, 19,000,000 VND, and 18,200,000 VND, when the comparison table loads, then the retailer offering 18,200,000 VND is listed at the top.
+* Given only 1 valid offer exists for a tracked product, when I open the comparison view, then the system displays exactly `"No multi-source comparison is currently available"`.
+
+### US10 - Handle out-of-stock products
+
+As a shopper, I want the system to indicate when a product is out of stock at a specific retailer so that I do not waste time visiting source links where I cannot make a purchase.
+
+**Acceptance criteria**
+
+* Given Retailer A has 0 stock for a tracked product, when the comparison list loads, then the price column for Retailer A displays exactly `"Out of stock"` and its row is visually greyed out.
+* Given a product drops below my target price of 5,000,000 VND but is marked as out of stock, when the price update is recorded, then the price alert notification is strictly withheld until the item is both below the target price and in stock.
+* Given all supported retailers are out of stock for a product, when I view its details, then the system displays exactly `"Currently out of stock across all tracked sources"`.
+
+### US11 - View multi-variant products
+
+As a shopper, I want to select different variants (e.g., color or storage capacity) of the same product model so that I can track the specific version I intend to buy.
+
+**Acceptance criteria**
+
+* Given a product URL belongs to a phone with 128GB, 256GB, and 512GB options, when I add the product, then the system prompts me to select exactly 1 specific variant to track.
+* Given I am tracking the 256GB variant at 20,000,000 VND, when the 128GB variant drops in price to 18,000,000 VND, then my tracked price remains unchanged at 20,000,000 VND (BR5).
+* Given a retailer does not offer the "Silver" color variant I am tracking, when I view the comparison table, then that retailer is excluded from the results for this specific variant.
+
+### US12 - Export price history
+
+As a careful shopper, I want to download a product's price history as a CSV file so that I can perform my own offline analysis on long-term price trends.
+
+**Acceptance criteria**
+
+* Given a product has 60 valid daily price records, when I click "Export Data", then a CSV file containing exactly 60 rows of date and price pairs is downloaded to my device.
+* Given a product has only been tracked for 5 days, when I export the data, then the downloaded CSV file contains exactly 5 rows of data.
+* Given a product has 0 valid price records, when I attempt to export, then the "Export Data" button is disabled and displays a tooltip stating `"No data to export"`.
 
 ## 5. Business Rules
 
