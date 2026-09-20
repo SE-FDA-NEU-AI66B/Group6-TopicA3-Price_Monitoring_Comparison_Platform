@@ -30,8 +30,6 @@ For online shoppers who struggle to monitor changing prices and compare equivale
 
 **Technical skill:** Comfortable using mobile shopping applications but unlikely to use complex configuration options.
 
----
-
 ### Persona 2 — Trần Quốc Huy: Careful Big-Ticket Buyer
 
 **Profile:** Quốc Huy is a 31-year-old software engineer living in Hanoi. He is technically experienced and researches expensive electronic products carefully before making a purchase.
@@ -55,8 +53,6 @@ For online shoppers who struggle to monitor changing prices and compare equivale
 "A lower price is not useful if the system is comparing a different storage capacity or warranty option."
 
 **Technical skill:** High; comfortable with detailed filters, charts and product specifications.
-
----
 
 ### Persona 3 — Lê Thu Hà: Busy Repeat Online Shopper
 
@@ -105,8 +101,6 @@ For online shoppers who struggle to monitor changing prices and compare equivale
 
 *Alternative flow:* If the target price is 0 VND, equal to or higher than the current price, or Minh Anh already has 20 active alerts, PriceLens rejects the request and explains the reason. If the product has not received a valid update for 24 hours, Minh Anh sees a "Stale data" warning before making her decision.
 
----
-
 ### Scenario 2 — Trần Quốc Huy evaluates and compares a high-value product
 
 *Persona:* Trần Quốc Huy — Careful Big-Ticket Buyer
@@ -125,8 +119,6 @@ For online shoppers who struggle to monitor changing prices and compare equivale
 8. He identifies Source B as 400,000 VND cheaper and follows its source link to consider completing the purchase.
 
 *Alternative flow:* If the product does not have enough valid records, PriceLens explains that a 30-day price history is not yet available. If only one matching offer exists, Quốc Huy is informed that no multi-source comparison can currently be made.
-
----
 
 ### Scenario 3 — Lê Thu Hà adds and later finds a tracked product
 
@@ -150,79 +142,6 @@ For online shoppers who struggle to monitor changing prices and compare equivale
 
 ## 4. User Stories
 
-### 4.1 User Story Summary
-
-| ID | Story | Priority | Points |
-|---|---|---:|---:|
-| **US01** | Search tracked products | P1 | 3 |
-| **US02** | View product price history | P0 | 5 |
-| **US03** | Create a price alert | P0 | 5 |
-| **US04** | Add a product using its URL | P0 | 3 |
-| **US05** | Receive a price-drop notification | P0 | 8 |
-| **US06** | Identify stale price data | P1 | 3 |
-
-### US01 - Search tracked products
-
-As a shopper, I want to search the products in my watchlist by name so that I can quickly find a product without manually scrolling through the entire list.
-
-**Acceptance criteria**
-
-* Given my watchlist contains 15 products and exactly 3 product names contain the word "MacBook", when I search for "macbook", then exactly those 3 products are displayed within 2 seconds.
-* Given no product in my watchlist matches "xyz123", when I search for that text, then the system displays exactly `"No products found matching 'xyz123'"`.
-* Given I clear the search text, when the search is updated, then all 15 products in my watchlist are displayed again.
-
-### US02 - View product price history
-
-As a shopper, I want to view a product's price history so that I can determine whether its current price is a genuine deal.
-
-**Acceptance criteria**
-
-* Given a tracked product has 30 valid daily price records, when I view its price history, then a line chart containing exactly 30 data points is displayed for the previous 30 calendar days.
-* Given a newly tracked product has only 1 valid price record, when I view its price history, then the system displays exactly `"Insufficient data for a 30-day chart"`.
-* Given a product has no valid price records, when I view its price history, then the system displays exactly `"No price history available"` instead of an empty chart.
-
-### US03 - Create a price alert
-
-As a shopper, I want to set a target price for a tracked product so that I can be notified when the product becomes affordable.
-
-**Acceptance criteria**
-
-* Given the current product price is 15,000,000 VND and I have fewer than 20 active alerts, when I submit a target price of 14,000,000 VND, then the alert is saved with the status `"Active"` and the target price is displayed as `"14,000,000 VND"`.
-* Given the current product price is 15,000,000 VND, when I submit a target price of 16,000,000 VND, then the request is rejected with the message `"Target price must be lower than the current price"` (BR2).
-* Given the current product price is 15,000,000 VND, when I submit a target price of 0 VND, then the request is rejected with the message `"Target price must be greater than 0"` (BR2).
-* Given I already have 20 active price alerts, when I attempt to create a 21st active alert, then the request is rejected with the message `"Maximum 20 active alerts reached"` (BR1).
-
-### US04 - Add a product using its URL
-
-As a shopper, I want to add a supported product using its URL so that PriceLens can track its price in my watchlist.
-
-**Acceptance criteria**
-
-* Given my watchlist contains 4 products and I provide a valid supported URL that is not already in my watchlist, when I add the product, then my watchlist contains 5 products and the new product has the status `"Tracking"`.
-* Given my watchlist already contains a product with the same normalized URL, when I submit that URL again, then the request is rejected with the message `"This product URL is already being tracked"` and the number of products in my watchlist remains unchanged (BR6).
-* Given I provide a malformed URL or a URL from an unsupported source, when I attempt to add it, then the request is rejected with the message `"Unsupported or invalid product URL"`.
-
-### US05 - Receive a price-drop notification
-
-As a shopper, I want to receive an email notification when a product reaches my target price so that I can decide whether to purchase it.
-
-**Acceptance criteria**
-
-* Given my active alert has a target price of 5,000,000 VND and the previously recorded price was 5,200,000 VND, when PriceLens records a new valid price of 4,900,000 VND, then exactly 1 email notification is sent to my registered email address within 5 minutes (BR4).
-* Given 1 notification has already been sent after the price reached 4,900,000 VND, when the next recorded price is 4,800,000 VND and remains below the same target price, then no additional notification is sent (BR4).
-* Given a notification is sent for a product named "Laptop ABC", when I receive the email, then its subject is exactly `"Price Drop Alert: Laptop ABC"`.
-* Given the price later rises above 5,000,000 VND and subsequently falls to 5,000,000 VND or below, when that new threshold crossing is recorded, then exactly 1 new notification is sent (BR4).
-
-### US06 - Identify stale price data
-
-As a shopper, I want to see when a product's price was last updated so that I can judge whether the displayed information is current and reliable.
-
-**Acceptance criteria**
-
-* Given a product's price was successfully updated 2 hours ago, when I view the product in my watchlist, then the system displays exactly `"Updated 2 hours ago"` and does not display a stale-data warning.
-* Given a product's last successful price update occurred at 08:00 on 15 September, when I view the product at 08:00 on 16 September, then the price is marked with the warning `"Stale data"` because it is 24 hours old (BR3).
-* Given a product is currently marked as stale, when a new valid price is successfully recorded, then the `"Stale data"` warning is removed and the system displays exactly `"Updated just now"`.## 4. User Stories
-
 ### User Story Summary
 
 | ID       | Story                             | Priority | Points |
@@ -234,13 +153,14 @@ As a shopper, I want to see when a product's price was last updated so that I ca
 | *US05* | Receive a price-drop notification |       P0 |      8 |
 | *US06* | Identify stale price data         |       P1 |      3 |
 
----
-
 ### US01 — Search tracked products
 
 *Priority:* P1
+
 *Story Points:* 3
+
 *Primary Persona:* Lê Thu Hà
+
 *Related Scenario:* Scenario 3
 
 As *Lê Thu Hà, a busy repeat online shopper*, I want to *search my tracked products by name* so that *I can quickly find a saved product without manually checking the entire watchlist*.
@@ -255,13 +175,14 @@ As *Lê Thu Hà, a busy repeat online shopper*, I want to *search my tracked pro
 
 None.
 
----
-
 ### US02 — View product price history
 
 *Priority:* P0
+
 *Story Points:* 5
+
 *Primary Persona:* Trần Quốc Huy
+
 *Related Scenarios:* Scenario 1 and Scenario 2
 
 As *Trần Quốc Huy, a careful buyer of high-value electronics*, I want to *view a tracked product's price history* so that *I can determine whether its current price is a genuine deal*.
@@ -277,13 +198,14 @@ As *Trần Quốc Huy, a careful buyer of high-value electronics*, I want to *vi
 
 None.
 
----
-
 ### US03 — Create a price alert
 
 *Priority:* P0
+
 *Story Points:* 5
+
 *Primary Persona:* Nguyễn Minh Anh
+
 *Related Scenario:* Scenario 1
 
 As *Nguyễn Minh Anh, a budget-conscious university student*, I want to *set a target price for a tracked laptop* so that *I can be notified when the laptop becomes affordable within my budget*.
@@ -300,13 +222,14 @@ As *Nguyễn Minh Anh, a budget-conscious university student*, I want to *set a 
 * BR1 — Maximum number of active price alerts
 * BR2 — Valid target-price range
 
----
-
 ### US04 — Add a product using its URL
 
 *Priority:* P0
+
 *Story Points:* 3
+
 *Primary Persona:* Lê Thu Hà
+
 *Related Scenario:* Scenario 3
 
 As *Lê Thu Hà, a busy repeat online shopper*, I want to *add a supported product using its URL* so that *PriceLens can track the product without requiring me to enter its information manually*.
@@ -321,13 +244,14 @@ As *Lê Thu Hà, a busy repeat online shopper*, I want to *add a supported produ
 
 * BR6 — One watchlist record per normalized product URL
 
----
-
 ### US05 — Receive a price-drop notification
 
 *Priority:* P0
+
 *Story Points:* 8
+
 *Primary Persona:* Nguyễn Minh Anh
+
 *Related Scenario:* Scenario 1
 
 As *Nguyễn Minh Anh, a budget-conscious university student*, I want to *receive one email when a tracked product reaches my target price* so that *I can decide whether to purchase it without repeatedly checking multiple shopping platforms*.
@@ -343,13 +267,14 @@ As *Nguyễn Minh Anh, a budget-conscious university student*, I want to *receiv
 
 * BR4 — Price-alert notification trigger and repeat behaviour
 
----
-
 ### US06 — Identify stale price data
 
 *Priority:* P1
+
 *Story Points:* 3
+
 *Primary Persona:* Nguyễn Minh Anh
+
 *Related Scenario:* Scenario 1
 
 As *Nguyễn Minh Anh, a budget-conscious university student*, I want to *see when a product's price was last successfully updated* so that *I can judge whether the displayed price is current and reliable*.
@@ -375,7 +300,6 @@ As *Nguyễn Minh Anh, a budget-conscious university student*, I want to *see wh
 | **BR4** | An active price alert must send exactly one notification when a product's valid price changes from above the target price to equal to or below the target price. No additional notification may be sent while the price remains at or below that target. The alert may trigger again only after the price rises above the target and later falls to the target or below. | The target price is 5,000,000 VND. The price changes from 5,200,000 VND to 4,900,000 VND, so exactly 1 notification is sent. A later price of 4,800,000 VND sends no additional notification. If the price later rises to 5,100,000 VND and then falls to 5,000,000 VND, exactly 1 new notification is sent. |
 | **BR5** | PriceLens may compare offers only when they refer to the same product variant, including the same brand, model and capacity or size attributes that affect the price. | An iPhone 15 with 128 GB from Source A priced at 18,900,000 VND may be compared with an iPhone 15 with 128 GB from Source B priced at 18,500,000 VND. An iPhone 15 with 256 GB priced at 21,000,000 VND must not be included in that comparison. |
 | **BR6** | Each user may have only one watchlist record for the same normalized product URL. URL tracking parameters must be removed before duplicate checking. | Minh has 5 products in his watchlist, including `https://shop.example/product/123`. He submits `https://shop.example/product/123?utm_source=email`. After URL normalization, both URLs identify the same product, so the second request is rejected and his watchlist remains at exactly 5 products. |
-
 
 
 ## 6. Screens and Flow
