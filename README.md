@@ -1,5 +1,10 @@
-# Price Monitoring Comparison Platform
+﻿# Price Monitoring Comparison Platform
 ## Role Assignment
-Hieu - ChatGPT engineer
-Hoang Le - Gemini pro engineer to repo
-Viet - Claude pro engineer Tiến
+
+| Name | GitHub username | Role |
+| --- | --- | --- |
+| Luong The Hieu | adcc17 | Scrum Master |
+| Pham Ba Viet | davvph | Product Owner |
+| Be Thanh Tien | Tienachilles | Member |
+| Le Huy Hoang | helian16 | Member |
+| Nguyen Huy Minh | minh7322 | Member |
