@@ -6,8 +6,6 @@ For online shoppers who struggle to monitor changing prices and compare equivale
 
 ## 2. Personas
 
-## 2. Personas
-
 ### Persona 1 — Nguyễn Minh Anh: Budget-Conscious University Student
 
 **Profile:** Minh Anh is a 20-year-old second-year university student living in Hanoi. She mainly uses her smartphone to shop online and has a limited monthly budget for study equipment and personal electronics.
@@ -223,7 +221,148 @@ As a shopper, I want to see when a product's price was last updated so that I ca
 
 * Given a product's price was successfully updated 2 hours ago, when I view the product in my watchlist, then the system displays exactly `"Updated 2 hours ago"` and does not display a stale-data warning.
 * Given a product's last successful price update occurred at 08:00 on 15 September, when I view the product at 08:00 on 16 September, then the price is marked with the warning `"Stale data"` because it is 24 hours old (BR3).
-* Given a product is currently marked as stale, when a new valid price is successfully recorded, then the `"Stale data"` warning is removed and the system displays exactly `"Updated just now"`.
+* Given a product is currently marked as stale, when a new valid price is successfully recorded, then the `"Stale data"` warning is removed and the system displays exactly `"Updated just now"`.## 4. User Stories
+
+### User Story Summary
+
+| ID       | Story                             | Priority | Points |
+| -------- | --------------------------------- | -------: | -----: |
+| *US01* | Search tracked products           |       P1 |      3 |
+| *US02* | View product price history        |       P0 |      5 |
+| *US03* | Create a price alert              |       P0 |      5 |
+| *US04* | Add a product using its URL       |       P0 |      3 |
+| *US05* | Receive a price-drop notification |       P0 |      8 |
+| *US06* | Identify stale price data         |       P1 |      3 |
+
+---
+
+### US01 — Search tracked products
+
+*Priority:* P1
+*Story Points:* 3
+*Primary Persona:* Lê Thu Hà
+*Related Scenario:* Scenario 3
+
+As *Lê Thu Hà, a busy repeat online shopper*, I want to *search my tracked products by name* so that *I can quickly find a saved product without manually checking the entire watchlist*.
+
+#### Acceptance Criteria
+
+* Given Hà's watchlist contains 15 products and exactly 1 product name contains the words "Air Fryer", when she searches for "air fryer", then exactly that 1 product is displayed within 2 seconds.
+* Given no product in Hà's watchlist matches "xyz123", when she searches for that text, then the system displays exactly "No products found matching 'xyz123'".
+* Given a search filter is currently applied, when Hà clears the search text, then all 15 products in her watchlist are displayed again.
+
+#### Related Business Rules
+
+None.
+
+---
+
+### US02 — View product price history
+
+*Priority:* P0
+*Story Points:* 5
+*Primary Persona:* Trần Quốc Huy
+*Related Scenarios:* Scenario 1 and Scenario 2
+
+As *Trần Quốc Huy, a careful buyer of high-value electronics*, I want to *view a tracked product's price history* so that *I can determine whether its current price is a genuine deal*.
+
+#### Acceptance Criteria
+
+* Given a tracked product has 30 valid daily price records, when Huy views its price history, then a line chart containing exactly 30 data points is displayed for the previous 30 calendar days.
+* Given the 30-day history of a tracked product has a lowest price of 18,500,000 VND, a highest price of 20,000,000 VND and a current price of 18,900,000 VND, when Huy views the price history, then those three values are displayed exactly.
+* Given a newly tracked product has only 1 valid price record, when Huy views its price history, then the system displays exactly "Insufficient data for a 30-day chart".
+* Given a product has no valid price records, when Huy views its price history, then the system displays exactly "No price history available" instead of an empty chart.
+
+#### Related Business Rules
+
+None.
+
+---
+
+### US03 — Create a price alert
+
+*Priority:* P0
+*Story Points:* 5
+*Primary Persona:* Nguyễn Minh Anh
+*Related Scenario:* Scenario 1
+
+As *Nguyễn Minh Anh, a budget-conscious university student*, I want to *set a target price for a tracked laptop* so that *I can be notified when the laptop becomes affordable within my budget*.
+
+#### Acceptance Criteria
+
+* Given the tracked laptop's current price is 15,000,000 VND and Minh Anh has fewer than 20 active alerts, when she submits a target price of 14,000,000 VND, then the alert is saved with the status "Active" and the target price is displayed as "14,000,000 VND".
+* Given the tracked laptop's current price is 15,000,000 VND, when Minh Anh submits a target price of 16,000,000 VND, then the request is rejected with the message "Target price must be lower than the current price" (BR2).
+* Given the tracked laptop's current price is 15,000,000 VND, when Minh Anh submits a target price of 0 VND, then the request is rejected with the message "Target price must be greater than 0" (BR2).
+* Given Minh Anh already has 20 active price alerts, when she attempts to create a 21st active alert, then the request is rejected with the message "Maximum 20 active alerts reached" (BR1).
+
+#### Related Business Rules
+
+* BR1 — Maximum number of active price alerts
+* BR2 — Valid target-price range
+
+---
+
+### US04 — Add a product using its URL
+
+*Priority:* P0
+*Story Points:* 3
+*Primary Persona:* Lê Thu Hà
+*Related Scenario:* Scenario 3
+
+As *Lê Thu Hà, a busy repeat online shopper*, I want to *add a supported product using its URL* so that *PriceLens can track the product without requiring me to enter its information manually*.
+
+#### Acceptance Criteria
+
+* Given Hà's watchlist contains 4 products and she provides a valid supported URL for an air fryer that is not already in her watchlist, when she submits the URL, then her watchlist contains 5 products and the new product has the status "Tracking".
+* Given Hà's watchlist already contains a product with the same normalized URL, when she submits that URL again, then the request is rejected with the message "This product URL is already being tracked" and the number of products in her watchlist remains unchanged (BR6).
+* Given Hà provides a malformed URL or a URL from an unsupported source, when she attempts to add the product, then the request is rejected with the message "Unsupported or invalid product URL".
+
+#### Related Business Rules
+
+* BR6 — One watchlist record per normalized product URL
+
+---
+
+### US05 — Receive a price-drop notification
+
+*Priority:* P0
+*Story Points:* 8
+*Primary Persona:* Nguyễn Minh Anh
+*Related Scenario:* Scenario 1
+
+As *Nguyễn Minh Anh, a budget-conscious university student*, I want to *receive one email when a tracked product reaches my target price* so that *I can decide whether to purchase it without repeatedly checking multiple shopping platforms*.
+
+#### Acceptance Criteria
+
+* Given Minh Anh has an active alert with a target price of 14,000,000 VND and the previously recorded laptop price was 15,000,000 VND, when PriceLens records a new valid price of 13,900,000 VND, then exactly 1 email notification is sent to her registered email address within 5 minutes (BR4).
+* Given 1 notification has already been sent after the laptop price reached 13,900,000 VND, when the next recorded price is 13,800,000 VND and remains below the same target price, then no additional notification is sent (BR4).
+* Given a notification is generated for a product named "Laptop ABC", when Minh Anh receives the email, then its subject is exactly "Price Drop Alert: Laptop ABC".
+* Given the laptop price later rises to 14,200,000 VND and subsequently falls to 14,000,000 VND, when that new threshold crossing is recorded, then exactly 1 new email notification is sent within 5 minutes (BR4).
+
+#### Related Business Rules
+
+* BR4 — Price-alert notification trigger and repeat behaviour
+
+---
+
+### US06 — Identify stale price data
+
+*Priority:* P1
+*Story Points:* 3
+*Primary Persona:* Nguyễn Minh Anh
+*Related Scenario:* Scenario 1
+
+As *Nguyễn Minh Anh, a budget-conscious university student*, I want to *see when a product's price was last successfully updated* so that *I can judge whether the displayed price is current and reliable*.
+
+#### Acceptance Criteria
+
+* Given a product's price was successfully updated 2 hours ago, when Minh Anh views the product in her watchlist, then the system displays exactly "Updated 2 hours ago" and does not display a stale-data warning.
+* Given a product's last successful price update occurred at 08:00 on 15 September, when Minh Anh views the product at 08:00 on 16 September, then the price is marked with the warning "Stale data" because it is exactly 24 hours old (BR3).
+* Given a product is currently marked as stale, when a new valid price is successfully recorded, then the "Stale data" warning is removed and the system displays exactly "Updated just now".
+
+#### Related Business Rules
+
+* BR3 — Stale price-data threshold
 
 
 ## 5. Business Rules
