@@ -152,6 +152,12 @@ For online shoppers who struggle to monitor changing prices and compare equivale
 | *US04* | Add a product using its URL       |       P0 |      3 |
 | *US05* | Receive a price-drop notification |       P0 |      8 |
 | *US06* | Identify stale price data         |       P1 |      3 |
+| *US07* | Deactivate a price alert | P1 | 2 |
+| *US08* | Delete a tracked product | P1 | 2 |
+| *US09* | Compare prices across retailers | P0 | 8 |
+| *US10* | Identify out-of-stock offers | P1 | 3 |
+| *US11* | Track a specific product variant | P2 | 5 |
+| *US12* | Export product price history | P2 | 3 |
 
 ### US01 — Search tracked products
 
@@ -289,6 +295,141 @@ As *Nguyễn Minh Anh, a budget-conscious university student*, I want to *see wh
 
 * BR3 — Stale price-data threshold
 
+### US07 — Deactivate a price alert
+
+*Priority:* P1
+
+*Story Points:* 2
+
+*Primary Persona:* Nguyễn Minh Anh
+
+*Related Scenario:* Scenario 1 — extended alert-management flow
+
+As *Nguyễn Minh Anh, a budget-conscious university student*, I want to *deactivate a price alert without deleting it* so that *I can stop its notifications while keeping the target price for future use*.
+
+#### Acceptance Criteria
+
+* Given Minh Anh has an active laptop alert with a target price of 14,000,000 VND, when she deactivates the alert, then its status changes to "Inactive" and its saved target price remains exactly "14,000,000 VND".
+* Given the alert is inactive and PriceLens records a laptop price of 13,900,000 VND, when the price is processed, then no email notification is sent.
+* Given Minh Anh has 20 active alerts and 1 inactive alert, when she attempts to reactivate the inactive alert, then the request is rejected with the message "Maximum 20 active alerts reached" (BR1).
+* Given Minh Anh has 19 active alerts and 1 inactive alert, when she reactivates the inactive alert, then its status changes to "Active" and her active-alert count becomes exactly 20 (BR1).
+
+#### Related Business Rules
+
+* BR1 — Maximum number of active price alerts
+
+### US08 — Delete a tracked product
+
+*Priority:* P1
+
+*Story Points:* 2
+
+*Primary Persona:* Lê Thu Hà
+
+*Related Scenario:* Scenario 3 — extended watchlist-management flow
+
+As *Lê Thu Hà, a busy repeat online shopper*, I want to *delete a product that I no longer need to track* so that *my watchlist remains organised and relevant*.
+
+#### Acceptance Criteria
+
+* Given Hà's watchlist contains 15 products, when she confirms the deletion of 1 tracked product, then the system displays exactly "Product removed from your watchlist" and her watchlist contains exactly 14 products.
+* Given the tracked product has 2 active price alerts, when Hà requests to delete it, then the confirmation message states exactly "Deleting this product will also delete 2 price alerts".
+* Given Hà confirms the deletion of a tracked product with 2 active alerts, when the deletion is completed, then the product and both alerts are removed and her active-alert count decreases by exactly 2.
+* Given Hà cancels the deletion confirmation, when she returns to her watchlist, then all 15 products remain and the 2 related alerts retain the status "Active".
+
+#### Related Business Rules
+
+None.
+
+### US09 — Compare prices across retailers
+
+*Priority:* P0
+
+*Story Points:* 8
+
+*Primary Persona:* Trần Quốc Huy
+
+*Related Scenario:* Scenario 2
+
+As *Trần Quốc Huy, a careful buyer of high-value electronics*, I want to *compare current offers for the same product variant across supported retailers* so that *I can identify the lowest valid offer without comparing different variants*.
+
+#### Acceptance Criteria
+
+* Given Source A offers an iPhone 15 256 GB for 18,900,000 VND and Source B offers the same variant for 18,500,000 VND, when Huy views the comparison, then both offers are displayed, Source B appears first and the system shows that it is exactly 400,000 VND cheaper.
+* Given Source C offers an iPhone 15 128 GB for 17,900,000 VND, when Huy compares offers for the iPhone 15 256 GB, then the 128 GB offer is excluded from the comparison (BR5).
+* Given only 1 valid offer matches the selected product variant, when Huy views the comparison, then the system displays exactly "No multi-source comparison is currently available".
+
+#### Related Business Rules
+
+* BR5 — Equivalent product-variant comparison
+
+### US10 — Identify out-of-stock offers
+
+*Priority:* P1
+
+*Story Points:* 3
+
+*Primary Persona:* Trần Quốc Huy
+
+*Related Scenario:* Scenario 2 — supporting comparison flow
+
+As *Trần Quốc Huy, a careful buyer of high-value electronics*, I want to *see which retailer offers are currently out of stock* so that *I can distinguish purchasable offers from unavailable ones*.
+
+#### Acceptance Criteria
+
+* Given Retailer A has 0 available units of the selected product variant, when Huy views the comparison, then Retailer A's availability status is displayed exactly as "Out of stock".
+* Given Retailer A lists the product for 18,200,000 VND but is out of stock and Retailer B lists it for 18,500,000 VND and is in stock, when Huy views the comparison, then Retailer B is identified as the "Lowest available offer".
+* Given all supported retailers are out of stock for the selected product variant, when Huy views its offers, then the system displays exactly "Currently out of stock across all tracked sources".
+
+#### Related Business Rules
+
+None.
+
+### US11 — Track a specific product variant
+
+*Priority:* P2
+
+*Story Points:* 5
+
+*Primary Persona:* Trần Quốc Huy
+
+*Related Scenario:* Scenario 2 — extended variant-selection flow
+
+As *Trần Quốc Huy, a careful buyer of high-value electronics*, I want to *select the exact variant of a product that I intend to track* so that *prices from different capacities or specifications do not affect my tracked product*.
+
+#### Acceptance Criteria
+
+* Given an iPhone 15 is available with 128 GB, 256 GB and 512 GB capacities, when Huy adds the product and selects the 256 GB option, then exactly 1 tracked product is created with the variant displayed as "iPhone 15 — 256 GB".
+* Given the product has 3 available capacities and Huy has not selected one, when he attempts to start tracking, then the request is rejected with the message "Select 1 product variant to continue".
+* Given Huy is tracking the iPhone 15 256 GB at 20,000,000 VND, when the 128 GB variant falls to 18,000,000 VND, then the tracked price of the 256 GB variant remains exactly 20,000,000 VND (BR5).
+* Given a retailer offers only the iPhone 15 128 GB, when Huy views offers for his tracked 256 GB variant, then that retailer's 128 GB offer is excluded (BR5).
+
+#### Related Business Rules
+
+* BR5 — Equivalent product-variant comparison
+
+### US12 — Export product price history
+
+*Priority:* P2
+
+*Story Points:* 3
+
+*Primary Persona:* Trần Quốc Huy
+
+*Related Scenario:* Scenario 2 — supporting price-analysis flow
+
+As *Trần Quốc Huy, a careful buyer of high-value electronics*, I want to *export a tracked product's price history as a CSV file* so that *I can analyse its long-term price changes offline*.
+
+#### Acceptance Criteria
+
+* Given a product has 60 valid daily price records, when Huy exports its price history, then the downloaded CSV contains exactly 1 header row followed by 60 data rows, for a total of 61 rows.
+* Given the CSV export contains price-history data, when Huy opens the file, then its header is exactly "date,price_vnd" and every data row contains one date and one price value.
+* Given a product has only 5 valid price records, when Huy exports its price history, then the downloaded CSV contains exactly 1 header row and 5 data rows, for a total of 6 rows.
+* Given a product has 0 valid price records, when Huy attempts to export its price history, then no file is generated and the system displays exactly "No data to export".
+
+#### Related Business Rules
+
+None.
 
 ## 5. Business Rules
 
