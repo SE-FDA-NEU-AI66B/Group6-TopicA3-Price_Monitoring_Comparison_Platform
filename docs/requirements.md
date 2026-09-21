@@ -478,3 +478,57 @@ PriceLens does not currently require an Administrator screen because no approved
 - Confirming product deletion returns the user to `/watchlist`; cancelling the confirmation leaves the product unchanged.
 - Deactivating or reactivating an alert keeps the user on `/alerts` with the updated alert status.
 - Price-drop emails are external notification outcomes defined by US05 and BR4, so they are not represented as application screens.
+
+### Flow Diagram
+
+```text
+                                           ┌─────────────┐
+                                           │      /      │  not signed in
+                                           └──────┬──────┘
+                                                  │ sign in
+                                                  ▼
+                                  ┌────────────────────────┐
+                       ┌─────────▶│       /watchlist       │◀──────────────┐
+                       │          └───┬────────┬───────────┘               │
+                       │              │        │                           │
+                cancel │   add product│        │open tracked product       │ back
+                       │              ▼        ▼                           │
+              ┌────────┴─────────┐  ┌─────────────────────────┐           │
+              │  /products/add   ├─▶│  /products/:productId   ├───────────┘
+              └────────┬─────────┘  └───────────┬─────────────┘
+                       │                        │
+      invalid URL      │ valid URL +            │ compare offers
+      unsupported      │ exact variant          ▼
+      or duplicate     │         ┌─────────────────────────────────┐
+              ┌────────┘         │ /products/:productId/compare    │
+              │                  └───────────────┬─────────────────┘
+              └────── stay                       │ back
+                     on                         └──────────────┐
+              /products/add                                    │
+                                                               │
+                                  ┌─────────────────────────┐  │
+                                  │  /products/:productId   │◀─┘
+                                  └─────────────────────────┘
+
+
+              ┌─────────────────────────────────────────────────────────┐
+              │                                                         │
+              │  From /watchlist: manage alerts                         │
+              ▼                                                         │
+        ┌─────────────┐                                                 │
+        │   /alerts   ├─────────────────────────────────────────────────┘
+        └──────┬──────┘                 back to watchlist
+               │
+               │ deactivate or reactivate
+               ▼
+        stay on /alerts
+
+
+        System outcomes — not additional application screens:
+
+        /products/:productId ── export price history ──▶ CSV downloaded (US12)
+
+        active price alert ── target price crossed ──▶ price-drop email sent
+                                                        within 5 minutes
+                                                        (US05, BR4)
+```
