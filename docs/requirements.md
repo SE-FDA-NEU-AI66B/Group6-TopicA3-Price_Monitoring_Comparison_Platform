@@ -449,3 +449,32 @@ None.
 | **BR8** | An out-of-stock offer must not be identified as the lowest available offer. Only in-stock offers that match the selected product variant are eligible for that result. If every matching offer is out of stock, no lowest available offer may be selected. | Retailer A lists the selected variant for 18,200,000 VND but has 0 available units. Retailer B lists it for 18,500,000 VND and is in stock. Retailer B must be identified as the lowest available offer. If both retailers have 0 available units, the system displays "Currently out of stock across all tracked sources". |
 
 ## 6. Screens and Flow
+### Screen Inventory
+
+| Route | Purpose | Access | Priority |
+|---|---|:---:|:---:|
+| `/` | Introduce PriceLens and allow a guest to sign in | G | P0 |
+| `/watchlist` | Display tracked products, search by product name, show price-update status and remove products from the watchlist (US01, US06, US08) | U | P0 |
+| `/products/add` | Add a product using a supported URL and select the exact product variant to track (US04, US11) | U | P0 |
+| `/products/:productId` | Display the current price and price history, create a price alert and export price-history data (US02, US03, US12) | U | P0 |
+| `/products/:productId/compare` | Compare matching product offers, show availability and identify the lowest valid in-stock offer (US09, US10) | U | P0 |
+| `/alerts` | Display active and inactive price alerts and allow users to deactivate or reactivate them (US07) | U | P1 |
+
+**Access legend:**
+
+- **G** — Guest
+- **U** — Authenticated user
+- **A** — Administrator
+
+PriceLens does not currently require an Administrator screen because no approved persona, scenario or User Story defines administrator behaviour.
+
+### Flow Notes
+
+- A guest begins at `/` and reaches `/watchlist` after signing in.
+- From `/watchlist`, a user can add a product, open a tracked product or manage price alerts.
+- A valid product URL and selected variant lead from `/products/add` to the corresponding product details.
+- An invalid, unsupported or duplicate URL keeps the user on `/products/add` and displays the relevant rejection message.
+- From `/products/:productId`, the user can view price history, create an alert, export price data or open the offer comparison.
+- Confirming product deletion returns the user to `/watchlist`; cancelling the confirmation leaves the product unchanged.
+- Deactivating or reactivating an alert keeps the user on `/alerts` with the updated alert status.
+- Price-drop emails are external notification outcomes defined by US05 and BR4, so they are not represented as application screens.
