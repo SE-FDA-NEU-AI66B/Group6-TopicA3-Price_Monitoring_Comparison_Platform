@@ -30,6 +30,8 @@ For online shoppers who struggle to monitor changing prices and compare equivale
 
 **Technical skill:** Comfortable using mobile shopping applications but unlikely to use complex configuration options.
 
+**Interview note:** This persona was informed by an interview with Nguyễn Minh Anh, University Student, conducted via interview on 12/9/2026.
+
 ### Persona 2 — Trần Quốc Huy: Careful Big-Ticket Buyer
 
 **Profile:** Quốc Huy is a 31-year-old software engineer living in Hanoi. He is technically experienced and researches expensive electronic products carefully before making a purchase.
@@ -54,6 +56,8 @@ For online shoppers who struggle to monitor changing prices and compare equivale
 
 **Technical skill:** High; comfortable with detailed filters, charts and product specifications.
 
+**Interview note:** This persona was informed by an interview with Trần Quốc Huy, Big-ticket buyer, conducted via interview on 10/9/2026.
+
 ### Persona 3 — Lê Thu Hà: Busy Repeat Online Shopper
 
 **Profile:** Thu Hà is a 38-year-old office administrator living in Bắc Ninh. She regularly purchases household products and gifts online but has limited time to monitor prices manually.
@@ -77,6 +81,8 @@ For online shoppers who struggle to monitor changing prices and compare equivale
 "I want to save the product once and receive one useful message when the price is right."
 
 **Technical skill:** Average; primarily uses a smartphone and prefers simple interactions.
+
+**Interview note:** This persona was informed by an interview with Lê Thu Hà, Online shopper, conducted via interview on 15/9/2026.
 
 ## 3. Scenarios
 
@@ -362,7 +368,7 @@ As *Trần Quốc Huy, a careful buyer of high-value electronics*, I want to *co
 
 #### Related Business Rules
 
-* BR5 — Equivalent product-variant comparison
+* BR5 — Product-variant consistency
 
 ### US10 — Identify out-of-stock offers
 
