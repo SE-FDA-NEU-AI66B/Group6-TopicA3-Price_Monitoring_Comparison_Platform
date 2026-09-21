@@ -468,10 +468,6 @@ None.
 
 PriceLens does not currently require an Administrator screen because no approved persona, scenario or User Story defines administrator behaviour.
 
-### Flow Diagram
-
-![PriceLens screens and flow](images/pricelens-screen-flow.png)
-
 ### Flow Notes
 
 - A guest begins at `/` and reaches `/watchlist` after signing in.
