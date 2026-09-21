@@ -310,13 +310,14 @@ As *Nguyễn Minh Anh, a budget-conscious university student*, I want to *deacti
 #### Acceptance Criteria
 
 * Given Minh Anh has an active laptop alert with a target price of 14,000,000 VND, when she deactivates the alert, then its status changes to "Inactive" and its saved target price remains exactly "14,000,000 VND".
-* Given the alert is inactive and PriceLens records a laptop price of 13,900,000 VND, when the price is processed, then no email notification is sent.
+* Given the alert is inactive and PriceLens records a laptop price of 13,900,000 VND, when the price is processed, then no email notification is sent (BR4). 
 * Given Minh Anh has 20 active alerts and 1 inactive alert, when she attempts to reactivate the inactive alert, then the request is rejected with the message "Maximum 20 active alerts reached" (BR1).
-* Given Minh Anh has 19 active alerts and 1 inactive alert, when she reactivates the inactive alert, then its status changes to "Active" and her active-alert count becomes exactly 20 (BR1).
+* Given Minh Anh has 19 active alerts and 1 inactive alert, when she reactivates the inactive alert, then its status changes to "Active" and her active-alert count becomes exactly 20 (BR1, BR4).
 
 #### Related Business Rules
 
-* BR1 — Maximum number of active price alerts
+* BR1 — Maximum number of active price alerts 
+* BR4 — Price-alert notification trigger and repeat behaviour
 
 ### US08 — Delete a tracked product
 
@@ -333,13 +334,13 @@ As *Lê Thu Hà, a busy repeat online shopper*, I want to *delete a product that
 #### Acceptance Criteria
 
 * Given Hà's watchlist contains 15 products, when she confirms the deletion of 1 tracked product, then the system displays exactly "Product removed from your watchlist" and her watchlist contains exactly 14 products.
-* Given the tracked product has 2 active price alerts, when Hà requests to delete it, then the confirmation message states exactly "Deleting this product will also delete 2 price alerts".
-* Given Hà confirms the deletion of a tracked product with 2 active alerts, when the deletion is completed, then the product and both alerts are removed and her active-alert count decreases by exactly 2.
-* Given Hà cancels the deletion confirmation, when she returns to her watchlist, then all 15 products remain and the 2 related alerts retain the status "Active".
+* Given the tracked product has 2 active price alerts, when Hà requests to delete it, then the confirmation message states exactly "Deleting this product will also delete 2 price alerts" (BR7)
+* Given Hà confirms the deletion of a tracked product with 2 active alerts, when the deletion is completed, then the product and both alerts are removed and her active-alert count decreases by exactly 2 (BR7)
+* Given Hà cancels the deletion confirmation, when she returns to her watchlist, then all 15 products remain and the 2 related alerts retain the status "Active" (BR7)
 
 #### Related Business Rules
 
-None.
+* BR7 — Tracked-product deletion and associated-alert removal
 
 ### US09 — Compare prices across retailers
 
@@ -377,13 +378,13 @@ As *Trần Quốc Huy, a careful buyer of high-value electronics*, I want to *se
 
 #### Acceptance Criteria
 
-* Given Retailer A has 0 available units of the selected product variant, when Huy views the comparison, then Retailer A's availability status is displayed exactly as "Out of stock".
-* Given Retailer A lists the product for 18,200,000 VND but is out of stock and Retailer B lists it for 18,500,000 VND and is in stock, when Huy views the comparison, then Retailer B is identified as the "Lowest available offer".
-* Given all supported retailers are out of stock for the selected product variant, when Huy views its offers, then the system displays exactly "Currently out of stock across all tracked sources".
+* Given Retailer A has 0 available units of the selected product variant, when Huy views the comparison, then Retailer A's availability status is displayed exactly as "Out of stock" (BR8)
+* Given Retailer A lists the product for 18,200,000 VND but is out of stock and Retailer B lists it for 18,500,000 VND and is in stock, when Huy views the comparison, then Retailer B is identified as the "Lowest available offer" (BR8)
+* Given all supported retailers are out of stock for the selected product variant, when Huy views its offers, then the system displays exactly "Currently out of stock across all tracked sources" (BR8)
 
 #### Related Business Rules
 
-None.
+* BR8 — Out-of-stock offer eligibility
 
 ### US11 — Track a specific product variant
 
@@ -395,18 +396,21 @@ None.
 
 *Related Scenario:* Scenario 2 — extended variant-selection flow
 
-As *Trần Quốc Huy, a careful buyer of high-value electronics*, I want to *select the exact variant of a product that I intend to track* so that *prices from different capacities or specifications do not affect my tracked product*.
+As **Trần Quốc Huy, a careful buyer of high-value electronics**, I want to **select the exact variant of a product that I intend to track** so that **prices from different capacities or specifications do not affect my tracked product**.
 
 #### Acceptance Criteria
 
-* Given an iPhone 15 is available with 128 GB, 256 GB and 512 GB capacities, when Huy adds the product and selects the 256 GB option, then exactly 1 tracked product is created with the variant displayed as "iPhone 15 — 256 GB".
-* Given the product has 3 available capacities and Huy has not selected one, when he attempts to start tracking, then the request is rejected with the message "Select 1 product variant to continue".
+* Given an iPhone 15 is available with 128 GB, 256 GB and 512 GB capacities, when Huy adds the product and selects the 256 GB option, then exactly 1 tracked product is created with the variant displayed as "iPhone 15 — 256 GB" (BR5).
+
+* Given the product has 3 available capacities and Huy has not selected one, when he attempts to start tracking, then the request is rejected with the message "Select 1 product variant to continue" (BR5).
+
 * Given Huy is tracking the iPhone 15 256 GB at 20,000,000 VND, when the 128 GB variant falls to 18,000,000 VND, then the tracked price of the 256 GB variant remains exactly 20,000,000 VND (BR5).
+
 * Given a retailer offers only the iPhone 15 128 GB, when Huy views offers for his tracked 256 GB variant, then that retailer's 128 GB offer is excluded (BR5).
 
 #### Related Business Rules
 
-* BR5 — Equivalent product-variant comparison
+* BR5 — Product-variant consistency
 
 ### US12 — Export product price history
 
@@ -439,8 +443,9 @@ None.
 | **BR2** | A target price must be greater than 0 and strictly lower than the product's current valid price at the time the alert is created. | The current price is 20,000,000 VND. A target price of 19,500,000 VND is accepted. Target prices of 20,000,000 VND, 20,500,000 VND and 0 VND are rejected. |
 | **BR3** | Price data whose last successful update is 24 hours old or older must be marked as stale until a new valid price is recorded. | A product price was last updated at 08:00 on 15 September. At 07:59 on 16 September it is not stale. At 08:00 on 16 September it is exactly 24 hours old and must be marked `"Stale data"`. |
 | **BR4** | An active price alert must send exactly one notification when a product's valid price changes from above the target price to equal to or below the target price. No additional notification may be sent while the price remains at or below that target. The alert may trigger again only after the price rises above the target and later falls to the target or below. | The target price is 5,000,000 VND. The price changes from 5,200,000 VND to 4,900,000 VND, so exactly 1 notification is sent. A later price of 4,800,000 VND sends no additional notification. If the price later rises to 5,100,000 VND and then falls to 5,000,000 VND, exactly 1 new notification is sent. |
-| **BR5** | PriceLens may compare offers only when they refer to the same product variant, including the same brand, model and capacity or size attributes that affect the price. | An iPhone 15 with 128 GB from Source A priced at 18,900,000 VND may be compared with an iPhone 15 with 128 GB from Source B priced at 18,500,000 VND. An iPhone 15 with 256 GB priced at 21,000,000 VND must not be included in that comparison. |
+| **BR5** | Each tracked-product record must identify exactly one product variant. A price or offer may update or be compared with that record only when it matches the same brand, model and selected variant attributes, such as capacity, size or specification. | Huy tracks an iPhone 15 256 GB. Offers from Source A at 18,900,000 VND and Source B at 18,500,000 VND may be compared because both refer to the 256 GB variant. An iPhone 15 128 GB offer at 17,900,000 VND must be excluded. |
 | **BR6** | Each user may have only one watchlist record for the same normalized product URL. URL tracking parameters must be removed before duplicate checking. | Minh has 5 products in his watchlist, including `https://shop.example/product/123`. He submits `https://shop.example/product/123?utm_source=email`. After URL normalization, both URLs identify the same product, so the second request is rejected and his watchlist remains at exactly 5 products. |
-
+| **BR7** | Deleting a tracked product must also permanently delete all price alerts associated with that product, but no deletion may occur until the user confirms the action. Cancelling the confirmation must leave both the product and its alerts unchanged. | Thu Hà has 15 tracked products. One product has 2 active alerts. After she confirms its deletion, her watchlist contains 14 products and both alerts are deleted. If she cancels instead, all 15 products and both active alerts remain unchanged. |
+| **BR8** | An out-of-stock offer must not be identified as the lowest available offer. Only in-stock offers that match the selected product variant are eligible for that result. If every matching offer is out of stock, no lowest available offer may be selected. | Retailer A lists the selected variant for 18,200,000 VND but has 0 available units. Retailer B lists it for 18,500,000 VND and is in stock. Retailer B must be identified as the lowest available offer. If both retailers have 0 available units, the system displays "Currently out of stock across all tracked sources". |
 
 ## 6. Screens and Flow
