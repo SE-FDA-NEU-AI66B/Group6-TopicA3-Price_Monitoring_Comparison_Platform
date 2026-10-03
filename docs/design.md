@@ -143,3 +143,8 @@ A malformed URL, unsupported source, per-user duplicate, missing required varian
 4. C3 derives the current price from the latest valid in-stock observations for the matching variant and currency.
 5. C3 evaluates active alerts against the previous and newly derived current prices and records any qualifying BR4 event.
 6. C3 requests delivery from C6 and stores the delivery outcome without treating a failed delivery as successful.
+### 1.5 Container Architecture Diagram
+
+![PriceLens container architecture](images/architecture.png)
+
+C1, C2, C3 and C4 are inside the PriceLens system boundary; C5, C6 and C7 are external. Every connector in the diagram identifies both its direction and the data or protocol that crosses the boundary. The diagram presents container-level structure, while Sections 1.3 and 1.4 define responsibilities and flows.
