@@ -756,3 +756,82 @@ Static JavaScript checks and the configured npm test command completed successfu
 | Data types | Identifiers and money remain strings, timestamps remain ISO 8601 UTC values and unavailable prices remain null. |
 
 The browser therefore follows one stable sequence: establish or restore the session, request the watchlist with credentials and render the returned state. Authentication failure returns the user to the unauthenticated state; empty and unavailable-price results remain successful API responses rather than transport errors. This contract is the stable boundary for the browser implementation.
+
+## 4. Walking Skeleton
+
+### 4.1 Walking-Skeleton Page and Integration Contract
+
+The browser walking skeleton preserves the approved Milestone 1 routes. The public / route introduces PriceLens and provides sign-in, while the protected /watchlist route renders the authenticated user's database-backed tracked products. The frontend communicates only with the Backend API and does not access PostgreSQL or use local product substitutes.
+
+#### 4.1.1 Page Boundary
+
+| Route | Access | Page responsibility | Backend operations |
+|---|---|---|---|
+| / | Guest | Present the PriceLens introduction and sign-in form. An existing valid session may continue directly to the watchlist. | POST /api/auth/login; GET /api/auth/session |
+| /watchlist | Authenticated user | Restore the current user, load the owned watchlist and render each returned item and its price state. | GET /api/auth/session; GET /api/watchlist; POST /api/auth/logout |
+
+The minimum watchlist page is read-only. Product search, deletion, registration, detail, comparison and alert management remain represented by their approved routes but are not required to prove the walking-skeleton read path.
+
+#### 4.1.2 Frontend Structure
+
+| Concern | Decision |
+|---|---|
+| Application model | Vite multi-page application with / and /watchlist as HTML entry points. |
+| Language | Browser JavaScript using ES Modules, consistent with the backend codebase. |
+| Package management | npm with a committed lockfile. |
+| Navigation | Native browser navigation; no client-side router is required for the two-page slice. |
+| Presentation | Semantic HTML and project-owned CSS with shared tokens and reusable component classes. |
+| API access | One shared API client owns the configurable base URL, JSON handling, credentials: "include" and problem-response parsing. Page modules do not call fetch independently. |
+| Client state | The public authenticated-user representation is held only in memory. Product data is rendered from the current API response and is not persisted in browser storage. |
+
+Only the public API base URL is browser-configurable. Database credentials, password hashes, session tokens and signing secrets never enter frontend configuration or source code.
+
+#### 4.1.3 Session and Navigation Flow
+
+1. A guest reaches / and submits an email and password through the sign-in form.
+2. A successful login establishes the HttpOnly session cookie and returns the public AuthenticatedUser; the browser then navigates to /watchlist.
+3. On page initialization, /watchlist restores the user through the session endpoint before requesting watchlist data.
+4. All API requests include browser credentials. Frontend code neither reads the session cookie nor stores a token.
+5. AUTHENTICATION_REQUIRED returns the browser to /; other problem responses remain on the current page and show an appropriate recoverable state.
+6. Logout clears the server-managed session and returns the browser to /.
+
+The configured frontend and backend origins must remain compatible with credentialed CORS. A wildcard allowed origin is not used with authenticated requests.
+
+#### 4.1.4 API-to-Page Mapping
+
+| Operation | Successful page behaviour | Failure behaviour |
+|---|---|---|
+| POST /api/auth/login | Store the returned public user in memory and navigate to /watchlist. | INVALID_REQUEST presents validation feedback; INVALID_CREDENTIALS presents the generic login rejection without identifying which credential failed. |
+| GET /api/auth/session | Restore user_id, email and display_name for the current browser session. | AUTHENTICATION_REQUIRED establishes the unauthenticated page state. |
+| GET /api/watchlist | Render data in response order and display the count from meta.count. An empty array produces the empty-watchlist state. | AUTHENTICATION_REQUIRED returns to /; other failures produce a retryable request-error state without exposing backend details. |
+| POST /api/auth/logout | Treat 204 No Content as completion and navigate to /. | A transport failure keeps the current page available and permits another logout attempt. |
+
+#### 4.1.5 Watchlist Presentation Mapping
+
+| UI content | API source and rule |
+|---|---|
+| Item identity | tracked_product_id is used as the stable rendering key and is not treated as user-entered data. |
+| Product label | product.display_name, supported by product.brand and product.model where useful. |
+| Exact variant | product.variant.display_name; the page does not merge or infer variants from other items. |
+| Tracking state | tracking_status is shown as the item's current tracking state. |
+| Source | source.retailer_name; source.url remains the corresponding retailer destination. |
+| Current price | current_price.amount and current_price.currency_code are formatted for display without recalculating the backend-selected price. |
+| Observation time | current_price.observed_at supplies the visible update time when a current price exists. |
+| Freshness | CURRENT shows ordinary update information; STALE shows the required "Stale data" warning; UNAVAILABLE shows no numeric price. |
+| Watchlist count | meta.count supplies the page summary and must equal the number of returned items. |
+
+Identifiers and money arrive as strings, while timestamps arrive as ISO 8601 UTC values. The frontend formats these values for people but does not change their meaning or derive a replacement current price.
+
+#### 4.1.6 Page States
+
+| State | Required presentation |
+|---|---|
+| Session loading | Prevent protected content from appearing until authentication has been resolved. |
+| Watchlist loading | Show a non-blocking loading state while retaining the page structure. |
+| Available | Render every returned item, including items whose price is unavailable. |
+| Empty | Show a clear empty-watchlist state when data is empty and meta.count is 0. |
+| Stale item | Keep the item visible and display "Stale data". |
+| Unavailable price | Keep the item visible without a numeric price and distinguish it from a request failure. |
+| Request failure | Show a concise error state with a retry action; do not render fabricated fallback products. |
+
+The pages remain usable with keyboard navigation, labelled form controls, visible focus, readable status text and a responsive layout. Colour may support a state but is not its only indicator.
