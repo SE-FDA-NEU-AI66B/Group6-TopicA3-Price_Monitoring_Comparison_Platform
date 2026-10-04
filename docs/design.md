@@ -530,3 +530,35 @@ WHERE u.email = 'demo@pricelens.local';
 ```
 
 The required result is `tracked_product_count = 10`; any other value is an initialization failure. Re-running `npm run db:init` must preserve the same count without duplicating seed data, while a partial schema is rejected. These checks establish the deterministic database state required by the `/watchlist` walking skeleton.
+
+## 3. API Design
+
+### 3.1 P0 Story-to-Operation Mapping
+
+The PriceLens API surface is derived from the five P0 User Stories: US02, US03, US04, US05 and US09. All shopper-facing operations require an authenticated user and enforce ownership through tracked_products.user_id. A record identifier never grants access by itself.
+
+US05 is completed by the Background Price Processor rather than by a browser request. Its application operations are included in the mapping so that the notification workflow remains traceable without exposing a public endpoint solely to trigger background processing. Exact HTTP methods, paths, payloads, success responses and error codes are defined in Section 3.2.
+
+#### Operation Inventory
+
+| ID | Operation | Requirement role | Primary data and rules |
+|---|---|---|---|
+| API-01 | Retrieve the authenticated user's watchlist | Supports the walking skeleton and supplies owned tracked-product references used by the P0 product operations. | users, tracked_products, products, product_variants, retailer_offers, retailers, latest price_observations; authenticated ownership. |
+| API-02 | Retrieve a tracked product's 30-day price history and summary | Supplies the data and availability states required by US02. | tracked_products, retailer_offers, price_observations; ownership, exact variant and currency. |
+| API-03 | Resolve and validate a submitted product URL | Identifies whether the source is supported and returns the product and exact variant choices required before tracking under US04. | Supported-source adapter, retailers, products, product_variants, retailer_offers; URL normalisation and BR5. |
+| API-04 | Create a tracked-product record | Persists an accepted URL and exact variant for US04. | tracked_products, product_variants, retailer_offers; ownership, BR5 and BR6. |
+| API-05 | Create a price alert for an owned tracked product | Validates and stores the alert required by US03. | tracked_products, price_alerts, current valid price_observations; ownership, BR1 and BR2. |
+| API-06 | Retrieve the current retailer comparison for an exact variant | Supplies the ordered matching offers and comparison state required by US09. | product_variants, retailer_offers, retailers, latest price_observations; BR5 and BR8. |
+| BG-01 | Persist a valid price observation | Supplies the new successful observation that starts the US05 evaluation workflow. Invalid acquisition results remain refresh metadata and do not enter price history. | retailer_offers, price_observations; exact variant, currency and availability validation. |
+| BG-02 | Evaluate active alerts and record a qualifying notification | Detects threshold transitions and prevents repeated events while the price remains at or below the same target. | price_alerts, notifications, previous and new price_observations; BR4 in one transaction. |
+| BG-03 | Request email delivery and record its outcome | Sends the qualifying US05 message and preserves success or failure evidence. | notifications, user email snapshot and email adapter; BR4. |
+
+#### Acceptance-Criterion Coverage
+
+| Story | Acceptance-criterion mapping |
+|---|---|
+| *US02 — View product price history* | *AC1:* API-02 supplies exactly 30 daily points when 30 valid daily values exist. *AC2:* the same operation supplies the 30-day minimum, maximum and derived current price. *AC3:* one valid record produces the exact insufficient-history state and message. *AC4:* zero valid records produces the exact no-history state and message instead of chart data. |
+| *US03 — Create a price alert* | *AC1:* API-05 verifies ownership, the active-alert count and current valid price before creating an ACTIVE alert. *AC2:* it rejects a target above the current price under BR2. *AC3:* it rejects a non-positive target under BR2. *AC4:* it rejects creation of a twenty-first active alert under BR1. |
+| *US04 — Add a product using its URL* | *AC1:* API-03 resolves the supported source and exact variant, then API-04 creates one TRACKING record. *AC2:* API-03 produces the normalised URL and API-04 rejects an existing per-user value without changing the watchlist count under BR6. *AC3:* API-03 rejects malformed or unsupported URLs before persistence. |
+| *US05 — Receive a price-drop notification* | *AC1:* BG-01 stores the new valid price, BG-02 records one qualifying crossing and BG-03 requests delivery within the required five-minute window. *AC2:* BG-02 records no new notification while the price remains below the target. *AC3:* BG-03 uses the approved Price Drop Alert: <product name> subject. *AC4:* after an above-target reset, the same pipeline permits exactly one notification for a later downward crossing. |
+| *US09 — Compare prices across retailers* | *AC1:* API-06 returns the matching offers ordered by eligible price and supplies the exact price difference. *AC2:* it excludes offers for another variant under BR5. *AC3:* one matching offer produces the exact no-multi-source-comparison state and message. |
