@@ -718,3 +718,41 @@ PostgreSQL BIGINT and NUMERIC(14,2) values remain strings in JSON, while timesta
 Authentication is resolved before the repository is called, and ownership is enforced inside the SQL predicate rather than by filtering results in application memory. Database connections come from a bounded pool and are released after the query. Unexpected persistence failures are converted to the common problem response without exposing SQL, credentials or internal stack traces.
 
 With the deterministic demonstration dataset, the route returns exactly 10 items for demo@pricelens.local. That row count is a validation invariant for the walking skeleton, not a value hard-coded into the route.
+
+### 3.4 Backend Verification and Frontend Handoff
+
+The backend walking skeleton is verified against the contracts in Sections 3.2 and 3.3 using a clean PostgreSQL database and HTTP-level scenarios. The verification boundary covers authentication, the database-backed watchlist route, error handling and server lifecycle behaviour.
+
+#### 3.4.1 Verification Coverage
+
+| Area | Required verification |
+|---|---|
+| Database initialization | Run npm run db:init; confirm nine tables, four update triggers, exactly 10 demonstration tracked products, rejection of a partial schema and an idempotent second execution. |
+| Authentication | Reject malformed login input with 400 INVALID_REQUEST; return the same 401 INVALID_CREDENTIALS for an unknown email, incorrect password or disabled account; create a one-hour HttpOnly session cookie after valid login. |
+| Session boundary | Return only the public user representation for a valid session and return 401 AUTHENTICATION_REQUIRED for a missing, invalid or expired cookie. |
+| Database-backed watchlist | Return only records owned by the authenticated user and prove that a database change is reflected by the next response without changing application code. |
+| Response contract | Return 10 seeded items in deterministic order, string identifiers and money values, ISO 8601 UTC timestamps, uppercase currency codes and an accurate meta.count. |
+| Price availability | Derive current prices only from eligible IN_STOCK observations and retain unavailable products with current_price: null and freshness_status: "UNAVAILABLE". |
+| Failure handling | Convert unexpected database failures to 500 INTERNAL_SERVER_ERROR without exposing SQL, credentials, stack traces or PostgreSQL details. |
+| Process lifecycle | Close the HTTP server and PostgreSQL pool cleanly, including concurrent shutdown paths. |
+
+#### 3.4.2 Verified Result
+
+The backend was verified on 4 October 2026 using Node.js 24.19.0 and PostgreSQL 17.7. All 21 HTTP, persistence and lifecycle scenarios passed. The verification confirmed that the watchlist response originates from PostgreSQL, returns all 10 seeded records and preserves the two out-of-stock-only products as unavailable.
+
+Static JavaScript checks and the configured npm test command completed successfully. Server termination closes the HTTP listener and PostgreSQL pool cleanly, including concurrent shutdown paths.
+
+#### 3.4.3 Browser Integration Contract
+
+| Concern | Stable handoff |
+|---|---|
+| API location | All routes use the /api base path; the server origin is supplied by environment-specific configuration. |
+| Browser credentials | Cross-origin requests include credentials. CORS permits the configured frontend origin and credentialed requests rather than using a wildcard origin. |
+| Login | POST /api/auth/login accepts email and password; the browser stores the returned HttpOnly cookie and uses the returned AuthenticatedUser for display state. |
+| Session restoration | GET /api/auth/session determines whether an existing browser session is valid; frontend code does not read or store the session token. |
+| Watchlist | GET /api/watchlist requires the session cookie and returns { "data": WatchlistItem[], "meta": { "count": number } }. |
+| Logout | POST /api/auth/logout clears the session cookie and returns 204 No Content. |
+| Errors | Non-success responses use application/problem+json; the frontend branches on the stable code rather than parsing detail. |
+| Data types | Identifiers and money remain strings, timestamps remain ISO 8601 UTC values and unavailable prices remain null. |
+
+The browser therefore follows one stable sequence: establish or restore the session, request the watchlist with credentials and render the returned state. Authentication failure returns the user to the unauthenticated state; empty and unavailable-price results remain successful API responses rather than transport errors. This contract is the stable boundary for the browser implementation.
