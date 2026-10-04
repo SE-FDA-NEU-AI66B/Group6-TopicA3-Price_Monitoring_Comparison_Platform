@@ -664,3 +664,57 @@ US05 is executed by the Background Price Processor and is not exposed as a brows
 | Duplicate prevention | The persisted threshold state and UNIQUE (price_alert_id, price_observation_id) enforce BR4 across retries and concurrent processing. |
 
 Alert creation and background evaluation use database transactions because BR1, BR2 and BR4 depend on multiple rows. Database uniqueness violations are translated to the corresponding API error instead of being exposed as PostgreSQL errors.
+
+### 3.3 Database-Backed Watchlist Route
+
+The watchlist route is the minimum backend slice that proves the API can resolve an authenticated user, read PriceLens data from PostgreSQL and return the contract defined in Section 3.2. It does not use hard-coded product arrays, static JSON or an in-memory data substitute.
+
+#### 3.3.1 Route Boundary
+
+| Item | Design |
+|---|---|
+| Operation | GET /api/watchlist |
+| Request identity | Supplied by the authentication middleware; user_id is never accepted from request input. |
+| Primary ownership path | users → tracked_products through tracked_products.user_id. |
+| Data sources | tracked_products, product_variants, products, retailer_offers, retailers and price_observations. |
+| Success result | 200 OK with data: WatchlistItem[] and meta.count. |
+| Empty result | 200 OK with data: [] and meta.count: 0. |
+| Authentication failure | 401 AUTHENTICATION_REQUIRED using the common problem response. |
+
+The route is read-only. It neither refreshes retailer data nor creates observations; those operations belong to the Background Price Processor.
+
+#### 3.3.2 Data Retrieval
+
+The repository executes one parameterised PostgreSQL query using the authenticated user_id. The query begins with tracked_products, applies the ownership predicate before returning data and orders rows by tracked_products.created_at DESC, followed by tracked_product_id DESC for deterministic results.
+
+For each owned tracked product, the query:
+
+1. joins the exact product variant and its canonical product;
+2. joins the tracked product's source offer and retailer;
+3. obtains the latest observation for the source offer to establish the applicable currency;
+4. obtains the latest observation for each offer of the same exact variant;
+5. selects the lowest latest IN_STOCK observation in that currency; and
+6. returns null when no eligible current price exists.
+
+This retrieval preserves BR5 by remaining within one product_variant_id and preserves BR8 by excluding OUT_OF_STOCK observations from current-price selection. Existing indexes on the authenticated watchlist, exact-variant offers and offer observation history support this query path.
+
+#### 3.3.3 Response Assembly
+
+Each database row is mapped to one WatchlistItem:
+
+| Member | Source and rule |
+|---|---|
+| tracked_product_id | tracked_products.tracked_product_id, serialized as a decimal string. |
+| tracking_status, created_at | Owned tracked-product state and creation timestamp. |
+| product | Product identity, brand, model and display name, with the exact variant identity, label and attributes. |
+| source | Source retailer_offer_id, retailer identity and the normalised retailer URL. |
+| current_price | Lowest eligible amount, currency, availability and supporting observation time; otherwise null. |
+| freshness_status | UNAVAILABLE when current_price is null; STALE when its observation is at least 24 hours old; otherwise CURRENT. |
+
+PostgreSQL BIGINT and NUMERIC(14,2) values remain strings in JSON, while timestamps are returned as ISO 8601 UTC values. The response contains one item for every owned tracked product, including products whose current price is unavailable.
+
+#### 3.3.4 Integrity and Failure Behaviour
+
+Authentication is resolved before the repository is called, and ownership is enforced inside the SQL predicate rather than by filtering results in application memory. Database connections come from a bounded pool and are released after the query. Unexpected persistence failures are converted to the common problem response without exposing SQL, credentials or internal stack traces.
+
+With the deterministic demonstration dataset, the route returns exactly 10 items for demo@pricelens.local. That row count is a validation invariant for the walking skeleton, not a value hard-coded into the route.
