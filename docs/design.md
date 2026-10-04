@@ -937,3 +937,62 @@ The query uses the ownership predicate tp.user_id = $1 and deterministic orderin
 #### 4.4.3 Completion Statement
 
 The recorded evidence confirms the required browser-to-database path: /watchlist requests the authenticated API, the backend executes the PostgreSQL query, and the browser renders the returned rows. The displayed count and unavailable-price states originate from the database response rather than frontend fallback data.
+## 5. Design Decisions
+
+The following Architecture Decision Records document choices that materially shape the implemented PriceLens walking skeleton. Each decision is accepted for the current milestone and may be revisited when its stated conditions change.
+
+### 5.1 ADR-01 — Use a Vite Multi-Page Frontend with Vanilla JavaScript
+
+*Status:* Accepted
+
+#### Context
+
+The walking skeleton requires two browser routes: the public landing and sign-in page at /, and the authenticated watchlist at /watchlist. Both pages share API, session, formatting and styling modules, but the current scope does not require complex client-side routing or long-lived global application state.
+
+#### Options Considered
+
+| Option | Advantages | Trade-offs |
+|---|---|---|
+| Vite multi-page application with Vanilla JavaScript ES Modules | Small dependency surface, direct route-to-entry mapping, fast build and straightforward integration with the existing JavaScript backend. | Shared behaviour must be organised explicitly, and extensive future page transitions may require additional structure. |
+| Single-page application using React, Vue or a similar framework | Provides component composition, client-side routing and established state-management patterns. | Adds framework, router and build complexity that the two-page walking skeleton does not currently need. |
+| Server-rendered pages from the backend | Simplifies initial deployment and can avoid a separate frontend runtime. | Couples presentation to the API server and weakens the approved separation between the browser frontend and backend contracts. |
+
+#### Decision and Rationale
+
+PriceLens uses a Vite multi-page application with browser JavaScript ES Modules and project-owned CSS. Separate HTML entries preserve the approved / and /watchlist routes, while shared modules centralise API access, session operations, formatting and reusable rendering behaviour.
+
+This option satisfies the walking-skeleton requirements with the least architectural overhead, keeps the frontend independently buildable and preserves the HTTP boundary defined in Section 1. It also avoids adopting framework conventions before the interaction and state requirements justify them.
+
+#### Consequences and Reconsideration
+
+The frontend does not require a client router, UI framework or state-management library. Page navigation uses normal browser navigation, and reusable behaviour remains in ES modules rather than duplicated page scripts.
+
+This decision should be reconsidered if PriceLens develops many highly interactive screens, substantial shared client state, complex nested navigation or a component ecosystem whose maintenance cost exceeds the simplicity gained by the current approach.
+
+### 5.2 ADR-02 — Use a Signed JWT in an HttpOnly Cookie
+
+*Status:* Accepted
+
+#### Context
+
+Protected PriceLens operations require a lightweight authenticated context for an existing demonstration user. Browser code must not receive database credentials, password hashes or a readable session token, and the backend must continue to verify that the referenced account is active before authorising user-owned data access.
+
+#### Options Considered
+
+| Option | Advantages | Trade-offs |
+|---|---|---|
+| Signed JWT stored in an HttpOnly cookie | Requires no separate session table, is unreadable to frontend JavaScript and works with credentialed browser requests. | Immediate server-side revocation is limited until the token expires unless additional session state is introduced. |
+| Opaque server-side session identifier in an HttpOnly cookie | Supports central revocation and explicit session lifecycle management. | Requires persistent session storage, cleanup and additional operational state for the current lightweight scope. |
+| Bearer token stored in browser storage | Simple to attach to API requests and common for non-browser clients. | Exposes the token to frontend JavaScript and increases the impact of script injection; it is unnecessary for the current browser-only flow. |
+
+#### Decision and Rationale
+
+PriceLens uses a one-hour signed JWT stored in the pricelens_session cookie. The cookie is HttpOnly, uses SameSite=Lax and Path=/, and uses Secure in production. The frontend sends credentialed requests but does not read, decode or persist the token. For each protected request, the backend verifies the token and resolves the referenced active user from PostgreSQL before applying ownership restrictions.
+
+This mechanism provides the minimum secure browser session required by the milestone without introducing a separate session store. Reloading the user record prevents a valid token from keeping a disabled account operational.
+
+#### Consequences and Reconsideration
+
+Logout clears the browser cookie, and normal sessions end after one hour. Credentialed CORS must allow the configured frontend origin rather than a wildcard. The current design does not provide refresh tokens, device management or immediate revocation of an already issued token on another device.
+
+This decision should be reconsidered if PriceLens requires immediate global logout, session inventories, long-lived refresh flows, multiple client types or stronger per-device control. Those requirements would favour opaque server-side sessions or a dedicated access-token and refresh-token design.
