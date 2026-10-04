@@ -875,3 +875,31 @@ Page-level states distinguish session loading, watchlist loading, available data
 #### 4.2.4 Presentation Constraints
 
 The interface uses semantic headings, labelled form controls, keyboard-operable actions, visible focus and status text that is not communicated by colour alone. The watchlist adapts from a single-column mobile layout to a wider card grid without hiding product, price or freshness information. Product imagery is omitted because the current API contract does not provide an image URL.
+
+### 4.3 End-to-End System Integration
+
+The walking skeleton connects the browser frontend, Express backend and PostgreSQL database as one operational path. The integration preserves the page and API contracts defined earlier: the frontend sends credentialed HTTP requests, the backend owns authentication and persistence, and PostgreSQL remains the authoritative source of watchlist data.
+
+#### 4.3.1 Connected Runtime
+
+| Connection | Integrated behaviour |
+|---|---|
+| Frontend to backend | The shared API client sends requests to the configured backend origin with credentials: "include". The backend permits the configured frontend origin through credentialed CORS. |
+| Backend to database | The backend obtains authenticated-user and watchlist data through the PostgreSQL connection pool. Database credentials remain server-side. |
+| Response to interface | The frontend renders the returned user, watchlist items, count and price states without using mock products or querying PostgreSQL directly. |
+
+#### 4.3.2 Integrated Flow
+
+1. The user signs in from /, and the backend establishes the HttpOnly session cookie.
+2. The browser opens /watchlist and restores the user through the session endpoint.
+3. The frontend requests the authenticated user's watchlist.
+4. The backend reads the matching tracked products and price observations from PostgreSQL and returns the established response structure.
+5. The frontend renders the response in backend order. Logout clears the server-managed session and returns the browser to /.
+
+No authentication token, password or product dataset is transferred into frontend storage. Authentication failures return the browser to the public page, while data-request failures remain on the watchlist page as a retryable state.
+
+#### 4.3.3 Integration Verification
+
+The complete path was verified against a clean PostgreSQL database created, migrated, seeded and validated by the JavaScript database initializer. A successful login loaded all 10 tracked products belonging to the demonstration user. The interface preserved the two products without an eligible current price as unavailable rather than omitting them.
+
+Database changes used to create empty, stale and request-failure conditions were reflected by the next backend response and corresponding page state. Session restoration after reload, logout and unauthenticated access to /watchlist also behaved according to the established contracts. These results confirm that the displayed watchlist originates from PostgreSQL and travels through the backend API rather than from frontend fallback data.
