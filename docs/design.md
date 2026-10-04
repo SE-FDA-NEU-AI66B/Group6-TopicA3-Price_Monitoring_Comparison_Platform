@@ -414,3 +414,63 @@ The referenced price observation must belong to an offer for the tracked product
 | One watchlist record per user and normalised URL | `UNIQUE (user_id, normalized_source_url)`. | BR6 |
 | Confirmed tracked-product deletion removes dependent alerts | `ON DELETE CASCADE` from `tracked_products` to `price_alerts`, then to `notifications`; the backend performs deletion only after confirmation. | BR7 |
 | Out-of-stock observations cannot become the lowest available offer | `availability_status` is constrained to `IN_STOCK` or `OUT_OF_STOCK`; lowest-offer queries filter to `IN_STOCK`. | BR8 |
+
+### 2.3 Database Schema Implementation and Rule-Related Constraints
+
+#### 2.3.1 Physical Schema Implementation
+
+The physical schema is implemented by the versioned JavaScript migration `backend/src/database/migrations/001-initial-schema.js`, which executes the approved PostgreSQL SQL through the `pg` driver. The migration translates the nine-table model from Sections 2.1–2.2 without redefining it and runs in one transaction so a failure cannot leave a partial schema. Deterministic demonstration data is maintained separately in `backend/src/database/seeds/001-demo-data.js`.
+
+The migration uses the approved table, column, key and data-type definitions from the Data Dictionary. Valid creation states default to `ACTIVE` for users and alerts, `TRACKING` for tracked products, `ABOVE_TARGET` for new alerts and `PENDING` for notifications. A shared `BEFORE UPDATE` trigger maintains `updated_at` on mutable tables for both API and background-process writes.
+
+#### 2.3.2 Constraints and Business-Rule Enforcement
+
+PostgreSQL enforces row-local integrity and directly representable relationships. Rules that depend on multiple rows, derived prices or user confirmation remain transactional backend logic.
+
+| Rule or invariant | Database enforcement | Backend enforcement |
+|---|---|---|
+| Account and catalogue integrity | Canonical lowercase email with `UNIQUE (email)`; unique product, variant and retailer-listing keys; nonblank required text; JSONB variant attributes must be objects | Normalise email and catalogue inputs before insertion |
+| BR1 — Maximum 20 active alerts | Approved alert states and indexes supporting alert lookup | Lock the owning user, count owned `ACTIVE` alerts and reject creation or reactivation of a 21st alert |
+| BR2 — Valid target price | `target_price > 0`, uppercase currency code and FK to a supporting observation | In one transaction, require the target to be below the current valid in-stock price for the same variant and currency |
+| BR3 — Stale after 24 hours | Store immutable successful observations with `observed_at`; failed refreshes remain offer metadata | Mark data stale when the supporting observation is at least 24 hours old |
+| BR4 — One notification per crossing | Approved threshold states and `UNIQUE (price_alert_id, price_observation_id)` | Lock the alert, detect the threshold transition, update its state and create at most one notification in the same transaction |
+| BR5 — Exact variant matching | Composite FK ensures a tracked product's `retailer_offer_id` and `product_variant_id` refer to the same offer-variant pair | Accept observations and comparison offers only for the exact variant and currency |
+| BR6 — One normalised URL per user | `UNIQUE (user_id, normalized_source_url)` | Remove approved tracking parameters and normalise the URL before insertion |
+| BR7 — Confirmed deletion | `ON DELETE CASCADE` from tracked products to alerts and then notifications | Verify ownership and confirmation before deleting the tracked product |
+| BR8 — Lowest available offer | Availability is restricted to `IN_STOCK` or `OUT_OF_STOCK` | Exclude out-of-stock observations when deriving the lowest available offer |
+
+Additional checks keep refresh and notification metadata consistent with their states. `tracking_status` is currently restricted to the only approved value, `TRACKING`; future lifecycle states require a reviewed migration instead of accepting arbitrary text.
+
+#### 2.3.3 Record Lifecycle and Delete Behaviour
+
+Shared catalogue and price-history rows use `ON DELETE RESTRICT` while referenced. Price observations are append-only in normal application operation. User-owned records follow the BR7 path:
+
+```text
+tracked_products
+        └── ON DELETE CASCADE → price_alerts
+                                      └── ON DELETE CASCADE → notifications
+```
+
+Deleting a tracked product therefore removes only its alerts and notifications. Products, variants, retailers, offers and observations remain. Physical user deletion is outside the current milestone, so `tracked_products.user_id` also uses `ON DELETE RESTRICT`.
+
+#### 2.3.4 Indexing Strategy
+
+Primary-key and `UNIQUE` constraints already create indexes. Seven additional indexes cover the approved query paths without duplicating them:
+
+| Query path | Indexes |
+|---|---|
+| Exact-variant offers | `idx_retailer_offers_variant_retailer` |
+| Authenticated watchlist and affected tracked products | `idx_tracked_products_user_status_created`, `idx_tracked_products_product_variant` |
+| Alert lookup and evaluation | `idx_price_alerts_tracked_product_status`, `idx_price_alerts_price_observation` |
+| Notification history and evidence | `idx_notifications_alert_created`, `idx_notifications_price_observation` |
+
+The unique index on `(retailer_offer_id, observed_at)` also supports offer history and latest-observation queries. Further indexes should be added only when later API queries demonstrate a need.
+
+#### 2.3.5 Validation
+
+The JavaScript initializer applies the migration transactionally when the configured PostgreSQL database is empty, reuses a complete schema and rejects a partial schema. Positive and negative tests confirm that:
+
+- all nine tables, four update triggers, keys and relationships match the ERD and Data Dictionary;
+- duplicate canonical values, invalid prices, invalid states and mismatched offer-variant references are rejected;
+- `updated_at` triggers and BR7 cascade behaviour work as specified;
+- shared catalogue and observation rows remain after a tracked product is deleted.
