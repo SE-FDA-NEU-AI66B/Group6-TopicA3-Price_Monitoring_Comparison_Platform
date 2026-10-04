@@ -149,6 +149,42 @@ A malformed URL, unsupported source, per-user duplicate, missing required varian
 
 C1, C2, C3 and C4 are inside the PriceLens system boundary; C5, C6 and C7 are external. Every connector in the diagram identifies both its direction and the data or protocol that crosses the boundary. The diagram presents container-level structure, while Sections 1.3 and 1.4 define responsibilities and flows.
 
+### 1.6 Walking-Skeleton Path
+
+The Sprint 2 walking skeleton uses the authenticated /watchlist route to prove a real browser-to-database path.
+
+| Item | Walking-skeleton scope |
+|---|---|
+| *Browser route* | /watchlist |
+| *Access* | Authenticated demonstration user |
+| *Container path* | C1 → C2 → C4 → C2 → C1 |
+| *Database data* | Exactly 10 seeded tracked_products records owned by the demonstration user |
+| *Visible result* | Ten watchlist items rendered from the backend database response |
+
+#### End-to-End Flow
+
+1. The demonstration user authenticates and opens /watchlist in C1.
+2. C1 sends the authenticated request to C2.
+3. C2 resolves the user and queries C4 for that user's tracked products.
+4. C4 returns the 10 seeded records.
+5. C2 returns the records as JSON.
+6. C1 renders the returned products on /watchlist.
+
+The displayed records must come from PostgreSQL rather than a frontend array, static JSON file or in-memory collection. Live retailer access, C3 execution, alert evaluation and email delivery are outside the minimum walking skeleton.
+
+### 1.7 Requirement Coverage and Architecture Validation
+
+| Requirement area | Requirements | Architectural coverage |
+|---|---|---|
+| *Authentication and ownership* | Protected screens; per-user behaviour in BR1 and BR6 | C1 presents authentication evidence; C2 authenticates and enforces ownership; C4 stores ownership relationships. |
+| *Product tracking* | US01, US04, US08, US11; BR5–BR7 | C2 normalises URLs, prevents duplicates, preserves variants and coordinates deletion; C4 persists records; C5 supplies supported metadata. |
+| *Price data and export* | US02, US06, US12; BR3 | C3 stores valid observations; C2 returns history, freshness or CSV data; C1 presents the result. |
+| *Alerts and notifications* | US03, US05, US07; BR1, BR2, BR4 | C2 manages alert commands; C3 evaluates price crossings; C4 stores alert and notification state; C6 delivers email. |
+| *Comparison and availability* | US09, US10, US11; BR5, BR8 | C2 compares exact variants and excludes out-of-stock offers from the lowest-available result; C3 supplies observations; C1 renders the comparison and opens C7 links. |
+| *Walking skeleton* | Milestone 2 end-to-end requirement | C1 requests /watchlist, C2 queries at least 10 seeded records from C4 and C1 renders the database response. |
+
+Together, these mappings provide architectural coverage for US01–US12 and BR1–BR8 without duplicating the detailed data, endpoint or implementation definitions belonging to later sections. Sections 2–4 confirm that the implemented schema, API and browser flow preserve the C1 → C2 → C4 boundaries. C3, C5 and C6 remain target-architecture components and are not presented as part of the executed walking skeleton.
+
 ### 2.1 Logical Data Model
 
 #### 2.1.1 Data Model Approach
