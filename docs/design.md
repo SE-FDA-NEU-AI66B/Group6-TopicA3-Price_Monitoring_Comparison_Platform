@@ -148,3 +148,90 @@ A malformed URL, unsupported source, per-user duplicate, missing required varian
 ![PriceLens container architecture](images/architecture.png)
 
 C1, C2, C3 and C4 are inside the PriceLens system boundary; C5, C6 and C7 are external. Every connector in the diagram identifies both its direction and the data or protocol that crosses the boundary. The diagram presents container-level structure, while Sections 1.3 and 1.4 define responsibilities and flows.
+
+### 2.1 Logical Data Model
+
+#### 2.1.1 Data Model Approach
+
+PriceLens uses PostgreSQL because its data is structured, relational and governed by constraints that span users, products, variants, retailer offers and tracked records. The model separates shared catalogue data from user-owned data and retains time-based observations for price history and freshness calculations. Variable product-variant attributes may use JSONB, while identity, ownership, price, currency, availability and relationships remain relational columns.
+
+The logical model contains nine entities. Each entity uses an entity-specific surrogate primary key, such as `user_id` or `product_id`, implemented as `BIGINT GENERATED ALWAYS AS IDENTITY`. Foreign keys use the same entity-based name as the primary key they reference. Detailed PostgreSQL types and physical constraints are defined in the data dictionary; the ERD and data dictionary must use the same entities, keys and multiplicities established here.
+
+#### 2.1.2 Entity Inventory
+
+| Entity | Purpose | Principal data |
+|---|---|---|
+| **User** (`users`) | Represents an authenticated PriceLens shopper and provides the ownership root for user-specific records. | Email, account state and account timestamps. |
+| **Product** (`products`) | Represents the canonical identity shared by all variants of a product. | Canonical key, brand, model and display name. |
+| **ProductVariant** (`product_variants`) | Represents one exact price-affecting configuration of a product. | Product reference, variant key, display label and variant attributes. |
+| **Retailer** (`retailers`) | Represents a supported e-commerce source. | Source code, name, domain and activation state. |
+| **RetailerOffer** (`retailer_offers`) | Represents one retailer listing for one exact product variant. | Retailer reference, variant reference, normalised URL, external listing identifier and refresh metadata. |
+| **TrackedProduct** (`tracked_products`) | Represents a user's decision to track an exact product variant from a submitted source URL. | User reference, variant reference, retailer-offer reference, normalised source URL, tracking state and creation time. |
+| **PriceObservation** (`price_observations`) | Represents one immutable successful observation of an offer at a specific time. | Offer reference, positive price, ISO currency code, availability state and observation time. |
+| **PriceAlert** (`price_alerts`) | Represents a target-price condition attached to a tracked product. | Tracked-product reference, target price, currency, lifecycle status, threshold state and last-evaluated observation reference. |
+| **Notification** (`notifications`) | Represents the recorded outcome of one qualifying alert event. | Alert reference, triggering-observation reference, recipient and subject snapshots, delivery state and delivery timestamps. |
+
+`RetailerOffer` records the source listing and refresh-attempt metadata. `PriceObservation` records successful time-dependent results and may have an availability state of `IN_STOCK` or `OUT_OF_STOCK`. Malformed responses and failed acquisition attempts are not stored as valid price observations.
+
+#### 2.1.3 Relationships and Cardinalities
+
+| Parent entity | Child entity | Multiplicity | Meaning |
+|---|---|---|---|
+| User | TrackedProduct | 1 : 0..N | A user may track no products or many products; every tracked product belongs to exactly one user. |
+| Product | ProductVariant | 1 : 1..N | A persisted product has one or more exact variants; every variant belongs to exactly one product. |
+| ProductVariant | RetailerOffer | 1 : 0..N | A variant may have no supported retailer offers or many; every offer identifies exactly one variant. |
+| Retailer | RetailerOffer | 1 : 0..N | A retailer may publish many supported offers; every offer belongs to exactly one retailer. |
+| ProductVariant | TrackedProduct | 1 : 0..N | The same variant may be tracked by multiple users; every tracked product identifies exactly one variant. |
+| RetailerOffer | TrackedProduct | 1 : 0..N | An offer may be the submitted source of multiple users' tracked products; every tracked product references exactly one retailer offer. |
+| RetailerOffer | PriceObservation | 1 : 0..N | An offer may accumulate observations over time; every observation belongs to exactly one offer. |
+| TrackedProduct | PriceAlert | 1 : 0..N | A tracked product may have no alerts or many alerts; every alert belongs to exactly one tracked product. |
+| PriceObservation | PriceAlert | 1 : 0..N | An observation may support the latest evaluation of multiple alerts; every persisted alert references exactly one last-evaluated observation. |
+| PriceAlert | Notification | 1 : 0..N | An alert may produce no notifications or multiple notifications across separate threshold crossings; every notification belongs to exactly one alert. |
+| PriceObservation | Notification | 1 : 0..N | An observation may trigger multiple users' alerts; every notification records exactly one triggering observation. |
+
+The `PriceObservation`–`PriceAlert` relationship represents the observation used for the alert's most recent price evaluation. Because BR2 requires a current valid price when an alert is created, every persisted alert references exactly one price observation; therefore, `price_alerts.price_observation_id` is not nullable. This relationship does not require every observation to be associated with an alert: one observation may support no alerts or multiple alerts.
+
+#### 2.1.4 Ownership and Integrity
+
+All user-specific access begins with the authenticated `User`. `TrackedProduct.user_id` establishes direct ownership. Alert ownership follows `PriceAlert → TrackedProduct → User`, and notification ownership follows `Notification → PriceAlert → TrackedProduct → User`. Every protected query and mutation must include this ownership path; possession of a record identifier alone does not grant access.
+
+| Data constraint | Purpose and requirement alignment |
+|---|---|
+| `UNIQUE (users.email)` | Preserves one account identity per email address. |
+| `UNIQUE (products.canonical_key)` | Prevents duplicate canonical products. |
+| `UNIQUE (product_variants.product_id, product_variants.variant_key)` | Prevents duplicate variants within the same product. |
+| `UNIQUE (retailer_offers.retailer_id, retailer_offers.product_variant_id, retailer_offers.normalized_url)` | Prevents duplicate retailer listings for the same exact variant and URL. |
+| `UNIQUE (tracked_products.user_id, tracked_products.normalized_source_url)` | Enforces per-user normalised-URL uniqueness under BR6. |
+| `UNIQUE (price_observations.retailer_offer_id, price_observations.observed_at)` | Prevents duplicate observations for the same offer and observation time. |
+| `CHECK (price_observations.price_amount > 0)` | Prevents invalid non-positive prices from becoming valid observations. |
+| `CHECK (price_alerts.target_price > 0)` | Provides row-level support for BR2. The requirement that the target is lower than the derived current price is enforced by backend domain logic because it depends on other records. |
+| `UNIQUE (notifications.price_alert_id, notifications.price_observation_id)` | Prevents the same alert and triggering observation from producing duplicate notification records under BR4. |
+
+The following cross-table invariants must also hold:
+
+- A tracked product's referenced retailer offer must identify the same product variant as the tracked product.
+- An alert's referenced price observation must belong to an offer for the tracked product's exact variant and use the alert's currency.
+- A notification's referenced price observation must be valid for the exact variant and currency of its parent alert and represent the qualifying threshold crossing.
+- The number of `ACTIVE` alerts owned by one user must not exceed 20 under BR1.
+
+The variant and currency invariants support BR5. They are enforced by backend domain logic and reinforced by composite database constraints where the physical schema permits. The BR1 limit spans multiple rows and is enforced atomically in the owning user's transaction rather than by a single-row `CHECK` constraint.
+
+#### 2.1.5 Derived Data
+
+The following values are derived from persisted records rather than duplicated as independently editable columns:
+
+| Derived value | Definition |
+|---|---|
+| **Current price** | The lowest price among the latest valid `IN_STOCK` observations for offers matching the exact product variant and currency. |
+| **Lowest available offer** | The retailer offer that supplies the derived current price. An `OUT_OF_STOCK` observation is retained but is not eligible under BR8. |
+| **Daily price-history value** | The lowest valid in-stock price recorded for the exact variant and currency on one calendar day. The chart and CSV export use the same definition. |
+| **Stale status** | The displayed price is stale when the supporting observation is at least 24 hours old. Failed refresh attempts do not change `PriceObservation.observed_at` or reset the BR3 period. |
+| **Active-alert count** | The number of the user's `PriceAlert` records whose status is `ACTIVE`; inactive and expired records are excluded under BR1. |
+
+`price_alerts.last_threshold_state` stores either `ABOVE_TARGET` or `AT_OR_BELOW_TARGET`, and `price_alerts.price_observation_id` references the observation supporting the latest evaluation. Together with the unique notification constraint, these fields provide the persistent state required by BR4 without adding a separate alert-event entity. If no eligible in-stock observation exists, no current price is derived and no new alert can satisfy BR2.
+
+#### 2.1.6 Record Lifecycle
+
+Shared catalogue entities (`Product`, `ProductVariant`, `Retailer` and `RetailerOffer`) are retained or deactivated rather than deleted while dependent records exist. `PriceObservation` records are immutable and retained because they support history, freshness, alert evaluation and notification evidence.
+
+After the user confirms deletion, `TrackedProduct` and its dependent records are removed in one controlled transaction. Deleting a tracked product cascades to its `PriceAlert` records, and deleting those alerts cascades to their `Notification` records, enforcing BR7. The operation does not delete the shared product, variant, retailer, offer or observation records. Cancelling the confirmation performs no database mutation. Because the tracked-product record is removed, its per-user normalised URL no longer occupies the BR6 unique constraint and may be tracked again later.
