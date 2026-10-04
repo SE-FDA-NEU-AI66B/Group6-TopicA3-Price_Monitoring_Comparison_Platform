@@ -835,3 +835,43 @@ Identifiers and money arrive as strings, while timestamps arrive as ISO 8601 UTC
 | Request failure | Show a concise error state with a retry action; do not render fabricated fallback products. |
 
 The pages remain usable with keyboard navigation, labelled form controls, visible focus, readable status text and a responsive layout. Colour may support a state but is not its only indicator.
+
+### 4.2 Walking-Skeleton User Interface
+
+The frontend implements the two-page boundary defined in Section 4.1 as a Vite multi-page application using browser JavaScript ES Modules and project-owned CSS. It renders only backend responses and contains no product array, static watchlist JSON or in-memory substitute.
+
+#### 4.2.1 Page Composition
+
+| Route | Primary regions | Behaviour |
+|---|---|---|
+| / | PriceLens introduction, sign-in form and form-status area | Accepts email and password, presents validation or authentication failure and navigates to /watchlist after the backend establishes a session. |
+| /watchlist | Header with authenticated-user context and logout, watchlist heading and count, page-status area and responsive item collection | Restores the session, requests the owned watchlist and renders the returned items in API order. |
+
+The minimum watchlist page is read-only. It does not present controls for search, deletion, product registration, price history, comparison or alert management until their corresponding UI flows are implemented.
+
+#### 4.2.2 Frontend Modules
+
+| Module area | Responsibility |
+|---|---|
+| Configuration | Supplies the public API base URL without containing credentials or secrets. |
+| API client | Sends JSON requests with browser credentials, handles 204 No Content and converts problem responses into a stable client error shape. |
+| Session | Provides login, session restoration and logout operations without reading or persisting the session token. |
+| Landing page | Controls sign-in submission, pending state, validation feedback and successful navigation. |
+| Watchlist page | Resolves authentication, loads the watchlist, selects the page state and coordinates rendering. |
+| Watchlist item | Builds one item from a WatchlistItem response using safe DOM text assignment. |
+| Formatting | Formats decimal-string money and UTC observation times for display without changing backend values. |
+| Styles | Provides shared tokens, base rules, reusable components and responsive page layout. |
+
+API access remains centralised; page and component modules do not create separate request conventions.
+
+#### 4.2.3 Rendering Behaviour
+
+The landing page disables duplicate submission while login is pending and retains no password after a successful request. INVALID_CREDENTIALS remains generic, and unexpected failures do not expose server details.
+
+The watchlist page renders meta.count and every item in data, including records whose current_price is null. Each available item displays the product, exact variant, tracking state, retailer, formatted price and update time. STALE adds the exact warning "Stale data"; UNAVAILABLE replaces the numeric price with a clear unavailable state. The frontend does not recompute the current price or freshness classification.
+
+Page-level states distinguish session loading, watchlist loading, available data, an empty watchlist and a retryable request failure. An authentication failure returns the browser to /, while logout clears local user state after the server response and returns to the public page.
+
+#### 4.2.4 Presentation Constraints
+
+The interface uses semantic headings, labelled form controls, keyboard-operable actions, visible focus and status text that is not communicated by colour alone. The watchlist adapts from a single-column mobile layout to a wider card grid without hiding product, price or freshness information. Product imagery is omitted because the current API contract does not provide an image URL.
