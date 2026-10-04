@@ -903,3 +903,37 @@ No authentication token, password or product dataset is transferred into fronten
 The complete path was verified against a clean PostgreSQL database created, migrated, seeded and validated by the JavaScript database initializer. A successful login loaded all 10 tracked products belonging to the demonstration user. The interface preserved the two products without an eligible current price as unavailable rather than omitting them.
 
 Database changes used to create empty, stale and request-failure conditions were reflected by the next backend response and corresponding page state. Session restoration after reload, logout and unauthenticated access to /watchlist also behaved according to the established contracts. These results confirm that the displayed watchlist originates from PostgreSQL and travels through the backend API rather than from frontend fallback data.
+
+### 4.4 Walking-Skeleton Evidence and Traceability
+
+This section records the trace from the running watchlist page to its persistent data and identifies the evidence for the completed walking skeleton. The page contract, interface implementation and integrated flow are defined in Sections 4.1, 4.2 and 4.3 respectively.
+
+#### 4.4.1 Implementation Trace
+
+| Evidence point | Implemented artifact |
+|---|---|
+| Browser route | /watchlist |
+| Frontend entry | frontend/watchlist/index.html and frontend/src/pages/watchlist.js |
+| API operation | GET /api/watchlist |
+| Executed query | The parameterised SQL in backend/src/modules/watchlist/watchlist.repository.js, scoped by the authenticated user_id |
+| Tables read | tracked_products, product_variants, products, retailer_offers, retailers and price_observations |
+| Database source | Schema from backend/src/database/migrations/001-initial-schema.js and deterministic data from backend/src/database/seeds/001-demo-data.js |
+| Verified result | 10 watchlist items, including two items with no eligible current price |
+
+The query uses the ownership predicate tp.user_id = $1 and deterministic ordering by tp.created_at DESC, tp.tracked_product_id DESC. Its current-price selection remains within the exact variant and excludes out-of-stock observations, as specified in Section 3.3.
+
+#### 4.4.2 Evidence Register
+
+| Evidence | Confirmation |
+|---|---|
+| Database initialization | The JavaScript initializer created nine tables and four update triggers and loaded exactly 10 tracked products. A second execution preserved the count without duplicates, and partial-schema validation passed. |
+| Backend verification | TEST_REPORT_SECTION_3_3.md records 21 passing authentication, persistence, response and lifecycle scenarios. |
+| Browser verification | TEST_REPORT_FRONTEND_E2E.md records successful login, session restoration, rendering, failure recovery and logout against the real backend and database. |
+| Data provenance | A direct database change was visible in the following API response and browser state without a frontend source change. |
+| Running-page capture | docs/images/walking-skeleton.png shows /watchlist with the browser address visible and the seeded database-backed items rendered. |
+
+![PriceLens database-backed watchlist](images/walking-skeleton.png)
+
+#### 4.4.3 Completion Statement
+
+The recorded evidence confirms the required browser-to-database path: /watchlist requests the authenticated API, the backend executes the PostgreSQL query, and the browser renders the returned rows. The displayed count and unavailable-price states originate from the database response rather than frontend fallback data.
