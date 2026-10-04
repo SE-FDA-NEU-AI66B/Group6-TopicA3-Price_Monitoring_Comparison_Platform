@@ -562,3 +562,105 @@ US05 is completed by the Background Price Processor rather than by a browser req
 | *US04 — Add a product using its URL* | *AC1:* API-03 resolves the supported source and exact variant, then API-04 creates one TRACKING record. *AC2:* API-03 produces the normalised URL and API-04 rejects an existing per-user value without changing the watchlist count under BR6. *AC3:* API-03 rejects malformed or unsupported URLs before persistence. |
 | *US05 — Receive a price-drop notification* | *AC1:* BG-01 stores the new valid price, BG-02 records one qualifying crossing and BG-03 requests delivery within the required five-minute window. *AC2:* BG-02 records no new notification while the price remains below the target. *AC3:* BG-03 uses the approved Price Drop Alert: <product name> subject. *AC4:* after an above-target reset, the same pipeline permits exactly one notification for a later downward crossing. |
 | *US09 — Compare prices across retailers* | *AC1:* API-06 returns the matching offers ordered by eligible price and supplies the exact price difference. *AC2:* it excludes offers for another variant under BR5. *AC3:* one matching offer produces the exact no-multi-source-comparison state and message. |
+
+### 3.2 API Contracts, Validation and Errors
+
+PriceLens exposes three authentication operations and six authenticated shopper operations through REST/JSON APIs. Authentication establishes the current user context used to enforce resource ownership and Business Rules.
+
+#### 3.2.1 Contract Conventions
+
+| Concern | Contract |
+|---|---|
+| Base path | /api; resource-oriented paths and standard HTTP methods are used. |
+| Authentication | Login establishes the session. Session inspection and shopper operations require a valid authenticated session. The server derives user_id; clients never submit it. |
+| Ownership | Queries and mutations are restricted through tracked_products.user_id. A missing or unowned resource returns the same 404 response. |
+| Success body | JSON responses contain a top-level data member and optional meta. Empty collections return 200 with data: []. Logout returns 204 No Content without a response body. |
+| Error body | application/problem+json with type, title, status, stable code, exact detail and optional field-level errors. |
+| Names and identifiers | JSON fields use snake_case. PostgreSQL BIGINT identifiers are decimal strings. |
+| Money | Amounts are decimal strings with two fractional digits and an uppercase three-letter currency_code. |
+| Time | Timestamps use ISO 8601 UTC. Thirty-day history is grouped by UTC calendar date because the current user model has no time-zone preference. |
+
+Successful create operations return 201 Created and a Location header for the created resource. Collection pagination and idempotency keys are not required for the current milestone.
+
+Authentication uses the pricelens_session cookie. A successful login sets the cookie for one hour with HttpOnly, SameSite=Lax and Path=/; production responses also apply Secure. The session token is never returned in the JSON body. Logout clears the cookie using the same attributes.
+
+#### 3.2.2 HTTP Endpoint Contracts
+
+| ID | Method and path | Input and validation | Success output | Error codes |
+|---|---|---|---|---|
+| API-01 | GET /api/watchlist | No body. Results are restricted to the authenticated user and ordered by created_at descending. | 200 — data is an array of WatchlistItem; an empty watchlist is []. | 401 AUTHENTICATION_REQUIRED |
+| API-02 | GET /api/tracked-products/{tracked_product_id}/price-history | tracked_product_id must identify an owned record. The server uses its exact variant and a fixed 30-day UTC window. | 200 — data is PriceHistory, including daily points, summary and an explicit history state. | 401 AUTHENTICATION_REQUIRED; 404 TRACKED_PRODUCT_NOT_FOUND |
+| API-03 | POST /api/product-sources/resolve | Body: { "url": "string" }. The URL must be syntactically valid and belong to an active supported source. Tracking parameters are removed before resolution. | 200 — data is ResolvedProduct. Valid catalogue, variant and offer identities may be inserted or updated, but no user-owned tracking record is created. | 400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 422 INVALID_PRODUCT_URL; 503 SOURCE_UNAVAILABLE |
+| API-04 | POST /api/tracked-products | Body: { "retailer_offer_id": "string" }. The server obtains the variant and normalised URL from that offer and inserts the owned record in one transaction. | 201 — data is the created TrackedProduct with status TRACKING. | 400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 404 RETAILER_OFFER_NOT_FOUND; 409 DUPLICATE_TRACKED_URL |
+| API-05 | POST /api/tracked-products/{tracked_product_id}/alerts | Body: { "target_price": "decimal string" }. The product must be owned; a current valid price must exist; the target must be positive and lower than that price; the user must have fewer than 20 active alerts. | 201 — data is the created PriceAlert with status ACTIVE, the derived currency and the supporting current-price observation. | 400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 404 TRACKED_PRODUCT_NOT_FOUND; 409 CURRENT_PRICE_UNAVAILABLE; 409 ACTIVE_ALERT_LIMIT_REACHED; 422 TARGET_PRICE_NOT_POSITIVE; 422 TARGET_PRICE_NOT_BELOW_CURRENT |
+| API-06 | GET /api/tracked-products/{tracked_product_id}/offers | tracked_product_id must identify an owned record. Only latest observations for the exact variant and currency are considered; out-of-stock offers are excluded from lowest-price selection. | 200 — data is OfferComparison; eligible offers are ordered by amount ascending with a deterministic retailer-name tie-break. | 401 AUTHENTICATION_REQUIRED; 404 TRACKED_PRODUCT_NOT_FOUND |
+| API-07 | POST /api/auth/login | Body: { "email": "string", "password": "string" }. Both fields are required. Email matching is case-insensitive. Unknown accounts, incorrect passwords and non-active accounts produce the same response. | 200 — sets the session cookie and returns data as AuthenticatedUser. | 400 INVALID_REQUEST; 401 INVALID_CREDENTIALS |
+| API-08 | GET /api/auth/session | No body. Requires a valid, unexpired session cookie. | 200 — data is the current AuthenticatedUser. | 401 AUTHENTICATION_REQUIRED |
+| API-09 | POST /api/auth/logout | No body. Clears the current session cookie. | 204 No Content. | — |
+
+#### 3.2.3 Success Representations
+
+| Representation | Required content |
+|---|---|
+| WatchlistItem | tracked_product_id, tracking_status, product and exact-variant labels, source retailer and URL, derived current price or null, supporting observed_at and freshness_status (CURRENT, STALE or UNAVAILABLE). |
+| PriceHistory | tracked_product_id; range with days: 30, from_date, to_date and timezone: "UTC"; status; daily points; and summary containing minimum, maximum, current and currency_code when data exists. Each daily point is the lowest valid in-stock price for the exact variant and currency on that UTC date. |
+| ResolvedProduct | normalized_url, retailer identity, product identity and an array of exact variants. Each selectable variant includes its product_variant_id, retailer_offer_id, display label and attributes. |
+| TrackedProduct | tracked_product_id, exact product and variant identity, source retailer and URL, tracking_status and created_at. |
+| PriceAlert | price_alert_id, tracked_product_id, target_price, currency_code, status, current_price and created_at. |
+| OfferComparison | Exact variant identity, comparison status, ordered eligible offers and lowest_offer. Each offer includes retailer, amount, currency, availability, observation time, URL and difference_from_lowest. |
+| AuthenticatedUser | user_id, email and display_name. Password hashes and session tokens are never included. |
+
+History and comparison states remain successful query results rather than transport errors:
+
+| Representation | State | Result |
+|---|---|---|
+| PriceHistory | AVAILABLE | At least two daily points; message is null. |
+| PriceHistory | INSUFFICIENT_DATA | Exactly one point; message is "Insufficient data for a 30-day chart". |
+| PriceHistory | NO_HISTORY | No points; message is "No price history available". |
+| OfferComparison | AVAILABLE | At least two eligible matching offers; message is null. |
+| OfferComparison | SINGLE_OFFER | One eligible matching offer; message is "No multi-source comparison is currently available". |
+| OfferComparison | NO_AVAILABLE_OFFERS | No eligible in-stock offer; the offers array is empty and no lowest offer is returned. |
+
+#### 3.2.4 Error Contract
+
+The stable code is used by the client for branching; detail preserves the approved user-facing wording where Milestone 1 defines an exact message. A representative error is:
+
+{
+  "type": "/problems/invalid-product-url",
+  "title": "Invalid product URL",
+  "status": 422,
+  "code": "INVALID_PRODUCT_URL",
+  "detail": "Unsupported or invalid product URL",
+  "errors": [{ "field": "url", "reason": "unsupported_or_invalid" }]
+}
+
+| HTTP | Code | Detail and condition |
+|---:|---|---|
+| 400 | INVALID_REQUEST | The JSON body, identifier or field type is missing or malformed. |
+| 401 | INVALID_CREDENTIALS | Invalid email or password; used for an unknown email, incorrect password or non-active account without revealing which condition caused the failure. |
+| 401 | AUTHENTICATION_REQUIRED | Authentication is required. |
+| 404 | TRACKED_PRODUCT_NOT_FOUND | Tracked product not found; also used for an unowned identifier to avoid disclosing another user's data. |
+| 404 | RETAILER_OFFER_NOT_FOUND | The resolved offer is missing, inactive or no longer selectable. |
+| 409 | DUPLICATE_TRACKED_URL | This product URL is already being tracked (BR6). |
+| 409 | CURRENT_PRICE_UNAVAILABLE | No valid in-stock current price exists, so BR2 cannot be evaluated. |
+| 409 | ACTIVE_ALERT_LIMIT_REACHED | Maximum 20 active alerts reached (BR1). |
+| 422 | INVALID_PRODUCT_URL | Unsupported or invalid product URL. |
+| 422 | TARGET_PRICE_NOT_POSITIVE | Target price must be greater than 0 (BR2). |
+| 422 | TARGET_PRICE_NOT_BELOW_CURRENT | Target price must be lower than current price (BR2). |
+| 500 | INTERNAL_SERVER_ERROR | An unexpected server failure occurred; internal implementation and database details are not exposed. |
+| 503 | SOURCE_UNAVAILABLE | The supported source could not be resolved at that time; no tracking record is created. |
+
+#### 3.2.5 Background Notification Contract
+
+US05 is executed by the Background Price Processor and is not exposed as a browser-triggered HTTP endpoint.
+
+| Stage | Contract |
+|---|---|
+| Trigger | A new valid price_observation is committed for an offer. |
+| Evaluation | For the same exact variant and currency, the processor derives the previous and new current prices and locks each affected active alert. |
+| Qualifying crossing | When the price moves from above the target to equal to or below it, the processor changes the threshold state and inserts exactly one PENDING notification in the same transaction. |
+| Non-qualifying update | A price remaining at or below the target creates no notification. A price above the target resets the state to ABOVE_TARGET. |
+| Delivery | The pending notification is submitted to the email adapter with subject Price Drop Alert: <product name>. The recorded outcome becomes SENT or FAILED; qualifying delivery is requested within five minutes. |
+| Duplicate prevention | The persisted threshold state and UNIQUE (price_alert_id, price_observation_id) enforce BR4 across retries and concurrent processing. |
+
+Alert creation and background evaluation use database transactions because BR1, BR2 and BR4 depend on multiple rows. Database uniqueness violations are translated to the corresponding API error instead of being exposed as PostgreSQL errors.
