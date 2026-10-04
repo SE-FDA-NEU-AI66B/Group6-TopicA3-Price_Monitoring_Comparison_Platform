@@ -474,3 +474,59 @@ The migration must run on an empty PostgreSQL database with stop-on-error enable
 - duplicate canonical values, invalid prices, invalid states and mismatched offer-variant references are rejected;
 - `updated_at` triggers and BR7 cascade behaviour work as specified;
 - shared catalogue and observation rows remain after a tracked product is deleted.
+
+### 2.4 Database Initialization and Seed Data
+
+#### 2.4.1 Initialization Workflow
+
+PriceLens uses a deterministic initialization workflow for the local walking-skeleton database. Equivalent entry points are provided for Windows PowerShell (`database/init_database.ps1`) and macOS/Linux (`database/init_database.sh`). Both entry points execute the same ordered stages:
+
+| Stage | Artifact | Result |
+|---|---|---|
+| Database creation | Initialization script | Creates a new PostgreSQL database and refuses to replace an existing database. |
+| Schema migration | `database/migrations/001_initial_schema.sql` | Creates the nine-table schema, constraints, indexes and triggers defined in Sections 2.1–2.3. |
+| Seed loading | `database/seeds/001_demo_data.sql` | Inserts the deterministic dataset required by the walking skeleton. |
+| Validation | Initialization script | Confirms that the demonstration user owns exactly 10 tracked products. |
+
+Stop-on-error execution and transaction boundaries prevent a failed migration or seed operation from being treated as a successful initialization. Operating-system commands, configuration and troubleshooting are documented separately in `database/README.md` and `docs/SETUP.md`.
+
+#### 2.4.2 Seed Data
+
+The seed dataset supports the authenticated `/watchlist` path defined in Section 1.6. It contains only the records required to demonstrate the database-backed read path:
+
+| Seeded table | Record count | Purpose |
+|---|---:|---|
+| `users` | 1 | Provides the non-sensitive demonstration account and ownership root. |
+| `products` | 10 | Provides canonical product identities. |
+| `product_variants` | 10 | Provides one exact variant for each product. |
+| `retailers` | 3 | Provides sample supported sources. |
+| `retailer_offers` | 10 | Connects each seeded variant to a sample retailer listing. |
+| `tracked_products` | 10 | Provides the demonstration user's watchlist records. |
+| `price_observations` | 10 | Provides one recent price and availability observation for each offer. |
+
+The sample retailer URLs use reserved `.example` domains and no real credential is committed. `price_alerts` and `notifications` are not seeded because they are outside the walking-skeleton read path.
+
+Records are inserted in foreign-key-safe order:
+
+```text
+users, products, retailers
+→ product_variants
+→ retailer_offers
+→ tracked_products
+→ price_observations
+```
+
+The seeded values satisfy the schema's required-field, uniqueness, state, positive-price and exact-variant constraints. Conflict handling prevents reapplication of the seed file from duplicating canonical catalogue, offer or user-owned tracking records.
+
+#### 2.4.3 Initialization Validation
+
+The initialized database is valid only when the schema and seed operations complete without errors and the demonstration user owns exactly 10 `tracked_products` records. The initializer evaluates this invariant with the following query:
+
+```sql
+SELECT COUNT(*) AS tracked_product_count
+FROM tracked_products AS tp
+JOIN users AS u ON u.user_id = tp.user_id
+WHERE u.email = 'demo@pricelens.local';
+```
+
+The required result is `tracked_product_count = 10`; any other value is an initialization failure. This validation confirms that the seeded ownership and foreign-key relationships were accepted by the schema and establishes the deterministic database state required by the `/watchlist` walking skeleton.
