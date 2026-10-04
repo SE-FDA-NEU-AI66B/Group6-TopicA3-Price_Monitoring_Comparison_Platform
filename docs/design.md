@@ -235,3 +235,182 @@ The following values are derived from persisted records rather than duplicated a
 Shared catalogue entities (`Product`, `ProductVariant`, `Retailer` and `RetailerOffer`) are retained or deactivated rather than deleted while dependent records exist. `PriceObservation` records are immutable and retained because they support history, freshness, alert evaluation and notification evidence.
 
 After the user confirms deletion, `TrackedProduct` and its dependent records are removed in one controlled transaction. Deleting a tracked product cascades to its `PriceAlert` records, and deleting those alerts cascades to their `Notification` records, enforcing BR7. The operation does not delete the shared product, variant, retailer, offer or observation records. Cancelling the confirmation performs no database mutation. Because the tracked-product record is removed, its per-user normalised URL no longer occupies the BR6 unique constraint and may be tracked again later.
+
+### 2.2 ERD and Data Dictionary
+
+#### 2.2.1 Entity-Relationship Diagram
+
+![PriceLens entity-relationship diagram](images/erd.png)
+
+The ERD presents the nine PriceLens tables, their primary and foreign keys, and the multiplicity of every relationship. Shared catalogue and observation tables are separated from user-owned tracking, alert and notification tables. The entity names, keys and relationships shown in the diagram must match the data dictionary below.
+
+
+#### 2.2.2 Table Purposes
+
+| Table | Purpose |
+|---|---|
+| `users` | Stores authenticated shopper accounts and provides the ownership root for user-specific PriceLens data. |
+| `products` | Stores canonical product identity shared by all variants. |
+| `product_variants` | Stores exact product configurations whose price-affecting attributes must remain distinct. |
+| `retailers` | Stores supported e-commerce sources. |
+| `retailer_offers` | Stores retailer listings that connect one retailer URL to one exact product variant. |
+| `tracked_products` | Stores the exact product variant and normalised source URL tracked by a user. |
+| `price_observations` | Stores immutable successful price and availability observations over time. |
+| `price_alerts` | Stores user-defined target prices and the persisted state required to evaluate them. |
+| `notifications` | Stores qualifying alert-notification records and their delivery outcomes. |
+
+#### 2.2.3 Data Dictionary
+
+Each table uses an entity-specific primary key implemented as `BIGINT GENERATED ALWAYS AS IDENTITY`. Foreign keys use the same entity-based name as the referenced primary key. All timestamps use `TIMESTAMPTZ` so that observations and delivery times remain unambiguous across environments.
+
+##### `users`
+
+| Column | PostgreSQL type | Null | Key | Description |
+|---|---|:---:|---|---|
+| `user_id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | No | PK | Internal user identifier. |
+| `email` | `VARCHAR(254)` | No | UQ | Normalised account email and notification address. |
+| `password_hash` | `TEXT` | No | — | Secure hash used to verify the existing demonstration account. |
+| `display_name` | `VARCHAR(120)` | No | — | Shopper name displayed by the application. |
+| `account_status` | `VARCHAR(20)` | No | — | Account state, limited to `ACTIVE` or `DISABLED`. |
+| `created_at` | `TIMESTAMPTZ` | No | — | Account creation time. |
+| `updated_at` | `TIMESTAMPTZ` | No | — | Most recent account update time. |
+
+##### `products`
+
+| Column | PostgreSQL type | Null | Key | Description |
+|---|---|:---:|---|---|
+| `product_id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | No | PK | Internal product identifier. |
+| `canonical_key` | `VARCHAR(200)` | No | UQ | Stable canonical identity used to prevent duplicate products. |
+| `brand` | `VARCHAR(120)` | No | — | Product brand. |
+| `model` | `VARCHAR(160)` | No | — | Product model. |
+| `display_name` | `VARCHAR(255)` | No | — | Human-readable product name. |
+| `created_at` | `TIMESTAMPTZ` | No | — | Record creation time. |
+
+##### `product_variants`
+
+| Column | PostgreSQL type | Null | Key | Description |
+|---|---|:---:|---|---|
+| `product_variant_id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | No | PK | Internal variant identifier. |
+| `product_id` | `BIGINT` | No | FK → `products.product_id` | Canonical product to which the variant belongs. |
+| `variant_key` | `VARCHAR(200)` | No | UQ with `product_id` | Stable identity within the parent product. |
+| `display_name` | `VARCHAR(255)` | No | — | Human-readable exact variant, such as `iPhone 15 — 256 GB`. |
+| `attributes` | `JSONB` | No | — | Price-affecting attributes such as capacity, size, colour or specification. |
+| `created_at` | `TIMESTAMPTZ` | No | — | Record creation time. |
+
+##### `retailers`
+
+| Column | PostgreSQL type | Null | Key | Description |
+|---|---|:---:|---|---|
+| `retailer_id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | No | PK | Internal retailer identifier. |
+| `source_code` | `VARCHAR(50)` | No | UQ | Stable code used to select a source adapter. |
+| `name` | `VARCHAR(120)` | No | — | Retailer display name. |
+| `domain` | `VARCHAR(255)` | No | UQ | Supported retailer domain. |
+| `is_active` | `BOOLEAN` | No | — | Whether the source is currently supported. |
+| `created_at` | `TIMESTAMPTZ` | No | — | Record creation time. |
+
+##### `retailer_offers`
+
+| Column | PostgreSQL type | Null | Key | Description |
+|---|---|:---:|---|---|
+| `retailer_offer_id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | No | PK | Internal retailer-offer identifier. |
+| `retailer_id` | `BIGINT` | No | FK → `retailers.retailer_id` | Retailer publishing the offer. |
+| `product_variant_id` | `BIGINT` | No | FK → `product_variants.product_variant_id` | Exact variant represented by the offer. |
+| `normalized_url` | `TEXT` | No | UQ with retailer and variant | Canonical offer URL after tracking parameters are removed. |
+| `external_offer_id` | `VARCHAR(200)` | Yes | — | Source-specific listing identifier when available. |
+| `last_refresh_attempt_at` | `TIMESTAMPTZ` | Yes | — | Most recent acquisition attempt, successful or failed. |
+| `last_refresh_status` | `VARCHAR(20)` | Yes | — | Latest attempt result: `SUCCEEDED` or `FAILED`. |
+| `last_refresh_error` | `TEXT` | Yes | — | Diagnostic summary for the latest failed attempt. |
+| `created_at` | `TIMESTAMPTZ` | No | — | Record creation time. |
+| `updated_at` | `TIMESTAMPTZ` | No | — | Most recent offer-metadata update time. |
+
+##### `tracked_products`
+
+| Column | PostgreSQL type | Null | Key | Description |
+|---|---|:---:|---|---|
+| `tracked_product_id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | No | PK | Internal tracked-product identifier. |
+| `user_id` | `BIGINT` | No | FK → `users.user_id` | User who owns the watchlist record. |
+| `product_variant_id` | `BIGINT` | No | FK → `product_variants.product_variant_id` | Exact variant selected by the user. |
+| `retailer_offer_id` | `BIGINT` | No | FK → `retailer_offers.retailer_offer_id` | Retailer offer corresponding to the submitted source URL. |
+| `normalized_source_url` | `TEXT` | No | UQ with `user_id` | Normalised URL used for per-user duplicate detection. |
+| `tracking_status` | `VARCHAR(20)` | No | — | Current tracking state; initially `TRACKING`. |
+| `created_at` | `TIMESTAMPTZ` | No | — | Time at which tracking began. |
+| `updated_at` | `TIMESTAMPTZ` | No | — | Most recent tracked-record update time. |
+
+The pair `(retailer_offer_id, product_variant_id)` must identify an offer for the same product variant. This invariant prevents the submitted source URL from referring to a different variant from the one selected by the user.
+
+##### `price_observations`
+
+| Column | PostgreSQL type | Null | Key | Description |
+|---|---|:---:|---|---|
+| `price_observation_id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | No | PK | Internal observation identifier. |
+| `retailer_offer_id` | `BIGINT` | No | FK → `retailer_offers.retailer_offer_id` | Offer observed by the source adapter. |
+| `price_amount` | `NUMERIC(14,2)` | No | — | Positive observed price. |
+| `currency_code` | `VARCHAR(3)` | No | — | ISO 4217 currency code, such as `VND`. |
+| `availability_status` | `VARCHAR(20)` | No | — | Availability at observation time: `IN_STOCK` or `OUT_OF_STOCK`. |
+| `observed_at` | `TIMESTAMPTZ` | No | UQ with `retailer_offer_id` | Time represented by the source observation. |
+| `created_at` | `TIMESTAMPTZ` | No | — | Time at which PriceLens persisted the observation. |
+
+Only successful, structurally valid source results create rows in `price_observations`. A failed refresh remains represented by the refresh metadata in `retailer_offers` and does not change the most recent successful observation time.
+
+##### `price_alerts`
+
+| Column | PostgreSQL type | Null | Key | Description |
+|---|---|:---:|---|---|
+| `price_alert_id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | No | PK | Internal alert identifier. |
+| `tracked_product_id` | `BIGINT` | No | FK → `tracked_products.tracked_product_id` | User-owned tracked product to which the alert applies. |
+| `target_price` | `NUMERIC(14,2)` | No | — | Positive target price accepted under BR2. |
+| `currency_code` | `VARCHAR(3)` | No | — | Currency used by the target and evaluated observation. |
+| `status` | `VARCHAR(20)` | No | — | Lifecycle state: `ACTIVE`, `INACTIVE` or `EXPIRED`. |
+| `last_threshold_state` | `VARCHAR(30)` | No | — | Latest evaluated state: `ABOVE_TARGET` or `AT_OR_BELOW_TARGET`. |
+| `price_observation_id` | `BIGINT` | No | FK → `price_observations.price_observation_id` | Observation supporting the latest threshold evaluation. |
+| `last_evaluated_at` | `TIMESTAMPTZ` | No | — | Time of the latest threshold evaluation. |
+| `created_at` | `TIMESTAMPTZ` | No | — | Alert creation time. |
+| `updated_at` | `TIMESTAMPTZ` | No | — | Most recent alert update time. |
+
+The referenced price observation must belong to an offer for the tracked product's exact variant and use the alert's currency.
+
+##### `notifications`
+
+| Column | PostgreSQL type | Null | Key | Description |
+|---|---|:---:|---|---|
+| `notification_id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | No | PK | Internal notification identifier. |
+| `price_alert_id` | `BIGINT` | No | FK → `price_alerts.price_alert_id` | Alert that produced the notification. |
+| `price_observation_id` | `BIGINT` | No | FK → `price_observations.price_observation_id` | Observation that caused the qualifying threshold crossing. |
+| `recipient_email` | `VARCHAR(254)` | No | — | Recipient snapshot used for this delivery request. |
+| `subject` | `VARCHAR(255)` | No | — | Email-subject snapshot. |
+| `delivery_status` | `VARCHAR(20)` | No | — | Delivery state: `PENDING`, `SENT` or `FAILED`. |
+| `qualified_at` | `TIMESTAMPTZ` | No | — | Time at which the threshold crossing qualified. |
+| `sent_at` | `TIMESTAMPTZ` | Yes | — | Successful delivery-request time. |
+| `provider_message_id` | `VARCHAR(255)` | Yes | — | Identifier returned by the email provider. |
+| `failure_reason` | `TEXT` | Yes | — | Failure summary when delivery is unsuccessful. |
+| `created_at` | `TIMESTAMPTZ` | No | — | Notification-record creation time. |
+
+#### 2.2.4 Relationships and Delete Actions
+
+| Foreign key | Parent relationship | Delete action | Rationale |
+|---|---|---|---|
+| `product_variants.product_id` | Product 1 → 1..N ProductVariant | `RESTRICT` | Prevents removal of a product while variants exist. |
+| `retailer_offers.retailer_id` | Retailer 1 → 0..N RetailerOffer | `RESTRICT` | Preserves source identity for existing offers. |
+| `retailer_offers.product_variant_id` | ProductVariant 1 → 0..N RetailerOffer | `RESTRICT` | Preserves exact-variant identity. |
+| `tracked_products.user_id` | User 1 → 0..N TrackedProduct | `RESTRICT` | Account deletion is outside the current scope. |
+| `tracked_products.product_variant_id` | ProductVariant 1 → 0..N TrackedProduct | `RESTRICT` | Prevents deletion of a tracked variant. |
+| `tracked_products.retailer_offer_id` | RetailerOffer 1 → 0..N TrackedProduct | `RESTRICT` | Preserves the submitted source reference. |
+| `price_observations.retailer_offer_id` | RetailerOffer 1 → 0..N PriceObservation | `RESTRICT` | Retains observation history. |
+| `price_alerts.tracked_product_id` | TrackedProduct 1 → 0..N PriceAlert | `CASCADE` | Removes dependent alerts after confirmed tracked-product deletion under BR7. |
+| `price_alerts.price_observation_id` | PriceObservation 1 → 0..N PriceAlert | `RESTRICT` | Preserves the observation supporting the latest alert evaluation. |
+| `notifications.price_alert_id` | PriceAlert 1 → 0..N Notification | `CASCADE` | Removes dependent notification records with a deleted alert. |
+| `notifications.price_observation_id` | PriceObservation 1 → 0..N Notification | `RESTRICT` | Preserves the observation that triggered the notification. |
+
+#### 2.2.5 Constraints and Business-Rule Alignment
+
+| Constraint | Enforcement | M1 rule |
+|---|---|---|
+| At most 20 `ACTIVE` alerts per user | Backend transaction locks the owning user, counts active alerts and rejects an operation that would exceed 20. | BR1 |
+| `price_alerts.target_price > 0` | Database `CHECK`. | BR2 |
+| Target price is lower than the eligible current price in the same currency | Backend transaction validates the derived price before inserting the alert. | BR2 |
+| Stale status begins when the supporting successful observation is at least 24 hours old | Derived from `price_observations.observed_at`; failed refresh attempts do not reset it. | BR3 |
+| One notification per alert and triggering observation | `UNIQUE (price_alert_id, price_observation_id)` together with persisted `last_threshold_state`. | BR4 |
+| Tracked record, offer, observation and alert use the same exact variant and currency | Foreign keys, the composite origin-offer relationship and backend cross-table validation. | BR5 |
+| One watchlist record per user and normalised URL | `UNIQUE (user_id, normalized_source_url)`. | BR6 |
+| Confirmed tracked-product deletion removes dependent alerts | `ON DELETE CASCADE` from `tracked_products` to `price_alerts`, then to `notifications`; the backend performs deletion only after confirmation. | BR7 |
+| Out-of-stock observations cannot become the lowest available offer | `availability_status` is constrained to `IN_STOCK` or `OUT_OF_STOCK`; lowest-offer queries filter to `IN_STOCK`. | BR8 |
