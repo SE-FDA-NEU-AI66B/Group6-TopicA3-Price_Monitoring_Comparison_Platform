@@ -316,11 +316,11 @@ The command targets the default database name `pricelens`. If `DB_NAME` was chan
 
 ## Independent Test Record
 
-- **Tested by:** Pending
-- **Machine/operating system:** Pending
-- **Test date:** Pending
-- **Total setup time:** Pending
-- **Result:** Pending
-- **Problems encountered:** Pending
+- **Tested by:** Pham Ba Viet
+- **Machine/operating system:** Window
+- **Test date:** 4/10/2026
+- **Total setup time:** 15 minutes
+- **Result:** Success
+- **Problems encountered:** No problem
 
 The tester must not be the author of this guide and must follow it on another machine without undocumented instructions.
