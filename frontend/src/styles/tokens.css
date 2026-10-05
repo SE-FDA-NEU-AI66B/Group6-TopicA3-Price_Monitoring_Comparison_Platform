@@ -1,0 +1,34 @@
+:root {
+  color-scheme: light;
+  --color-ink: #17202b;
+  --color-ink-soft: #53606e;
+  --color-surface: #ffffff;
+  --color-surface-subtle: #f5f7f8;
+  --color-surface-tint: #eaf6f3;
+  --color-border: #d8e0e4;
+  --color-brand: #0d6b61;
+  --color-brand-strong: #075148;
+  --color-brand-soft: #cfeae4;
+  --color-accent: #f2b84b;
+  --color-danger: #a13d3d;
+  --color-danger-soft: #fbecec;
+  --color-warning: #7a4f00;
+  --color-warning-soft: #fff1cb;
+  --color-focus: #176fbd;
+  --shadow-card: 0 18px 50px rgb(23 32 43 / 10%);
+  --shadow-soft: 0 8px 24px rgb(23 32 43 / 8%);
+  --radius-small: 0.5rem;
+  --radius-medium: 0.875rem;
+  --radius-large: 1.5rem;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4rem;
+  --content-width: 75rem;
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: Georgia, "Times New Roman", serif;
+}
