@@ -71,6 +71,10 @@ Complete and align the PriceLens requirements so that the product vision, person
 
 **Scrum Master for Sprint 2:** @adcc17
 
+### Sprint 2 implementation decision — 4 October 2026
+
+PostgreSQL remains the PriceLens database engine and the approved nine-table data model is unchanged. Database initialization now runs through version-controlled JavaScript in the backend with `npm run db:init`; this replaces the tracked `.sql`, PowerShell and Bash initializer files so the implementation complies with the shared CI policy without changing application behaviour.
+
 ### Attendance
 
 | Member | Planning | Review | Retro |
