@@ -1035,3 +1035,103 @@ This mechanism provides the minimum secure browser session required by the miles
 Logout clears the browser cookie, and normal sessions end after one hour. Credentialed CORS must allow the configured frontend origin rather than a wildcard. The current design does not provide refresh tokens, device management or immediate revocation of an already issued token on another device.
 
 This decision should be reconsidered if PriceLens requires immediate global logout, session inventories, long-lived refresh flows, multiple client types or stronger per-device control. Those requirements would favour opaque server-side sessions or a dedicated access-token and refresh-token design.
+
+## 6. Changes Since Milestone 1
+
+Milestone 1 defined the PriceLens product requirements, users, Business Rules and expected screen flow. During Sprint 2, architecture design and walking-skeleton implementation clarified how those requirements should be realised.
+
+The following changes record genuine design and implementation discoveries. They do not alter the approved User Stories or Business Rules in `docs/requirements.md`.
+
+### Change 1 — Define the Authentication and Ownership Mechanism
+
+**Previous state:**  
+Milestone 1 classified routes as guest or authenticated-user routes and required users to sign in before accessing their watchlists. However, it did not define how the browser session would be represented, how the backend would identify the current user or how user-owned records would be protected.
+
+**Reason for change:**  
+Designing the authenticated walking skeleton showed that protected operations required a server-verifiable user identity. The backend could not trust a `user_id` supplied by the browser, and a token readable by frontend JavaScript would unnecessarily expose authentication data.
+
+**Change made:**  
+PriceLens now uses a signed JWT stored in the `pricelens_session` `HttpOnly` cookie. The cookie uses `SameSite=Lax`, `Path=/`, a one-hour lifetime and `Secure` in production.
+
+For every protected request, the backend verifies the token, resolves the active user from PostgreSQL and restricts database operations through the authenticated ownership relationship. Frontend code sends credentialed requests but does not read, store or submit the authenticated user's database identifier.
+
+**Impact:**  
+This change affects the authentication boundary in Section 1, the API conventions and contracts in Section 3, the integrated browser flow in Section 4 and ADR-02 in Section 5. It also ensures that `GET /api/watchlist` returns only records whose `tracked_products.user_id` belongs to the authenticated user.
+
+The approved Milestone 1 requirement that `/watchlist` is restricted to authenticated users remains unchanged. Sprint 2 defines and implements the mechanism that enforces it.
+
+**Traceability:**  
+Sections 1.2.3, 3.2, 3.3, 4.3 and 5.2 of this document.
+
+### Change 2 — Refine the Screen Flow into One Executable Walking-Skeleton Path
+
+**Previous state:**  
+Milestone 1 defined the complete intended screen inventory and navigation flow, including `/`, `/watchlist`, product registration, product details, retailer comparison and alert management. It did not identify which route would be implemented first as the Milestone 2 walking skeleton or how that route would prove that displayed data came from PostgreSQL.
+
+**Reason for change:**  
+Milestone 2 required one thin but complete browser-to-database path using at least 10 seeded records. Implementing every Milestone 1 screen was unnecessary for this proof and would have expanded the sprint beyond the walking-skeleton objective.
+
+The `/watchlist` route was selected because it demonstrates authentication, frontend rendering, backend API communication, ownership enforcement and PostgreSQL persistence in one observable flow.
+
+**Change made:**  
+The walking skeleton was defined as:
+
+```text
+Sign in at /
+→ Open /watchlist
+→ GET /api/watchlist
+→ Execute the authenticated PostgreSQL query
+→ Return the backend JSON response
+→ Render 10 watchlist items
+```
+
+The database contains exactly 10 `tracked_products` records for the demonstration user. The backend query reads `tracked_products`, `product_variants`, `products`, `retailer_offers`, `retailers` and `price_observations`.
+
+The frontend renders the backend response without a hard-coded product array, static JSON file or fallback dataset. Products without an eligible in-stock price remain visible with an unavailable-price state.
+
+**Impact:**  
+This change affects the walking-skeleton path in Sections 1.6 and 1.7, the database-backed API route in Sections 3.3 and 3.4 and the implementation evidence in Section 4.
+
+The remaining Milestone 1 routes are still part of the approved target flow. Live retailer acquisition, background price processing, alert evaluation and email delivery remain outside the executed Sprint 2 walking skeleton.
+
+**Traceability:**  
+Sections 1.6, 1.7, 3.3, 3.4 and 4 of this document.
+
+### Change 3 — Replace Platform-Specific Database Initializers with One JavaScript Command
+
+**Previous state:**  
+The initial Sprint 2 database setup used separate tracked SQL, PowerShell and Bash initializer files. Users therefore had to select an operating-system-specific initialization path even though every environment needed to create the same PostgreSQL schema and seed data.
+
+**Reason for change:**  
+Implementation review showed that the tracked initializer formats did not comply with the shared CI policy. Maintaining separate platform-specific initialization paths also increased the risk that Windows, macOS and Linux users would create different database states.
+
+**Change made:**  
+Database creation, migration, seeding and validation now run through version-controlled JavaScript using one command:
+
+```text
+npm --prefix backend run db:init
+```
+
+The change does not alter the approved PostgreSQL data model or application behaviour. Successful initialization creates:
+
+- One `pricelens` database
+- Nine application tables
+- Four update triggers
+- One demonstration user
+- Exactly 10 tracked products
+
+The initializer can be rerun without duplicating the demonstration user's tracked products and rejects an incomplete schema instead of silently continuing.
+
+**Impact:**  
+This change affects the database initialization workflow in Section 2.4, the evidence recorded in Section 4.4, the implementation decision recorded in `docs/sprint-log.md` and the setup command documented in `docs/SETUP.md`.
+
+It improves cross-platform reproducibility while preserving the same schema, seeded data, Business Rules and walking-skeleton result.
+
+**Traceability:**  
+Section 2.4 and Section 4.4 of this document, `docs/sprint-log.md` and `docs/SETUP.md`.
+
+### Requirement Alignment
+
+No approved Milestone 1 User Story, acceptance criterion or Business Rule is changed by these updates. Therefore, `docs/requirements.md` does not require modification.
+
+The changes clarify the architecture, select the implemented vertical slice and standardise the database initialization method used to realise the existing requirements.
