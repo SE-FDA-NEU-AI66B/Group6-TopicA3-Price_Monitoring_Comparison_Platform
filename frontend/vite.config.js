@@ -16,7 +16,10 @@ function watchlistRouteMiddleware(request, response, next) {
 }
 
 export default defineConfig({
+<<<<<<< HEAD
   envDir: resolve(projectRoot, '..'),
+=======
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
   plugins: [
     {
       name: 'pricelens-watchlist-route',

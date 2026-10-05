@@ -1,5 +1,8 @@
 node_modules/
+# Do not commit local secrets, but keep the safe configuration template tracked.
 .env
+.env.*
+!.env.example
 npm-debug.log*
 *.sql
 *.db

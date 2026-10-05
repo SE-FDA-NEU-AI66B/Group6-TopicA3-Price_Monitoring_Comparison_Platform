@@ -8,6 +8,7 @@ The PriceLens architecture is driven by the approved Milestone 1 requirements an
 
 | ID | Architectural driver | Requirement source | Architectural implication |
 |---|---|---|---|
+<<<<<<< HEAD
 | **AD1** | PriceLens must provide browser-based access while protecting user-specific data. | Scenarios 1–3; Section 6 — Screens and Flow | A browser frontend and backend authentication boundary are required. Every protected operation must enforce record ownership. |
 | **AD2** | A shopper must be able to track a supported product by URL without creating a duplicate watchlist record. | US04; BR6 | The backend must validate and normalise URLs, check per-user uniqueness and persist accepted tracking data. |
 | **AD3** | Tracking and comparison must preserve the exact selected product variant. | US09; US11; BR5 | Products, variants, retailer offers and tracked records require explicit relationships. Comparison logic must exclude mismatched variants. |
@@ -18,6 +19,18 @@ The PriceLens architecture is driven by the approved Milestone 1 requirements an
 | **AD8** | Business Rules must produce the same result for user requests and background processing. | BR1–BR8 | Shared domain logic must remain independent of screens, jobs and external adapters. |
 | **AD9** | Sprint 2 must prove a real page-to-database path. | Milestone 2 walking-skeleton requirement | One browser route must call the backend, read at least 10 seeded database records and render the returned data. |
 | **AD10** | Configuration and secrets must remain outside committed source code. | Milestone 2 setup requirements | Environment-specific values must be documented in `.env.example`; real credentials must not be committed. |
+=======
+| *AD1* | PriceLens must provide browser-based access while protecting user-specific data. | Scenarios 1–3; Section 6 — Screens and Flow | A browser frontend and backend authentication boundary are required. Every protected operation must enforce record ownership. |
+| *AD2* | A shopper must be able to track a supported product by URL without creating a duplicate watchlist record. | US04; BR6 | The backend must validate and normalise URLs, check per-user uniqueness and persist accepted tracking data. |
+| *AD3* | Tracking and comparison must preserve the exact selected product variant. | US09; US11; BR5 | Products, variants, retailer offers and tracked records require explicit relationships. Comparison logic must exclude mismatched variants. |
+| *AD4* | Price data must support current-price, history, freshness and availability results. | US02; US06; US10; US12; BR3; BR8 | The system must retain timestamped price observations and availability data and support time-based queries. |
+| *AD5* | Price alerts must enforce fixed limits and generate non-repeating threshold notifications. | US03; US05; US07; BR1; BR2; BR4 | Alert validation and notification state require authoritative backend logic and persistent data. |
+| *AD6* | Confirmed product removal must preserve database consistency. | US08; BR7 | The tracked product and its dependent alerts must be removed in one controlled operation. |
+| *AD7* | PriceLens supports selected e-commerce sources rather than every marketplace. | Product Vision; US04 | Source-specific acquisition logic must be isolated behind adapters, and invalid source data must not become valid observations. |
+| *AD8* | Business Rules must produce the same result for user requests and background processing. | BR1–BR8 | Shared domain logic must remain independent of screens, jobs and external adapters. |
+| *AD9* | Sprint 2 must prove a real page-to-database path. | Milestone 2 walking-skeleton requirement | One browser route must call the backend, read at least 10 seeded database records and render the returned data. |
+| *AD10* | Configuration and secrets must remain outside committed source code. | Milestone 2 setup requirements | Environment-specific values must be documented in .env.example; real credentials must not be committed. |
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 
 The primary architectural priorities are requirement traceability, data integrity, separation of responsibilities, testability and incremental delivery. The walking skeleton proves the selected structure without requiring implementation of every approved User Story.
 
@@ -29,6 +42,7 @@ PriceLens owns the browser frontend, backend API, background price processing an
 
 | Responsibility area | PriceLens responsibility |
 |---|---|
+<<<<<<< HEAD
 | **Access control** | Authenticate an existing shopper, protect user-only operations, enforce record ownership and terminate authenticated state on sign-out. |
 | **Product tracking** | Validate and normalise supported URLs, prevent per-user duplicates and preserve the selected product variant. |
 | **Price data** | Store valid observations and provide current-price, 30-day history, freshness, availability and CSV-export data. |
@@ -36,21 +50,39 @@ PriceLens owns the browser frontend, backend API, background price processing an
 | **Alerts** | Validate target prices, enforce the active-alert limit, maintain alert state and record qualifying notification events. |
 | **External coordination** | Obtain supported product data through source adapters and request email delivery through an email adapter. |
 | **Persistence** | Store users, catalogue data, tracked products, observations, alerts and notification records in PostgreSQL. |
+=======
+| *Access control* | Authenticate an existing shopper, protect user-only operations, enforce record ownership and terminate authenticated state on sign-out. |
+| *Product tracking* | Validate and normalise supported URLs, prevent per-user duplicates and preserve the selected product variant. |
+| *Price data* | Store valid observations and provide current-price, 30-day history, freshness, availability and CSV-export data. |
+| *Comparison* | Compare only equivalent variants and identify the lowest matching in-stock offer. |
+| *Alerts* | Validate target prices, enforce the active-alert limit, maintain alert state and record qualifying notification events. |
+| *External coordination* | Obtain supported product data through source adapters and request email delivery through an email adapter. |
+| *Persistence* | Store users, catalogue data, tracked products, observations, alerts and notification records in PostgreSQL. |
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 
 #### 1.2.2 External Actors and Systems
 
 | External element | Responsibility outside PriceLens |
 |---|---|
+<<<<<<< HEAD
 | **Shopper** | Signs in, tracks products, inspects price information, compares offers and manages alerts. |
 | **Browser and user device** | Provide the runtime environment used to access the PriceLens frontend. |
 | **Supported e-commerce sources** | Publish product, variant, price, availability and retailer-link data consumed by supported integrations. |
 | **Email delivery service** | Delivers notification messages requested by PriceLens. |
 | **Retailer website or checkout system** | Allows the shopper to inspect an offer and independently complete a purchase after leaving PriceLens. |
+=======
+| *Shopper* | Signs in, tracks products, inspects price information, compares offers and manages alerts. |
+| *Browser and user device* | Provide the runtime environment used to access the PriceLens frontend. |
+| *Supported e-commerce sources* | Publish product, variant, price, availability and retailer-link data consumed by supported integrations. |
+| *Email delivery service* | Delivers notification messages requested by PriceLens. |
+| *Retailer website or checkout system* | Allows the shopper to inspect an offer and independently complete a purchase after leaving PriceLens. |
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 
 The frontend belongs to PriceLens even though it runs in the shopper's browser. The device, browser software, network, retailer systems and email infrastructure remain outside the system boundary.
 
 #### 1.2.3 Authentication and Data Ownership
 
+<<<<<<< HEAD
 Guests may access only the landing and sign-in path. Watchlist, product, comparison and alert operations require authenticated state. `User` is the ownership root for tracked products; alerts and notifications inherit ownership through their parent records. Each protected backend operation must resolve the authenticated user and restrict its query or mutation to records owned by that user.
 
 Sprint 2 requires minimum authentication for existing users and at least one demonstration account. Registration, password recovery, social sign-in, multi-factor authentication, profile management and administrator account management remain outside the current milestone.
@@ -63,6 +95,24 @@ The implemented walking skeleton uses a Vite multi-page frontend, a Node.js and 
 
 Background-job triggering, source-specific acquisition, the email provider and the physical deployment arrangement remain deferred because their components are outside the executed walking-skeleton path. They must be resolved before the corresponding target-architecture capabilities are implemented.
 
+=======
+Guests may access only the landing and sign-in path. Watchlist, product, comparison and alert operations require authenticated state. User is the ownership root for tracked products; alerts and notifications inherit ownership through their parent records. Each protected backend operation must resolve the authenticated user and restrict its query or mutation to records owned by that user.
+
+Sprint 2 requires minimum authentication for existing users and at least one demonstration account. Registration, password recovery, social sign-in, multi-factor authentication, profile management and administrator account management remain outside the current milestone.
+
+#### 1.2.4 Scope Exclusions and Open Decisions
+
+PriceLens does not process payments, delivery, returns or refunds; guarantee support for every source; control external prices or inventory; or define administrator behaviour not approved in Milestone 1.
+
+The following implementation choices remain for the relevant Architecture Decision Records:
+
+- Authentication mechanism, session representation and credential-storage library.
+- Frontend and backend frameworks.
+- Background-job triggering mechanism.
+- Source-specific acquisition methods.
+- Email provider and delivery protocol.
+- Physical deployment arrangement for PostgreSQL and the application components.
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 ### 1.3 Components and Responsibilities
 
 PriceLens uses a client-server architecture with separate frontend and backend applications. The frontend communicates with the backend through documented HTTP interfaces and does not access the database or external-service credentials directly.
@@ -71,6 +121,7 @@ PriceLens uses a client-server architecture with separate frontend and backend a
 
 | ID | Component | Runtime and ownership | Primary responsibility | Interfaces |
 |---|---|---|---|---|
+<<<<<<< HEAD
 | **C1** | Browser-Based Frontend | PriceLens; Vite multi-page application in the shopper's browser | Presents screens, collects input and renders backend results. | HTTP with C2; external navigation to C7. |
 | **C2** | Backend API | PriceLens; Node.js and Express server process | Authenticates users, enforces ownership and domain rules, handles interactive operations and returns API responses. | HTTP with C1; database operations with C4; source-adapter calls to C5. |
 | **C3** | Background Price Processor | PriceLens; independent server process | Refreshes prices and availability, stores observations, evaluates active alerts and requests notification delivery. | Database operations with C4; source-adapter calls to C5; email-adapter calls to C6. |
@@ -78,6 +129,15 @@ PriceLens uses a client-server architecture with separate frontend and backend a
 | **C5** | Supported E-commerce Sources | External | Supply supported product, variant, price and availability data. | Source-specific exchanges with adapters used by C2 and C3. |
 | **C6** | Email Delivery Service | External | Delivers price-drop messages and returns delivery outcomes. | Delivery requests from C3. |
 | **C7** | Retailer Website or Checkout System | External | Allows independent inspection and purchase of an offer. | Navigation from C1 through a retailer URL. |
+=======
+| *C1* | Browser-Based Frontend | PriceLens; shopper's browser | Presents screens, collects input and renders backend results. | HTTP with C2; external navigation to C7. |
+| *C2* | Backend API | PriceLens; server process | Authenticates users, enforces ownership and domain rules, handles interactive operations and returns API responses. | HTTP with C1; database operations with C4; source-adapter calls to C5. |
+| *C3* | Background Price Processor | PriceLens; independent server process | Refreshes prices and availability, stores observations, evaluates active alerts and requests notification delivery. | Database operations with C4; source-adapter calls to C5; email-adapter calls to C6. |
+| *C4* | PostgreSQL Database | PriceLens; persistent data store | Stores application records and applies the constraints defined in Section 2. | Database-driver operations from C2 and C3. |
+| *C5* | Supported E-commerce Sources | External | Supply supported product, variant, price and availability data. | Source-specific exchanges with adapters used by C2 and C3. |
+| *C6* | Email Delivery Service | External | Delivers price-drop messages and returns delivery outcomes. | Delivery requests from C3. |
+| *C7* | Retailer Website or Checkout System | External | Allows independent inspection and purchase of an offer. | Navigation from C1 through a retailer URL. |
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 
 C1, C2 and C4 form the required walking-skeleton path. C3 belongs to the target architecture but is not required to execute in the minimum Sprint 2 slice.
 
@@ -85,12 +145,21 @@ C1, C2 and C4 form the required walking-skeleton path. C3 belongs to the target 
 
 | Module | Responsibility | Related requirements |
 |---|---|---|
+<<<<<<< HEAD
 | **API and Request Handling** | Parse HTTP requests and map application outcomes to JSON, file responses and status codes. | Section 3; US12 |
 | **Authentication and Access Control** | Resolve authenticated identity, protect operations and enforce ownership. | Scenarios 1–3; protected screens |
 | **Product Tracking** | Search tracked products, normalise URLs, preserve variants and coordinate confirmed deletion. | US01, US04, US08, US11; BR5–BR7 |
 | **Pricing and Comparison** | Query price history, derive freshness and compare eligible matching offers. | US02, US06, US09, US10, US12; BR3, BR5, BR8 |
 | **Alert and Notification** | Validate alerts, enforce active-count limits and evaluate threshold state. | US03, US05, US07; BR1, BR2, BR4 |
 | **Persistence and Adapters** | Provide database transactions and isolate source-specific or email-provider communication. | Section 2; supported external integrations |
+=======
+| *API and Request Handling* | Parse HTTP requests and map application outcomes to JSON, file responses and status codes. | Section 3; US12 |
+| *Authentication and Access Control* | Resolve authenticated identity, protect operations and enforce ownership. | Scenarios 1–3; protected screens |
+| *Product Tracking* | Search tracked products, normalise URLs, preserve variants and coordinate confirmed deletion. | US01, US04, US08, US11; BR5–BR7 |
+| *Pricing and Comparison* | Query price history, derive freshness and compare eligible matching offers. | US02, US06, US09, US10, US12; BR3, BR5, BR8 |
+| *Alert and Notification* | Validate alerts, enforce active-count limits and evaluate threshold state. | US03, US05, US07; BR1, BR2, BR4 |
+| *Persistence and Adapters* | Provide database transactions and isolate source-specific or email-provider communication. | Section 2; supported external integrations |
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 
 Request handlers, jobs and adapters coordinate inputs and outputs but do not define Business Rules. C2 and C3 reuse the applicable domain and persistence modules without making direct runtime calls to each other.
 
@@ -139,7 +208,10 @@ A malformed URL, unsupported source, per-user duplicate, missing required varian
 4. C3 derives the current price from the latest valid in-stock observations for the matching variant and currency.
 5. C3 evaluates active alerts against the previous and newly derived current prices and records any qualifying BR4 event.
 6. C3 requests delivery from C6 and stores the delivery outcome without treating a failed delivery as successful.
+<<<<<<< HEAD
 
+=======
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 ### 1.5 Container Architecture Diagram
 
 ![PriceLens container architecture](images/architecture.png)
@@ -148,6 +220,7 @@ C1, C2, C3 and C4 are inside the PriceLens system boundary; C5, C6 and C7 are ex
 
 ### 1.6 Walking-Skeleton Path
 
+<<<<<<< HEAD
 The Sprint 2 walking skeleton uses the authenticated `/watchlist` route to prove a real browser-to-database path.
 
 | Item | Walking-skeleton scope |
@@ -161,11 +234,30 @@ The Sprint 2 walking skeleton uses the authenticated `/watchlist` route to prove
 #### End-to-End Flow
 
 1. The demonstration user authenticates and opens `/watchlist` in C1.
+=======
+The Sprint 2 walking skeleton uses the authenticated /watchlist route to prove a real browser-to-database path.
+
+| Item | Walking-skeleton scope |
+|---|---|
+| *Browser route* | /watchlist |
+| *Access* | Authenticated demonstration user |
+| *Container path* | C1 → C2 → C4 → C2 → C1 |
+| *Database data* | Exactly 10 seeded tracked_products records owned by the demonstration user |
+| *Visible result* | Ten watchlist items rendered from the backend database response |
+
+#### End-to-End Flow
+
+1. The demonstration user authenticates and opens /watchlist in C1.
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 2. C1 sends the authenticated request to C2.
 3. C2 resolves the user and queries C4 for that user's tracked products.
 4. C4 returns the 10 seeded records.
 5. C2 returns the records as JSON.
+<<<<<<< HEAD
 6. C1 renders the returned products on `/watchlist`.
+=======
+6. C1 renders the returned products on /watchlist.
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 
 The displayed records must come from PostgreSQL rather than a frontend array, static JSON file or in-memory collection. Live retailer access, C3 execution, alert evaluation and email delivery are outside the minimum walking skeleton.
 
@@ -173,6 +265,7 @@ The displayed records must come from PostgreSQL rather than a frontend array, st
 
 | Requirement area | Requirements | Architectural coverage |
 |---|---|---|
+<<<<<<< HEAD
 | **Authentication and ownership** | Protected screens; per-user behaviour in BR1 and BR6 | C1 presents authentication evidence; C2 authenticates and enforces ownership; C4 stores ownership relationships. |
 | **Product tracking** | US01, US04, US08, US11; BR5–BR7 | C2 normalises URLs, prevents duplicates, preserves variants and coordinates deletion; C4 persists records; C5 supplies supported metadata. |
 | **Price data and export** | US02, US06, US12; BR3 | C3 stores valid observations; C2 returns history, freshness or CSV data; C1 presents the result. |
@@ -185,6 +278,17 @@ Together, these mappings provide architectural coverage for US01–US12 and BR1�
 
 ## 2. Data Model
 
+=======
+| *Authentication and ownership* | Protected screens; per-user behaviour in BR1 and BR6 | C1 presents authentication evidence; C2 authenticates and enforces ownership; C4 stores ownership relationships. |
+| *Product tracking* | US01, US04, US08, US11; BR5–BR7 | C2 normalises URLs, prevents duplicates, preserves variants and coordinates deletion; C4 persists records; C5 supplies supported metadata. |
+| *Price data and export* | US02, US06, US12; BR3 | C3 stores valid observations; C2 returns history, freshness or CSV data; C1 presents the result. |
+| *Alerts and notifications* | US03, US05, US07; BR1, BR2, BR4 | C2 manages alert commands; C3 evaluates price crossings; C4 stores alert and notification state; C6 delivers email. |
+| *Comparison and availability* | US09, US10, US11; BR5, BR8 | C2 compares exact variants and excludes out-of-stock offers from the lowest-available result; C3 supplies observations; C1 renders the comparison and opens C7 links. |
+| *Walking skeleton* | Milestone 2 end-to-end requirement | C1 requests /watchlist, C2 queries at least 10 seeded records from C4 and C1 renders the database response. |
+
+Together, these mappings provide architectural coverage for US01–US12 and BR1–BR8 without duplicating the detailed data, endpoint or implementation definitions belonging to later sections. Sections 2–4 confirm that the implemented schema, API and browser flow preserve the C1 → C2 → C4 boundaries. C3, C5 and C6 remain target-architecture components and are not presented as part of the executed walking skeleton.
+
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 ### 2.1 Logical Data Model
 
 #### 2.1.1 Data Model Approach
@@ -571,7 +675,11 @@ The required result is `tracked_product_count = 10`; any other value is an initi
 
 ### 3.1 P0 Story-to-Operation Mapping
 
+<<<<<<< HEAD
 The PriceLens API surface is derived from the five P0 User Stories: US02, US03, US04, US05 and US09. All shopper-facing operations require an authenticated user and enforce ownership through `tracked_products.user_id`. A record identifier never grants access by itself.
+=======
+The PriceLens API surface is derived from the five P0 User Stories: US02, US03, US04, US05 and US09. All shopper-facing operations require an authenticated user and enforce ownership through tracked_products.user_id. A record identifier never grants access by itself.
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 
 US05 is completed by the Background Price Processor rather than by a browser request. Its application operations are included in the mapping so that the notification workflow remains traceable without exposing a public endpoint solely to trigger background processing. Exact HTTP methods, paths, payloads, success responses and error codes are defined in Section 3.2.
 
@@ -579,6 +687,7 @@ US05 is completed by the Background Price Processor rather than by a browser req
 
 | ID | Operation | Requirement role | Primary data and rules |
 |---|---|---|---|
+<<<<<<< HEAD
 | `API-01` | Retrieve the authenticated user's watchlist | Supports the walking skeleton and supplies owned tracked-product references used by the P0 product operations. | `users`, `tracked_products`, `products`, `product_variants`, `retailer_offers`, `retailers`, latest `price_observations`; authenticated ownership. |
 | `API-02` | Retrieve a tracked product's 30-day price history and summary | Supplies the data and availability states required by US02. | `tracked_products`, `retailer_offers`, `price_observations`; ownership, exact variant and currency. |
 | `API-03` | Resolve and validate a submitted product URL | Identifies whether the source is supported and returns the product and exact variant choices required before tracking under US04. | Supported-source adapter, `retailers`, `products`, `product_variants`, `retailer_offers`; URL normalisation and BR5. |
@@ -588,16 +697,35 @@ US05 is completed by the Background Price Processor rather than by a browser req
 | `BG-01` | Persist a valid price observation | Supplies the new successful observation that starts the US05 evaluation workflow. Invalid acquisition results remain refresh metadata and do not enter price history. | `retailer_offers`, `price_observations`; exact variant, currency and availability validation. |
 | `BG-02` | Evaluate active alerts and record a qualifying notification | Detects threshold transitions and prevents repeated events while the price remains at or below the same target. | `price_alerts`, `notifications`, previous and new `price_observations`; BR4 in one transaction. |
 | `BG-03` | Request email delivery and record its outcome | Sends the qualifying US05 message and preserves success or failure evidence. | `notifications`, user email snapshot and email adapter; BR4. |
+=======
+| API-01 | Retrieve the authenticated user's watchlist | Supports the walking skeleton and supplies owned tracked-product references used by the P0 product operations. | users, tracked_products, products, product_variants, retailer_offers, retailers, latest price_observations; authenticated ownership. |
+| API-02 | Retrieve a tracked product's 30-day price history and summary | Supplies the data and availability states required by US02. | tracked_products, retailer_offers, price_observations; ownership, exact variant and currency. |
+| API-03 | Resolve and validate a submitted product URL | Identifies whether the source is supported and returns the product and exact variant choices required before tracking under US04. | Supported-source adapter, retailers, products, product_variants, retailer_offers; URL normalisation and BR5. |
+| API-04 | Create a tracked-product record | Persists an accepted URL and exact variant for US04. | tracked_products, product_variants, retailer_offers; ownership, BR5 and BR6. |
+| API-05 | Create a price alert for an owned tracked product | Validates and stores the alert required by US03. | tracked_products, price_alerts, current valid price_observations; ownership, BR1 and BR2. |
+| API-06 | Retrieve the current retailer comparison for an exact variant | Supplies the ordered matching offers and comparison state required by US09. | product_variants, retailer_offers, retailers, latest price_observations; BR5 and BR8. |
+| BG-01 | Persist a valid price observation | Supplies the new successful observation that starts the US05 evaluation workflow. Invalid acquisition results remain refresh metadata and do not enter price history. | retailer_offers, price_observations; exact variant, currency and availability validation. |
+| BG-02 | Evaluate active alerts and record a qualifying notification | Detects threshold transitions and prevents repeated events while the price remains at or below the same target. | price_alerts, notifications, previous and new price_observations; BR4 in one transaction. |
+| BG-03 | Request email delivery and record its outcome | Sends the qualifying US05 message and preserves success or failure evidence. | notifications, user email snapshot and email adapter; BR4. |
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 
 #### Acceptance-Criterion Coverage
 
 | Story | Acceptance-criterion mapping |
 |---|---|
+<<<<<<< HEAD
 | **US02 — View product price history** | **AC1:** `API-02` supplies exactly 30 daily points when 30 valid daily values exist. **AC2:** the same operation supplies the 30-day minimum, maximum and derived current price. **AC3:** one valid record produces the exact insufficient-history state and message. **AC4:** zero valid records produces the exact no-history state and message instead of chart data. |
 | **US03 — Create a price alert** | **AC1:** `API-05` verifies ownership, the active-alert count and current valid price before creating an `ACTIVE` alert. **AC2:** it rejects a target above the current price under BR2. **AC3:** it rejects a non-positive target under BR2. **AC4:** it rejects creation of a twenty-first active alert under BR1. |
 | **US04 — Add a product using its URL** | **AC1:** `API-03` resolves the supported source and exact variant, then `API-04` creates one `TRACKING` record. **AC2:** `API-03` produces the normalised URL and `API-04` rejects an existing per-user value without changing the watchlist count under BR6. **AC3:** `API-03` rejects malformed or unsupported URLs before persistence. |
 | **US05 — Receive a price-drop notification** | **AC1:** `BG-01` stores the new valid price, `BG-02` records one qualifying crossing and `BG-03` requests delivery within the required five-minute window. **AC2:** `BG-02` records no new notification while the price remains below the target. **AC3:** `BG-03` uses the approved `Price Drop Alert: <product name>` subject. **AC4:** after an above-target reset, the same pipeline permits exactly one notification for a later downward crossing. |
 | **US09 — Compare prices across retailers** | **AC1:** `API-06` returns the matching offers ordered by eligible price and supplies the exact price difference. **AC2:** it excludes offers for another variant under BR5. **AC3:** one matching offer produces the exact no-multi-source-comparison state and message. |
+=======
+| *US02 — View product price history* | *AC1:* API-02 supplies exactly 30 daily points when 30 valid daily values exist. *AC2:* the same operation supplies the 30-day minimum, maximum and derived current price. *AC3:* one valid record produces the exact insufficient-history state and message. *AC4:* zero valid records produces the exact no-history state and message instead of chart data. |
+| *US03 — Create a price alert* | *AC1:* API-05 verifies ownership, the active-alert count and current valid price before creating an ACTIVE alert. *AC2:* it rejects a target above the current price under BR2. *AC3:* it rejects a non-positive target under BR2. *AC4:* it rejects creation of a twenty-first active alert under BR1. |
+| *US04 — Add a product using its URL* | *AC1:* API-03 resolves the supported source and exact variant, then API-04 creates one TRACKING record. *AC2:* API-03 produces the normalised URL and API-04 rejects an existing per-user value without changing the watchlist count under BR6. *AC3:* API-03 rejects malformed or unsupported URLs before persistence. |
+| *US05 — Receive a price-drop notification* | *AC1:* BG-01 stores the new valid price, BG-02 records one qualifying crossing and BG-03 requests delivery within the required five-minute window. *AC2:* BG-02 records no new notification while the price remains below the target. *AC3:* BG-03 uses the approved Price Drop Alert: <product name> subject. *AC4:* after an above-target reset, the same pipeline permits exactly one notification for a later downward crossing. |
+| *US09 — Compare prices across retailers* | *AC1:* API-06 returns the matching offers ordered by eligible price and supplies the exact price difference. *AC2:* it excludes offers for another variant under BR5. *AC3:* one matching offer produces the exact no-multi-source-comparison state and message. |
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 
 ### 3.2 API Contracts, Validation and Errors
 
@@ -607,6 +735,7 @@ PriceLens exposes three authentication operations and six authenticated shopper 
 
 | Concern | Contract |
 |---|---|
+<<<<<<< HEAD
 | Base path | `/api`; resource-oriented paths and standard HTTP methods are used. |
 | Authentication | Login establishes the session. Session inspection and shopper operations require a valid authenticated session. The server derives `user_id`; clients never submit it. |
 | Ownership | Queries and mutations are restricted through `tracked_products.user_id`. A missing or unowned resource returns the same `404` response. |
@@ -619,11 +748,26 @@ PriceLens exposes three authentication operations and six authenticated shopper 
 Successful create operations return `201 Created` and a `Location` header for the created resource. Collection pagination and idempotency keys are not required for the current milestone.
 
 Authentication uses the `pricelens_session` cookie. A successful login sets the cookie for one hour with `HttpOnly`, `SameSite=Lax` and `Path=/`; production responses also apply `Secure`. The session token is never returned in the JSON body. Logout clears the cookie using the same attributes.
+=======
+| Base path | /api; resource-oriented paths and standard HTTP methods are used. |
+| Authentication | Login establishes the session. Session inspection and shopper operations require a valid authenticated session. The server derives user_id; clients never submit it. |
+| Ownership | Queries and mutations are restricted through tracked_products.user_id. A missing or unowned resource returns the same 404 response. |
+| Success body | JSON responses contain a top-level data member and optional meta. Empty collections return 200 with data: []. Logout returns 204 No Content without a response body. |
+| Error body | application/problem+json with type, title, status, stable code, exact detail and optional field-level errors. |
+| Names and identifiers | JSON fields use snake_case. PostgreSQL BIGINT identifiers are decimal strings. |
+| Money | Amounts are decimal strings with two fractional digits and an uppercase three-letter currency_code. |
+| Time | Timestamps use ISO 8601 UTC. Thirty-day history is grouped by UTC calendar date because the current user model has no time-zone preference. |
+
+Successful create operations return 201 Created and a Location header for the created resource. Collection pagination and idempotency keys are not required for the current milestone.
+
+Authentication uses the pricelens_session cookie. A successful login sets the cookie for one hour with HttpOnly, SameSite=Lax and Path=/; production responses also apply Secure. The session token is never returned in the JSON body. Logout clears the cookie using the same attributes.
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 
 #### 3.2.2 HTTP Endpoint Contracts
 
 | ID | Method and path | Input and validation | Success output | Error codes |
 |---|---|---|---|---|
+<<<<<<< HEAD
 | `API-01` | `GET /api/watchlist` | No body. Results are restricted to the authenticated user and ordered by `created_at` descending. | `200` — `data` is an array of `WatchlistItem`; an empty watchlist is `[]`. | `401 AUTHENTICATION_REQUIRED` |
 | `API-02` | `GET /api/tracked-products/{tracked_product_id}/price-history` | `tracked_product_id` must identify an owned record. The server uses its exact variant and a fixed 30-day UTC window. | `200` — `data` is `PriceHistory`, including daily points, summary and an explicit history state. | `401 AUTHENTICATION_REQUIRED`; `404 TRACKED_PRODUCT_NOT_FOUND` |
 | `API-03` | `POST /api/product-sources/resolve` | Body: `{ "url": "string" }`. The URL must be syntactically valid and belong to an active supported source. Tracking parameters are removed before resolution. | `200` — `data` is `ResolvedProduct`. Valid catalogue, variant and offer identities may be inserted or updated, but no user-owned tracking record is created. | `400 INVALID_REQUEST`; `401 AUTHENTICATION_REQUIRED`; `422 INVALID_PRODUCT_URL`; `503 SOURCE_UNAVAILABLE` |
@@ -633,11 +777,23 @@ Authentication uses the `pricelens_session` cookie. A successful login sets the 
 | `API-07` | `POST /api/auth/login` | Body: `{ "email": "string", "password": "string" }`. Both fields are required. Email matching is case-insensitive. Unknown accounts, incorrect passwords and non-active accounts produce the same response. | `200` — sets the session cookie and returns `data` as `AuthenticatedUser`. | `400 INVALID_REQUEST`; `401 INVALID_CREDENTIALS` |
 | `API-08` | `GET /api/auth/session` | No body. Requires a valid, unexpired session cookie. | `200` — `data` is the current `AuthenticatedUser`. | `401 AUTHENTICATION_REQUIRED` |
 | `API-09` | `POST /api/auth/logout` | No body. Clears the current session cookie. | `204 No Content`. | — |
+=======
+| API-01 | GET /api/watchlist | No body. Results are restricted to the authenticated user and ordered by created_at descending. | 200 — data is an array of WatchlistItem; an empty watchlist is []. | 401 AUTHENTICATION_REQUIRED |
+| API-02 | GET /api/tracked-products/{tracked_product_id}/price-history | tracked_product_id must identify an owned record. The server uses its exact variant and a fixed 30-day UTC window. | 200 — data is PriceHistory, including daily points, summary and an explicit history state. | 401 AUTHENTICATION_REQUIRED; 404 TRACKED_PRODUCT_NOT_FOUND |
+| API-03 | POST /api/product-sources/resolve | Body: { "url": "string" }. The URL must be syntactically valid and belong to an active supported source. Tracking parameters are removed before resolution. | 200 — data is ResolvedProduct. Valid catalogue, variant and offer identities may be inserted or updated, but no user-owned tracking record is created. | 400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 422 INVALID_PRODUCT_URL; 503 SOURCE_UNAVAILABLE |
+| API-04 | POST /api/tracked-products | Body: { "retailer_offer_id": "string" }. The server obtains the variant and normalised URL from that offer and inserts the owned record in one transaction. | 201 — data is the created TrackedProduct with status TRACKING. | 400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 404 RETAILER_OFFER_NOT_FOUND; 409 DUPLICATE_TRACKED_URL |
+| API-05 | POST /api/tracked-products/{tracked_product_id}/alerts | Body: { "target_price": "decimal string" }. The product must be owned; a current valid price must exist; the target must be positive and lower than that price; the user must have fewer than 20 active alerts. | 201 — data is the created PriceAlert with status ACTIVE, the derived currency and the supporting current-price observation. | 400 INVALID_REQUEST; 401 AUTHENTICATION_REQUIRED; 404 TRACKED_PRODUCT_NOT_FOUND; 409 CURRENT_PRICE_UNAVAILABLE; 409 ACTIVE_ALERT_LIMIT_REACHED; 422 TARGET_PRICE_NOT_POSITIVE; 422 TARGET_PRICE_NOT_BELOW_CURRENT |
+| API-06 | GET /api/tracked-products/{tracked_product_id}/offers | tracked_product_id must identify an owned record. Only latest observations for the exact variant and currency are considered; out-of-stock offers are excluded from lowest-price selection. | 200 — data is OfferComparison; eligible offers are ordered by amount ascending with a deterministic retailer-name tie-break. | 401 AUTHENTICATION_REQUIRED; 404 TRACKED_PRODUCT_NOT_FOUND |
+| API-07 | POST /api/auth/login | Body: { "email": "string", "password": "string" }. Both fields are required. Email matching is case-insensitive. Unknown accounts, incorrect passwords and non-active accounts produce the same response. | 200 — sets the session cookie and returns data as AuthenticatedUser. | 400 INVALID_REQUEST; 401 INVALID_CREDENTIALS |
+| API-08 | GET /api/auth/session | No body. Requires a valid, unexpired session cookie. | 200 — data is the current AuthenticatedUser. | 401 AUTHENTICATION_REQUIRED |
+| API-09 | POST /api/auth/logout | No body. Clears the current session cookie. | 204 No Content. | — |
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 
 #### 3.2.3 Success Representations
 
 | Representation | Required content |
 |---|---|
+<<<<<<< HEAD
 | `WatchlistItem` | `tracked_product_id`, `tracking_status`, product and exact-variant labels, source retailer and URL, derived current price or `null`, supporting `observed_at` and `freshness_status` (`CURRENT`, `STALE` or `UNAVAILABLE`). |
 | `PriceHistory` | `tracked_product_id`; `range` with `days: 30`, `from_date`, `to_date` and `timezone: "UTC"`; `status`; daily `points`; and `summary` containing `minimum`, `maximum`, `current` and `currency_code` when data exists. Each daily point is the lowest valid in-stock price for the exact variant and currency on that UTC date. |
 | `ResolvedProduct` | `normalized_url`, retailer identity, product identity and an array of exact variants. Each selectable variant includes its `product_variant_id`, `retailer_offer_id`, display label and attributes. |
@@ -645,11 +801,21 @@ Authentication uses the `pricelens_session` cookie. A successful login sets the 
 | `PriceAlert` | `price_alert_id`, `tracked_product_id`, `target_price`, `currency_code`, `status`, `current_price` and `created_at`. |
 | `OfferComparison` | Exact variant identity, comparison `status`, ordered eligible offers and `lowest_offer`. Each offer includes retailer, amount, currency, availability, observation time, URL and `difference_from_lowest`. |
 | `AuthenticatedUser` | `user_id`, `email` and `display_name`. Password hashes and session tokens are never included. |
+=======
+| WatchlistItem | tracked_product_id, tracking_status, product and exact-variant labels, source retailer and URL, derived current price or null, supporting observed_at and freshness_status (CURRENT, STALE or UNAVAILABLE). |
+| PriceHistory | tracked_product_id; range with days: 30, from_date, to_date and timezone: "UTC"; status; daily points; and summary containing minimum, maximum, current and currency_code when data exists. Each daily point is the lowest valid in-stock price for the exact variant and currency on that UTC date. |
+| ResolvedProduct | normalized_url, retailer identity, product identity and an array of exact variants. Each selectable variant includes its product_variant_id, retailer_offer_id, display label and attributes. |
+| TrackedProduct | tracked_product_id, exact product and variant identity, source retailer and URL, tracking_status and created_at. |
+| PriceAlert | price_alert_id, tracked_product_id, target_price, currency_code, status, current_price and created_at. |
+| OfferComparison | Exact variant identity, comparison status, ordered eligible offers and lowest_offer. Each offer includes retailer, amount, currency, availability, observation time, URL and difference_from_lowest. |
+| AuthenticatedUser | user_id, email and display_name. Password hashes and session tokens are never included. |
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 
 History and comparison states remain successful query results rather than transport errors:
 
 | Representation | State | Result |
 |---|---|---|
+<<<<<<< HEAD
 | `PriceHistory` | `AVAILABLE` | At least two daily points; `message` is `null`. |
 | `PriceHistory` | `INSUFFICIENT_DATA` | Exactly one point; `message` is `"Insufficient data for a 30-day chart"`. |
 | `PriceHistory` | `NO_HISTORY` | No points; `message` is `"No price history available"`. |
@@ -662,6 +828,19 @@ History and comparison states remain successful query results rather than transp
 The stable `code` is used by the client for branching; `detail` preserves the approved user-facing wording where Milestone 1 defines an exact message. A representative error is:
 
 ```json
+=======
+| PriceHistory | AVAILABLE | At least two daily points; message is null. |
+| PriceHistory | INSUFFICIENT_DATA | Exactly one point; message is "Insufficient data for a 30-day chart". |
+| PriceHistory | NO_HISTORY | No points; message is "No price history available". |
+| OfferComparison | AVAILABLE | At least two eligible matching offers; message is null. |
+| OfferComparison | SINGLE_OFFER | One eligible matching offer; message is "No multi-source comparison is currently available". |
+| OfferComparison | NO_AVAILABLE_OFFERS | No eligible in-stock offer; the offers array is empty and no lowest offer is returned. |
+
+#### 3.2.4 Error Contract
+
+The stable code is used by the client for branching; detail preserves the approved user-facing wording where Milestone 1 defines an exact message. A representative error is:
+
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 {
   "type": "/problems/invalid-product-url",
   "title": "Invalid product URL",
@@ -670,6 +849,7 @@ The stable `code` is used by the client for branching; `detail` preserves the ap
   "detail": "Unsupported or invalid product URL",
   "errors": [{ "field": "url", "reason": "unsupported_or_invalid" }]
 }
+<<<<<<< HEAD
 ```
 
 | HTTP | Code | Detail and condition |
@@ -687,6 +867,24 @@ The stable `code` is used by the client for branching; `detail` preserves the ap
 | `422` | `TARGET_PRICE_NOT_BELOW_CURRENT` | `Target price must be lower than current price` (BR2). |
 | `500` | `INTERNAL_SERVER_ERROR` | An unexpected server failure occurred; internal implementation and database details are not exposed. |
 | `503` | `SOURCE_UNAVAILABLE` | The supported source could not be resolved at that time; no tracking record is created. |
+=======
+
+| HTTP | Code | Detail and condition |
+|---:|---|---|
+| 400 | INVALID_REQUEST | The JSON body, identifier or field type is missing or malformed. |
+| 401 | INVALID_CREDENTIALS | Invalid email or password; used for an unknown email, incorrect password or non-active account without revealing which condition caused the failure. |
+| 401 | AUTHENTICATION_REQUIRED | Authentication is required. |
+| 404 | TRACKED_PRODUCT_NOT_FOUND | Tracked product not found; also used for an unowned identifier to avoid disclosing another user's data. |
+| 404 | RETAILER_OFFER_NOT_FOUND | The resolved offer is missing, inactive or no longer selectable. |
+| 409 | DUPLICATE_TRACKED_URL | This product URL is already being tracked (BR6). |
+| 409 | CURRENT_PRICE_UNAVAILABLE | No valid in-stock current price exists, so BR2 cannot be evaluated. |
+| 409 | ACTIVE_ALERT_LIMIT_REACHED | Maximum 20 active alerts reached (BR1). |
+| 422 | INVALID_PRODUCT_URL | Unsupported or invalid product URL. |
+| 422 | TARGET_PRICE_NOT_POSITIVE | Target price must be greater than 0 (BR2). |
+| 422 | TARGET_PRICE_NOT_BELOW_CURRENT | Target price must be lower than current price (BR2). |
+| 500 | INTERNAL_SERVER_ERROR | An unexpected server failure occurred; internal implementation and database details are not exposed. |
+| 503 | SOURCE_UNAVAILABLE | The supported source could not be resolved at that time; no tracking record is created. |
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 
 #### 3.2.5 Background Notification Contract
 
@@ -694,6 +892,7 @@ US05 is executed by the Background Price Processor and is not exposed as a brows
 
 | Stage | Contract |
 |---|---|
+<<<<<<< HEAD
 | Trigger | A new valid `price_observation` is committed for an offer. |
 | Evaluation | For the same exact variant and currency, the processor derives the previous and new current prices and locks each affected active alert. |
 | Qualifying crossing | When the price moves from above the target to equal to or below it, the processor changes the threshold state and inserts exactly one `PENDING` notification in the same transaction. |
@@ -704,6 +903,17 @@ US05 is executed by the Background Price Processor and is not exposed as a brows
 Alert creation and background evaluation use database transactions because BR1, BR2 and BR4 depend on multiple rows. Database uniqueness violations are translated to the corresponding API error instead of being exposed as PostgreSQL errors.
 
 
+=======
+| Trigger | A new valid price_observation is committed for an offer. |
+| Evaluation | For the same exact variant and currency, the processor derives the previous and new current prices and locks each affected active alert. |
+| Qualifying crossing | When the price moves from above the target to equal to or below it, the processor changes the threshold state and inserts exactly one PENDING notification in the same transaction. |
+| Non-qualifying update | A price remaining at or below the target creates no notification. A price above the target resets the state to ABOVE_TARGET. |
+| Delivery | The pending notification is submitted to the email adapter with subject Price Drop Alert: <product name>. The recorded outcome becomes SENT or FAILED; qualifying delivery is requested within five minutes. |
+| Duplicate prevention | The persisted threshold state and UNIQUE (price_alert_id, price_observation_id) enforce BR4 across retries and concurrent processing. |
+
+Alert creation and background evaluation use database transactions because BR1, BR2 and BR4 depend on multiple rows. Database uniqueness violations are translated to the corresponding API error instead of being exposed as PostgreSQL errors.
+
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 ### 3.3 Database-Backed Watchlist Route
 
 The watchlist route is the minimum backend slice that proves the API can resolve an authenticated user, read PriceLens data from PostgreSQL and return the contract defined in Section 3.2. It does not use hard-coded product arrays, static JSON or an in-memory data substitute.
@@ -712,6 +922,7 @@ The watchlist route is the minimum backend slice that proves the API can resolve
 
 | Item | Design |
 |---|---|
+<<<<<<< HEAD
 | Operation | `GET /api/watchlist` |
 | Request identity | Supplied by the authentication middleware; `user_id` is never accepted from request input. |
 | Primary ownership path | `users → tracked_products` through `tracked_products.user_id`. |
@@ -719,12 +930,25 @@ The watchlist route is the minimum backend slice that proves the API can resolve
 | Success result | `200 OK` with `data: WatchlistItem[]` and `meta.count`. |
 | Empty result | `200 OK` with `data: []` and `meta.count: 0`. |
 | Authentication failure | `401 AUTHENTICATION_REQUIRED` using the common problem response. |
+=======
+| Operation | GET /api/watchlist |
+| Request identity | Supplied by the authentication middleware; user_id is never accepted from request input. |
+| Primary ownership path | users → tracked_products through tracked_products.user_id. |
+| Data sources | tracked_products, product_variants, products, retailer_offers, retailers and price_observations. |
+| Success result | 200 OK with data: WatchlistItem[] and meta.count. |
+| Empty result | 200 OK with data: [] and meta.count: 0. |
+| Authentication failure | 401 AUTHENTICATION_REQUIRED using the common problem response. |
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 
 The route is read-only. It neither refreshes retailer data nor creates observations; those operations belong to the Background Price Processor.
 
 #### 3.3.2 Data Retrieval
 
+<<<<<<< HEAD
 The repository executes one parameterised PostgreSQL query using the authenticated `user_id`. The query begins with `tracked_products`, applies the ownership predicate before returning data and orders rows by `tracked_products.created_at DESC`, followed by `tracked_product_id DESC` for deterministic results.
+=======
+The repository executes one parameterised PostgreSQL query using the authenticated user_id. The query begins with tracked_products, applies the ownership predicate before returning data and orders rows by tracked_products.created_at DESC, followed by tracked_product_id DESC for deterministic results.
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 
 For each owned tracked product, the query:
 
@@ -732,6 +956,7 @@ For each owned tracked product, the query:
 2. joins the tracked product's source offer and retailer;
 3. obtains the latest observation for the source offer to establish the applicable currency;
 4. obtains the latest observation for each offer of the same exact variant;
+<<<<<<< HEAD
 5. selects the lowest latest `IN_STOCK` observation in that currency; and
 6. returns `null` when no eligible current price exists.
 
@@ -751,12 +976,37 @@ Each database row is mapped to one `WatchlistItem`:
 | `freshness_status` | `UNAVAILABLE` when `current_price` is `null`; `STALE` when its observation is at least 24 hours old; otherwise `CURRENT`. |
 
 PostgreSQL `BIGINT` and `NUMERIC(14,2)` values remain strings in JSON, while timestamps are returned as ISO 8601 UTC values. The response contains one item for every owned tracked product, including products whose current price is unavailable.
+=======
+5. selects the lowest latest IN_STOCK observation in that currency; and
+6. returns null when no eligible current price exists.
+
+This retrieval preserves BR5 by remaining within one product_variant_id and preserves BR8 by excluding OUT_OF_STOCK observations from current-price selection. Existing indexes on the authenticated watchlist, exact-variant offers and offer observation history support this query path.
+
+#### 3.3.3 Response Assembly
+
+Each database row is mapped to one WatchlistItem:
+
+| Member | Source and rule |
+|---|---|
+| tracked_product_id | tracked_products.tracked_product_id, serialized as a decimal string. |
+| tracking_status, created_at | Owned tracked-product state and creation timestamp. |
+| product | Product identity, brand, model and display name, with the exact variant identity, label and attributes. |
+| source | Source retailer_offer_id, retailer identity and the normalised retailer URL. |
+| current_price | Lowest eligible amount, currency, availability and supporting observation time; otherwise null. |
+| freshness_status | UNAVAILABLE when current_price is null; STALE when its observation is at least 24 hours old; otherwise CURRENT. |
+
+PostgreSQL BIGINT and NUMERIC(14,2) values remain strings in JSON, while timestamps are returned as ISO 8601 UTC values. The response contains one item for every owned tracked product, including products whose current price is unavailable.
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 
 #### 3.3.4 Integrity and Failure Behaviour
 
 Authentication is resolved before the repository is called, and ownership is enforced inside the SQL predicate rather than by filtering results in application memory. Database connections come from a bounded pool and are released after the query. Unexpected persistence failures are converted to the common problem response without exposing SQL, credentials or internal stack traces.
 
+<<<<<<< HEAD
 With the deterministic demonstration dataset, the route returns exactly 10 items for `demo@pricelens.local`. That row count is a validation invariant for the walking skeleton, not a value hard-coded into the route.
+=======
+With the deterministic demonstration dataset, the route returns exactly 10 items for demo@pricelens.local. That row count is a validation invariant for the walking skeleton, not a value hard-coded into the route.
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 
 ### 3.4 Backend Verification and Frontend Handoff
 
@@ -766,6 +1016,7 @@ The backend walking skeleton is verified against the contracts in Sections 3.2 a
 
 | Area | Required verification |
 |---|---|
+<<<<<<< HEAD
 | Database initialization | Run `npm run db:init`; confirm nine tables, four update triggers, exactly 10 demonstration tracked products, rejection of a partial schema and an idempotent second execution. |
 | Authentication | Reject malformed login input with `400 INVALID_REQUEST`; return the same `401 INVALID_CREDENTIALS` for an unknown email, incorrect password or disabled account; create a one-hour `HttpOnly` session cookie after valid login. |
 | Session boundary | Return only the public user representation for a valid session and return `401 AUTHENTICATION_REQUIRED` for a missing, invalid or expired cookie. |
@@ -773,18 +1024,32 @@ The backend walking skeleton is verified against the contracts in Sections 3.2 a
 | Response contract | Return 10 seeded items in deterministic order, string identifiers and money values, ISO 8601 UTC timestamps, uppercase currency codes and an accurate `meta.count`. |
 | Price availability | Derive current prices only from eligible `IN_STOCK` observations and retain unavailable products with `current_price: null` and `freshness_status: "UNAVAILABLE"`. |
 | Failure handling | Convert unexpected database failures to `500 INTERNAL_SERVER_ERROR` without exposing SQL, credentials, stack traces or PostgreSQL details. |
+=======
+| Database initialization | Run npm run db:init; confirm nine tables, four update triggers, exactly 10 demonstration tracked products, rejection of a partial schema and an idempotent second execution. |
+| Authentication | Reject malformed login input with 400 INVALID_REQUEST; return the same 401 INVALID_CREDENTIALS for an unknown email, incorrect password or disabled account; create a one-hour HttpOnly session cookie after valid login. |
+| Session boundary | Return only the public user representation for a valid session and return 401 AUTHENTICATION_REQUIRED for a missing, invalid or expired cookie. |
+| Database-backed watchlist | Return only records owned by the authenticated user and prove that a database change is reflected by the next response without changing application code. |
+| Response contract | Return 10 seeded items in deterministic order, string identifiers and money values, ISO 8601 UTC timestamps, uppercase currency codes and an accurate meta.count. |
+| Price availability | Derive current prices only from eligible IN_STOCK observations and retain unavailable products with current_price: null and freshness_status: "UNAVAILABLE". |
+| Failure handling | Convert unexpected database failures to 500 INTERNAL_SERVER_ERROR without exposing SQL, credentials, stack traces or PostgreSQL details. |
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 | Process lifecycle | Close the HTTP server and PostgreSQL pool cleanly, including concurrent shutdown paths. |
 
 #### 3.4.2 Verified Result
 
 The backend was verified on 4 October 2026 using Node.js 24.19.0 and PostgreSQL 17.7. All 21 HTTP, persistence and lifecycle scenarios passed. The verification confirmed that the watchlist response originates from PostgreSQL, returns all 10 seeded records and preserves the two out-of-stock-only products as unavailable.
 
+<<<<<<< HEAD
 Static JavaScript checks and the configured `npm test` command completed successfully. Server termination closes the HTTP listener and PostgreSQL pool cleanly, including concurrent shutdown paths.
+=======
+Static JavaScript checks and the configured npm test command completed successfully. Server termination closes the HTTP listener and PostgreSQL pool cleanly, including concurrent shutdown paths.
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 
 #### 3.4.3 Browser Integration Contract
 
 | Concern | Stable handoff |
 |---|---|
+<<<<<<< HEAD
 | API location | All routes use the `/api` base path; the server origin is supplied by environment-specific configuration. |
 | Browser credentials | Cross-origin requests include credentials. CORS permits the configured frontend origin and credentialed requests rather than using a wildcard origin. |
 | Login | `POST /api/auth/login` accepts `email` and `password`; the browser stores the returned `HttpOnly` cookie and uses the returned `AuthenticatedUser` for display state. |
@@ -793,6 +1058,16 @@ Static JavaScript checks and the configured `npm test` command completed success
 | Logout | `POST /api/auth/logout` clears the session cookie and returns `204 No Content`. |
 | Errors | Non-success responses use `application/problem+json`; the frontend branches on the stable `code` rather than parsing `detail`. |
 | Data types | Identifiers and money remain strings, timestamps remain ISO 8601 UTC values and unavailable prices remain `null`. |
+=======
+| API location | All routes use the /api base path; the server origin is supplied by environment-specific configuration. |
+| Browser credentials | Cross-origin requests include credentials. CORS permits the configured frontend origin and credentialed requests rather than using a wildcard origin. |
+| Login | POST /api/auth/login accepts email and password; the browser stores the returned HttpOnly cookie and uses the returned AuthenticatedUser for display state. |
+| Session restoration | GET /api/auth/session determines whether an existing browser session is valid; frontend code does not read or store the session token. |
+| Watchlist | GET /api/watchlist requires the session cookie and returns { "data": WatchlistItem[], "meta": { "count": number } }. |
+| Logout | POST /api/auth/logout clears the session cookie and returns 204 No Content. |
+| Errors | Non-success responses use application/problem+json; the frontend branches on the stable code rather than parsing detail. |
+| Data types | Identifiers and money remain strings, timestamps remain ISO 8601 UTC values and unavailable prices remain null. |
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 
 The browser therefore follows one stable sequence: establish or restore the session, request the watchlist with credentials and render the returned state. Authentication failure returns the user to the unauthenticated state; empty and unavailable-price results remain successful API responses rather than transport errors. This contract is the stable boundary for the browser implementation.
 
@@ -800,14 +1075,23 @@ The browser therefore follows one stable sequence: establish or restore the sess
 
 ### 4.1 Walking-Skeleton Page and Integration Contract
 
+<<<<<<< HEAD
 The browser walking skeleton preserves the approved Milestone 1 routes. The public `/` route introduces PriceLens and provides sign-in, while the protected `/watchlist` route renders the authenticated user's database-backed tracked products. The frontend communicates only with the Backend API and does not access PostgreSQL or use local product substitutes.
+=======
+The browser walking skeleton preserves the approved Milestone 1 routes. The public / route introduces PriceLens and provides sign-in, while the protected /watchlist route renders the authenticated user's database-backed tracked products. The frontend communicates only with the Backend API and does not access PostgreSQL or use local product substitutes.
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 
 #### 4.1.1 Page Boundary
 
 | Route | Access | Page responsibility | Backend operations |
 |---|---|---|---|
+<<<<<<< HEAD
 | `/` | Guest | Present the PriceLens introduction and sign-in form. An existing valid session may continue directly to the watchlist. | `POST /api/auth/login`; `GET /api/auth/session` |
 | `/watchlist` | Authenticated user | Restore the current user, load the owned watchlist and render each returned item and its price state. | `GET /api/auth/session`; `GET /api/watchlist`; `POST /api/auth/logout` |
+=======
+| / | Guest | Present the PriceLens introduction and sign-in form. An existing valid session may continue directly to the watchlist. | POST /api/auth/login; GET /api/auth/session |
+| /watchlist | Authenticated user | Restore the current user, load the owned watchlist and render each returned item and its price state. | GET /api/auth/session; GET /api/watchlist; POST /api/auth/logout |
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 
 The minimum watchlist page is read-only. Product search, deletion, registration, detail, comparison and alert management remain represented by their approved routes but are not required to prove the walking-skeleton read path.
 
@@ -815,24 +1099,42 @@ The minimum watchlist page is read-only. Product search, deletion, registration,
 
 | Concern | Decision |
 |---|---|
+<<<<<<< HEAD
 | Application model | Vite multi-page application with `/` and `/watchlist` as HTML entry points. |
 | Language | Browser JavaScript using ES Modules, consistent with the backend codebase. |
 | Package management | `npm` with a committed lockfile. |
 | Navigation | Native browser navigation; no client-side router is required for the two-page slice. |
 | Presentation | Semantic HTML and project-owned CSS with shared tokens and reusable component classes. |
 | API access | One shared API client owns the configurable base URL, JSON handling, `credentials: "include"` and problem-response parsing. Page modules do not call `fetch` independently. |
+=======
+| Application model | Vite multi-page application with / and /watchlist as HTML entry points. |
+| Language | Browser JavaScript using ES Modules, consistent with the backend codebase. |
+| Package management | npm with a committed lockfile. |
+| Navigation | Native browser navigation; no client-side router is required for the two-page slice. |
+| Presentation | Semantic HTML and project-owned CSS with shared tokens and reusable component classes. |
+| API access | One shared API client owns the configurable base URL, JSON handling, credentials: "include" and problem-response parsing. Page modules do not call fetch independently. |
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 | Client state | The public authenticated-user representation is held only in memory. Product data is rendered from the current API response and is not persisted in browser storage. |
 
 Only the public API base URL is browser-configurable. Database credentials, password hashes, session tokens and signing secrets never enter frontend configuration or source code.
 
 #### 4.1.3 Session and Navigation Flow
 
+<<<<<<< HEAD
 1. A guest reaches `/` and submits an email and password through the sign-in form.
 2. A successful login establishes the `HttpOnly` session cookie and returns the public `AuthenticatedUser`; the browser then navigates to `/watchlist`.
 3. On page initialization, `/watchlist` restores the user through the session endpoint before requesting watchlist data.
 4. All API requests include browser credentials. Frontend code neither reads the session cookie nor stores a token.
 5. `AUTHENTICATION_REQUIRED` returns the browser to `/`; other problem responses remain on the current page and show an appropriate recoverable state.
 6. Logout clears the server-managed session and returns the browser to `/`.
+=======
+1. A guest reaches / and submits an email and password through the sign-in form.
+2. A successful login establishes the HttpOnly session cookie and returns the public AuthenticatedUser; the browser then navigates to /watchlist.
+3. On page initialization, /watchlist restores the user through the session endpoint before requesting watchlist data.
+4. All API requests include browser credentials. Frontend code neither reads the session cookie nor stores a token.
+5. AUTHENTICATION_REQUIRED returns the browser to /; other problem responses remain on the current page and show an appropriate recoverable state.
+6. Logout clears the server-managed session and returns the browser to /.
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 
 The configured frontend and backend origins must remain compatible with credentialed CORS. A wildcard allowed origin is not used with authenticated requests.
 
@@ -840,15 +1142,23 @@ The configured frontend and backend origins must remain compatible with credenti
 
 | Operation | Successful page behaviour | Failure behaviour |
 |---|---|---|
+<<<<<<< HEAD
 | `POST /api/auth/login` | Store the returned public user in memory and navigate to `/watchlist`. | `INVALID_REQUEST` presents validation feedback; `INVALID_CREDENTIALS` presents the generic login rejection without identifying which credential failed. |
 | `GET /api/auth/session` | Restore `user_id`, `email` and `display_name` for the current browser session. | `AUTHENTICATION_REQUIRED` establishes the unauthenticated page state. |
 | `GET /api/watchlist` | Render `data` in response order and display the count from `meta.count`. An empty array produces the empty-watchlist state. | `AUTHENTICATION_REQUIRED` returns to `/`; other failures produce a retryable request-error state without exposing backend details. |
 | `POST /api/auth/logout` | Treat `204 No Content` as completion and navigate to `/`. | A transport failure keeps the current page available and permits another logout attempt. |
+=======
+| POST /api/auth/login | Store the returned public user in memory and navigate to /watchlist. | INVALID_REQUEST presents validation feedback; INVALID_CREDENTIALS presents the generic login rejection without identifying which credential failed. |
+| GET /api/auth/session | Restore user_id, email and display_name for the current browser session. | AUTHENTICATION_REQUIRED establishes the unauthenticated page state. |
+| GET /api/watchlist | Render data in response order and display the count from meta.count. An empty array produces the empty-watchlist state. | AUTHENTICATION_REQUIRED returns to /; other failures produce a retryable request-error state without exposing backend details. |
+| POST /api/auth/logout | Treat 204 No Content as completion and navigate to /. | A transport failure keeps the current page available and permits another logout attempt. |
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 
 #### 4.1.5 Watchlist Presentation Mapping
 
 | UI content | API source and rule |
 |---|---|
+<<<<<<< HEAD
 | Item identity | `tracked_product_id` is used as the stable rendering key and is not treated as user-entered data. |
 | Product label | `product.display_name`, supported by `product.brand` and `product.model` where useful. |
 | Exact variant | `product.variant.display_name`; the page does not merge or infer variants from other items. |
@@ -858,6 +1168,17 @@ The configured frontend and backend origins must remain compatible with credenti
 | Observation time | `current_price.observed_at` supplies the visible update time when a current price exists. |
 | Freshness | `CURRENT` shows ordinary update information; `STALE` shows the required `"Stale data"` warning; `UNAVAILABLE` shows no numeric price. |
 | Watchlist count | `meta.count` supplies the page summary and must equal the number of returned items. |
+=======
+| Item identity | tracked_product_id is used as the stable rendering key and is not treated as user-entered data. |
+| Product label | product.display_name, supported by product.brand and product.model where useful. |
+| Exact variant | product.variant.display_name; the page does not merge or infer variants from other items. |
+| Tracking state | tracking_status is shown as the item's current tracking state. |
+| Source | source.retailer_name; source.url remains the corresponding retailer destination. |
+| Current price | current_price.amount and current_price.currency_code are formatted for display without recalculating the backend-selected price. |
+| Observation time | current_price.observed_at supplies the visible update time when a current price exists. |
+| Freshness | CURRENT shows ordinary update information; STALE shows the required "Stale data" warning; UNAVAILABLE shows no numeric price. |
+| Watchlist count | meta.count supplies the page summary and must equal the number of returned items. |
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 
 Identifiers and money arrive as strings, while timestamps arrive as ISO 8601 UTC values. The frontend formats these values for people but does not change their meaning or derive a replacement current price.
 
@@ -868,8 +1189,13 @@ Identifiers and money arrive as strings, while timestamps arrive as ISO 8601 UTC
 | Session loading | Prevent protected content from appearing until authentication has been resolved. |
 | Watchlist loading | Show a non-blocking loading state while retaining the page structure. |
 | Available | Render every returned item, including items whose price is unavailable. |
+<<<<<<< HEAD
 | Empty | Show a clear empty-watchlist state when `data` is empty and `meta.count` is `0`. |
 | Stale item | Keep the item visible and display `"Stale data"`. |
+=======
+| Empty | Show a clear empty-watchlist state when data is empty and meta.count is 0. |
+| Stale item | Keep the item visible and display "Stale data". |
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 | Unavailable price | Keep the item visible without a numeric price and distinguish it from a request failure. |
 | Request failure | Show a concise error state with a retry action; do not render fabricated fallback products. |
 
@@ -883,8 +1209,13 @@ The frontend implements the two-page boundary defined in Section 4.1 as a Vite m
 
 | Route | Primary regions | Behaviour |
 |---|---|---|
+<<<<<<< HEAD
 | `/` | PriceLens introduction, sign-in form and form-status area | Accepts email and password, presents validation or authentication failure and navigates to `/watchlist` after the backend establishes a session. |
 | `/watchlist` | Header with authenticated-user context and logout, watchlist heading and count, page-status area and responsive item collection | Restores the session, requests the owned watchlist and renders the returned items in API order. |
+=======
+| / | PriceLens introduction, sign-in form and form-status area | Accepts email and password, presents validation or authentication failure and navigates to /watchlist after the backend establishes a session. |
+| /watchlist | Header with authenticated-user context and logout, watchlist heading and count, page-status area and responsive item collection | Restores the session, requests the owned watchlist and renders the returned items in API order. |
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 
 The minimum watchlist page is read-only. It does not present controls for search, deletion, product registration, price history, comparison or alert management until their corresponding UI flows are implemented.
 
@@ -893,11 +1224,19 @@ The minimum watchlist page is read-only. It does not present controls for search
 | Module area | Responsibility |
 |---|---|
 | Configuration | Supplies the public API base URL without containing credentials or secrets. |
+<<<<<<< HEAD
 | API client | Sends JSON requests with browser credentials, handles `204 No Content` and converts problem responses into a stable client error shape. |
 | Session | Provides login, session restoration and logout operations without reading or persisting the session token. |
 | Landing page | Controls sign-in submission, pending state, validation feedback and successful navigation. |
 | Watchlist page | Resolves authentication, loads the watchlist, selects the page state and coordinates rendering. |
 | Watchlist item | Builds one item from a `WatchlistItem` response using safe DOM text assignment. |
+=======
+| API client | Sends JSON requests with browser credentials, handles 204 No Content and converts problem responses into a stable client error shape. |
+| Session | Provides login, session restoration and logout operations without reading or persisting the session token. |
+| Landing page | Controls sign-in submission, pending state, validation feedback and successful navigation. |
+| Watchlist page | Resolves authentication, loads the watchlist, selects the page state and coordinates rendering. |
+| Watchlist item | Builds one item from a WatchlistItem response using safe DOM text assignment. |
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 | Formatting | Formats decimal-string money and UTC observation times for display without changing backend values. |
 | Styles | Provides shared tokens, base rules, reusable components and responsive page layout. |
 
@@ -905,11 +1244,19 @@ API access remains centralised; page and component modules do not create separat
 
 #### 4.2.3 Rendering Behaviour
 
+<<<<<<< HEAD
 The landing page disables duplicate submission while login is pending and retains no password after a successful request. `INVALID_CREDENTIALS` remains generic, and unexpected failures do not expose server details.
 
 The watchlist page renders `meta.count` and every item in `data`, including records whose `current_price` is `null`. Each available item displays the product, exact variant, tracking state, retailer, formatted price and update time. `STALE` adds the exact warning `"Stale data"`; `UNAVAILABLE` replaces the numeric price with a clear unavailable state. The frontend does not recompute the current price or freshness classification.
 
 Page-level states distinguish session loading, watchlist loading, available data, an empty watchlist and a retryable request failure. An authentication failure returns the browser to `/`, while logout clears local user state after the server response and returns to the public page.
+=======
+The landing page disables duplicate submission while login is pending and retains no password after a successful request. INVALID_CREDENTIALS remains generic, and unexpected failures do not expose server details.
+
+The watchlist page renders meta.count and every item in data, including records whose current_price is null. Each available item displays the product, exact variant, tracking state, retailer, formatted price and update time. STALE adds the exact warning "Stale data"; UNAVAILABLE replaces the numeric price with a clear unavailable state. The frontend does not recompute the current price or freshness classification.
+
+Page-level states distinguish session loading, watchlist loading, available data, an empty watchlist and a retryable request failure. An authentication failure returns the browser to /, while logout clears local user state after the server response and returns to the public page.
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 
 #### 4.2.4 Presentation Constraints
 
@@ -923,17 +1270,29 @@ The walking skeleton connects the browser frontend, Express backend and PostgreS
 
 | Connection | Integrated behaviour |
 |---|---|
+<<<<<<< HEAD
 | Frontend to backend | The shared API client sends requests to the configured backend origin with `credentials: "include"`. The backend permits the configured frontend origin through credentialed CORS. |
+=======
+| Frontend to backend | The shared API client sends requests to the configured backend origin with credentials: "include". The backend permits the configured frontend origin through credentialed CORS. |
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 | Backend to database | The backend obtains authenticated-user and watchlist data through the PostgreSQL connection pool. Database credentials remain server-side. |
 | Response to interface | The frontend renders the returned user, watchlist items, count and price states without using mock products or querying PostgreSQL directly. |
 
 #### 4.3.2 Integrated Flow
 
+<<<<<<< HEAD
 1. The user signs in from `/`, and the backend establishes the `HttpOnly` session cookie.
 2. The browser opens `/watchlist` and restores the user through the session endpoint.
 3. The frontend requests the authenticated user's watchlist.
 4. The backend reads the matching tracked products and price observations from PostgreSQL and returns the established response structure.
 5. The frontend renders the response in backend order. Logout clears the server-managed session and returns the browser to `/`.
+=======
+1. The user signs in from /, and the backend establishes the HttpOnly session cookie.
+2. The browser opens /watchlist and restores the user through the session endpoint.
+3. The frontend requests the authenticated user's watchlist.
+4. The backend reads the matching tracked products and price observations from PostgreSQL and returns the established response structure.
+5. The frontend renders the response in backend order. Logout clears the server-managed session and returns the browser to /.
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 
 No authentication token, password or product dataset is transferred into frontend storage. Authentication failures return the browser to the public page, while data-request failures remain on the watchlist page as a retryable state.
 
@@ -941,7 +1300,11 @@ No authentication token, password or product dataset is transferred into fronten
 
 The complete path was verified against a clean PostgreSQL database created, migrated, seeded and validated by the JavaScript database initializer. A successful login loaded all 10 tracked products belonging to the demonstration user. The interface preserved the two products without an eligible current price as unavailable rather than omitting them.
 
+<<<<<<< HEAD
 Database changes used to create empty, stale and request-failure conditions were reflected by the next backend response and corresponding page state. Session restoration after reload, logout and unauthenticated access to `/watchlist` also behaved according to the established contracts. These results confirm that the displayed watchlist originates from PostgreSQL and travels through the backend API rather than from frontend fallback data.
+=======
+Database changes used to create empty, stale and request-failure conditions were reflected by the next backend response and corresponding page state. Session restoration after reload, logout and unauthenticated access to /watchlist also behaved according to the established contracts. These results confirm that the displayed watchlist originates from PostgreSQL and travels through the backend API rather than from frontend fallback data.
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 
 ### 4.4 Walking-Skeleton Evidence and Traceability
 
@@ -951,6 +1314,7 @@ This section records the trace from the running watchlist page to its persistent
 
 | Evidence point | Implemented artifact |
 |---|---|
+<<<<<<< HEAD
 | Browser route | `/watchlist` |
 | Frontend entry | `frontend/watchlist/index.html` and `frontend/src/pages/watchlist.js` |
 | API operation | `GET /api/watchlist` |
@@ -960,34 +1324,64 @@ This section records the trace from the running watchlist page to its persistent
 | Verified result | 10 watchlist items, including two items with no eligible current price |
 
 The query uses the ownership predicate `tp.user_id = $1` and deterministic ordering by `tp.created_at DESC, tp.tracked_product_id DESC`. Its current-price selection remains within the exact variant and excludes out-of-stock observations, as specified in Section 3.3.
+=======
+| Browser route | /watchlist |
+| Frontend entry | frontend/watchlist/index.html and frontend/src/pages/watchlist.js |
+| API operation | GET /api/watchlist |
+| Executed query | The parameterised SQL in backend/src/modules/watchlist/watchlist.repository.js, scoped by the authenticated user_id |
+| Tables read | tracked_products, product_variants, products, retailer_offers, retailers and price_observations |
+| Database source | Schema from backend/src/database/migrations/001-initial-schema.js and deterministic data from backend/src/database/seeds/001-demo-data.js |
+| Verified result | 10 watchlist items, including two items with no eligible current price |
+
+The query uses the ownership predicate tp.user_id = $1 and deterministic ordering by tp.created_at DESC, tp.tracked_product_id DESC. Its current-price selection remains within the exact variant and excludes out-of-stock observations, as specified in Section 3.3.
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 
 #### 4.4.2 Evidence Register
 
 | Evidence | Confirmation |
 |---|---|
 | Database initialization | The JavaScript initializer created nine tables and four update triggers and loaded exactly 10 tracked products. A second execution preserved the count without duplicates, and partial-schema validation passed. |
+<<<<<<< HEAD
 | Backend verification | `TEST_REPORT_SECTION_3_3.md` records 21 passing authentication, persistence, response and lifecycle scenarios. |
 | Browser verification | `TEST_REPORT_FRONTEND_E2E.md` records successful login, session restoration, rendering, failure recovery and logout against the real backend and database. |
 | Data provenance | A direct database change was visible in the following API response and browser state without a frontend source change. |
 | Running-page capture | `docs/images/walking-skeleton.png` shows `/watchlist` with the browser address visible and the seeded database-backed items rendered. |
+=======
+| Backend verification | TEST_REPORT_SECTION_3_3.md records 21 passing authentication, persistence, response and lifecycle scenarios. |
+| Browser verification | TEST_REPORT_FRONTEND_E2E.md records successful login, session restoration, rendering, failure recovery and logout against the real backend and database. |
+| Data provenance | A direct database change was visible in the following API response and browser state without a frontend source change. |
+| Running-page capture | docs/images/walking-skeleton.png shows /watchlist with the browser address visible and the seeded database-backed items rendered. |
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 
 ![PriceLens database-backed watchlist](images/walking-skeleton.png)
 
 #### 4.4.3 Completion Statement
 
+<<<<<<< HEAD
 The recorded evidence confirms the required browser-to-database path: `/watchlist` requests the authenticated API, the backend executes the PostgreSQL query, and the browser renders the returned rows. The displayed count and unavailable-price states originate from the database response rather than frontend fallback data.
 
+=======
+The recorded evidence confirms the required browser-to-database path: /watchlist requests the authenticated API, the backend executes the PostgreSQL query, and the browser renders the returned rows. The displayed count and unavailable-price states originate from the database response rather than frontend fallback data.
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 ## 5. Design Decisions
 
 The following Architecture Decision Records document choices that materially shape the implemented PriceLens walking skeleton. Each decision is accepted for the current milestone and may be revisited when its stated conditions change.
 
 ### 5.1 ADR-01 — Use a Vite Multi-Page Frontend with Vanilla JavaScript
 
+<<<<<<< HEAD
 **Status:** Accepted
 
 #### Context
 
 The walking skeleton requires two browser routes: the public landing and sign-in page at `/`, and the authenticated watchlist at `/watchlist`. Both pages share API, session, formatting and styling modules, but the current scope does not require complex client-side routing or long-lived global application state.
+=======
+*Status:* Accepted
+
+#### Context
+
+The walking skeleton requires two browser routes: the public landing and sign-in page at /, and the authenticated watchlist at /watchlist. Both pages share API, session, formatting and styling modules, but the current scope does not require complex client-side routing or long-lived global application state.
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 
 #### Options Considered
 
@@ -999,7 +1393,11 @@ The walking skeleton requires two browser routes: the public landing and sign-in
 
 #### Decision and Rationale
 
+<<<<<<< HEAD
 PriceLens uses a Vite multi-page application with browser JavaScript ES Modules and project-owned CSS. Separate HTML entries preserve the approved `/` and `/watchlist` routes, while shared modules centralise API access, session operations, formatting and reusable rendering behaviour.
+=======
+PriceLens uses a Vite multi-page application with browser JavaScript ES Modules and project-owned CSS. Separate HTML entries preserve the approved / and /watchlist routes, while shared modules centralise API access, session operations, formatting and reusable rendering behaviour.
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 
 This option satisfies the walking-skeleton requirements with the least architectural overhead, keeps the frontend independently buildable and preserves the HTTP boundary defined in Section 1. It also avoids adopting framework conventions before the interaction and state requirements justify them.
 
@@ -1011,7 +1409,11 @@ This decision should be reconsidered if PriceLens develops many highly interacti
 
 ### 5.2 ADR-02 — Use a Signed JWT in an HttpOnly Cookie
 
+<<<<<<< HEAD
 **Status:** Accepted
+=======
+*Status:* Accepted
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 
 #### Context
 
@@ -1021,13 +1423,22 @@ Protected PriceLens operations require a lightweight authenticated context for a
 
 | Option | Advantages | Trade-offs |
 |---|---|---|
+<<<<<<< HEAD
 | Signed JWT stored in an `HttpOnly` cookie | Requires no separate session table, is unreadable to frontend JavaScript and works with credentialed browser requests. | Immediate server-side revocation is limited until the token expires unless additional session state is introduced. |
 | Opaque server-side session identifier in an `HttpOnly` cookie | Supports central revocation and explicit session lifecycle management. | Requires persistent session storage, cleanup and additional operational state for the current lightweight scope. |
+=======
+| Signed JWT stored in an HttpOnly cookie | Requires no separate session table, is unreadable to frontend JavaScript and works with credentialed browser requests. | Immediate server-side revocation is limited until the token expires unless additional session state is introduced. |
+| Opaque server-side session identifier in an HttpOnly cookie | Supports central revocation and explicit session lifecycle management. | Requires persistent session storage, cleanup and additional operational state for the current lightweight scope. |
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 | Bearer token stored in browser storage | Simple to attach to API requests and common for non-browser clients. | Exposes the token to frontend JavaScript and increases the impact of script injection; it is unnecessary for the current browser-only flow. |
 
 #### Decision and Rationale
 
+<<<<<<< HEAD
 PriceLens uses a one-hour signed JWT stored in the `pricelens_session` cookie. The cookie is `HttpOnly`, uses `SameSite=Lax` and `Path=/`, and uses `Secure` in production. The frontend sends credentialed requests but does not read, decode or persist the token. For each protected request, the backend verifies the token and resolves the referenced active user from PostgreSQL before applying ownership restrictions.
+=======
+PriceLens uses a one-hour signed JWT stored in the pricelens_session cookie. The cookie is HttpOnly, uses SameSite=Lax and Path=/, and uses Secure in production. The frontend sends credentialed requests but does not read, decode or persist the token. For each protected request, the backend verifies the token and resolves the referenced active user from PostgreSQL before applying ownership restrictions.
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
 
 This mechanism provides the minimum secure browser session required by the milestone without introducing a separate session store. Reloading the user record prevents a valid token from keeping a disabled account operational.
 
@@ -1035,4 +1446,8 @@ This mechanism provides the minimum secure browser session required by the miles
 
 Logout clears the browser cookie, and normal sessions end after one hour. Credentialed CORS must allow the configured frontend origin rather than a wildcard. The current design does not provide refresh tokens, device management or immediate revocation of an already issued token on another device.
 
+<<<<<<< HEAD
 This decision should be reconsidered if PriceLens requires immediate global logout, session inventories, long-lived refresh flows, multiple client types or stronger per-device control. Those requirements would favour opaque server-side sessions or a dedicated access-token and refresh-token design.
+=======
+This decision should be reconsidered if PriceLens requires immediate global logout, session inventories, long-lived refresh flows, multiple client types or stronger per-device control. Those requirements would favour opaque server-side sessions or a dedicated access-token and refresh-token design.
+>>>>>>> 4b376afa4f80747ae6fd3bac6748ca3919b5e468
