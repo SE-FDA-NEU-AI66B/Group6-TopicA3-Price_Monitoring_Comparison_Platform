@@ -1,1 +1,0 @@
-function e(e){let t=e.split(`/`).filter(Boolean);if(t[0]!==`products`||!t[1]||t[1]===`add`)return null;try{return decodeURIComponent(t[1])}catch{return null}}function t(e,t,n=document){n.querySelectorAll(e).forEach(e=>{e.textContent=t})}export{t as n,e as t};
