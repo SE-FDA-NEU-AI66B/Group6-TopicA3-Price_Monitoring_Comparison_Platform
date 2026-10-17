@@ -1,0 +1,1 @@
+import{n as e,t}from"./common-D31oL8RG.js";import{n,t as r}from"./helpers-hVClJ4Sy.js";t();var i=r(window.location.pathname);i?(n(`[data-product-id]`,i),document.querySelector(`[data-product-link]`)?.setAttribute(`href`,`/products/${encodeURIComponent(i)}`)):e(`This comparison route does not contain a valid product ID.`);

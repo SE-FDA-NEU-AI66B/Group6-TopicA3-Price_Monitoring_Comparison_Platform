@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Track exact product variants, understand price history, and compare retailer offers with PriceLens.">
+    <title>PriceLens — Decide calmly</title>
+    <script type="module" crossorigin src="/assets/landing-Cq-wAAPq.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/common-D31oL8RG.js">
+    <link rel="stylesheet" crossorigin href="/assets/common-VkN7XQHI.css">
+  </head>
+  <body class="home-page">
+    <div class="home">
+      <section class="home-hero">
+        <header id="site-header" class="header header--home" data-active-route="home" data-variant="home"></header>
+
+        <main id="main-content" class="container hero-grid">
+          <div class="hero-copy">
+            <p class="hero-pill"><span class="dot" aria-hidden="true"></span> Calm decision-support, not another marketplace</p>
+            <h1 class="hero-title">Decide calmly.<br><span>Buy at the right price.</span></h1>
+            <p class="hero-lead">
+              Track the exact product variant you care about, understand its recent price,
+              compare matching retailers, and choose a useful target price.
+            </p>
+            <div class="hero-actions">
+              <a class="btn btn--primary" href="/products/add">Track a product</a>
+              <a class="btn btn--light" href="/watchlist">View watchlist</a>
+              <button class="btn btn--ghost" id="open-signin" type="button">Sign in</button>
+            </div>
+            <p class="hero-note">Exact variants · Visible freshness · Designed for small screens</p>
+          </div>
+
+          <aside class="card card--glass hero-card" aria-labelledby="preview-title">
+            <div class="hero-card__top">
+              <div>
+                <span class="item-label">Price insight</span>
+                <h2 id="preview-title">The details that support a decision</h2>
+              </div>
+              <span class="badge">Freshness state</span>
+            </div>
+            <dl class="preview-grid">
+              <div><dt>Exact variant</dt><dd>Product identity stays clear</dd></div>
+              <div><dt>Current price</dt><dd>Observation time included</dd></div>
+              <div><dt>30-day history</dt><dd>Low, high, and current context</dd></div>
+              <div><dt>Matching offers</dt><dd>Comparable retailers in one view</dd></div>
+            </dl>
+          </aside>
+        </main>
+      </section>
+
+      <div class="transition-band" aria-hidden="true"></div>
+
+      <section class="home-dark" aria-labelledby="promises-title">
+        <div class="container">
+          <h2 id="promises-title">Four questions, answered clearly</h2>
+          <p class="muted">PriceLens is organised around the decisions a shopper actually faces.</p>
+          <div class="promise-grid">
+            <article class="card card--glass-dark promise-card">
+              <div class="promise-icon" aria-hidden="true">◇</div>
+              <h3>What am I tracking?</h3>
+              <p>The product name, exact variant, and source remain visible together.</p>
+            </article>
+            <article class="card card--glass-dark promise-card">
+              <div class="promise-icon" aria-hidden="true">⌁</div>
+              <h3>Can I trust this price?</h3>
+              <p>See when a price was observed and whether it is current, stale, or unavailable.</p>
+            </article>
+            <article class="card card--glass-dark promise-card">
+              <div class="promise-icon" aria-hidden="true">⚖</div>
+              <h3>Is this a good time to buy?</h3>
+              <p>Use recent price history to understand the current offer in context.</p>
+            </article>
+            <article class="card card--glass-dark promise-card">
+              <div class="promise-icon" aria-hidden="true">◎</div>
+              <h3>Where is it cheaper?</h3>
+              <p>Compare the same variant across eligible retailer offers.</p>
+            </article>
+          </div>
+
+          <div class="cta-panel">
+            <h2>Start with a product URL</h2>
+            <p>Submit a supported retailer URL, confirm the exact variant, and add it to your watchlist.</p>
+            <a class="btn btn--gold" href="/products/add">Track your first product</a>
+          </div>
+        </div>
+      </section>
+
+      <footer id="site-footer" class="footer footer--home" data-variant="home"></footer>
+    </div>
+
+    <dialog id="signin-dialog" class="dialog" aria-labelledby="signin-title">
+      <div class="dialog__heading">
+        <h2 id="signin-title">Sign in to PriceLens</h2>
+        <button id="close-signin" type="button" class="btn btn--ghost" aria-label="Close sign-in">×</button>
+      </div>
+      <form id="signin-form" class="form-stack" novalidate>
+        <div class="field">
+          <label for="email">Email address</label>
+          <input class="input" id="email" name="email" type="email" autocomplete="username" required>
+          <p id="email-feedback" class="field-feedback"></p>
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <input class="input" id="password" name="password" type="password" autocomplete="current-password" required>
+          <p id="password-feedback" class="field-feedback"></p>
+        </div>
+        <button class="btn btn--primary btn--full" type="submit">Sign in</button>
+        <p id="signin-status" class="status" role="status" aria-live="polite"></p>
+      </form>
+    </dialog>
+
+  </body>
+</html>

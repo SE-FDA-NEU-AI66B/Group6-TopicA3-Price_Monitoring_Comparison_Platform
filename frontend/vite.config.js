@@ -5,11 +5,22 @@ import { defineConfig } from 'vite';
 
 const projectRoot = fileURLToPath(new URL('.', import.meta.url));
 
-function watchlistRouteMiddleware(request, response, next) {
+function pageRouteMiddleware(request, response, next) {
   const url = new URL(request.url, 'http://localhost');
+  const normalizedPath = url.pathname.length > 1
+    ? url.pathname.replace(/\/+$/, '')
+    : url.pathname;
+  const routes = new Map([
+    ['/watchlist', '/watchlist/'],
+    ['/products/add', '/products/add/'],
+  ]);
 
-  if (url.pathname === '/watchlist') {
-    request.url = `/watchlist/${url.search}`;
+  if (routes.has(normalizedPath)) {
+    request.url = `${routes.get(normalizedPath)}${url.search}`;
+  } else if (/^\/products\/[^/]+\/compare$/.test(normalizedPath)) {
+    request.url = `/products/compare.html${url.search}`;
+  } else if (/^\/products\/[^/]+$/.test(normalizedPath)) {
+    request.url = `/products/product.html${url.search}`;
   }
 
   next();
@@ -18,12 +29,12 @@ function watchlistRouteMiddleware(request, response, next) {
 export default defineConfig({
   plugins: [
     {
-      name: 'pricelens-watchlist-route',
+      name: 'pricelens-page-routes',
       configureServer(server) {
-        server.middlewares.use(watchlistRouteMiddleware);
+        server.middlewares.use(pageRouteMiddleware);
       },
       configurePreviewServer(server) {
-        server.middlewares.use(watchlistRouteMiddleware);
+        server.middlewares.use(pageRouteMiddleware);
       },
     },
   ],
@@ -32,6 +43,9 @@ export default defineConfig({
       input: {
         landing: resolve(projectRoot, 'index.html'),
         watchlist: resolve(projectRoot, 'watchlist/index.html'),
+        addProduct: resolve(projectRoot, 'products/add/index.html'),
+        productDetail: resolve(projectRoot, 'products/product.html'),
+        productCompare: resolve(projectRoot, 'products/compare.html'),
       },
     },
   },

@@ -1,24 +1,19 @@
-import { apiRequest } from '../api/client.js';
+import { ApiError, apiClient } from '../api/client.js';
 
-let currentUser = null;
-
-export async function login(email, password) {
-  const response = await apiRequest('/auth/login', {
-    method: 'POST',
-    body: { email, password },
-  });
-
-  currentUser = response.data;
-  return currentUser;
+export async function getCurrentSession() {
+  const response = await apiClient.get('/auth/session');
+  return response?.data ?? null;
 }
 
-export async function getSession() {
-  const response = await apiRequest('/auth/session');
-  currentUser = response.data;
-  return currentUser;
+export async function signIn(credentials) {
+  const response = await apiClient.post('/auth/login', credentials);
+  return response?.data ?? null;
 }
 
-export async function logout() {
-  await apiRequest('/auth/logout', { method: 'POST' });
-  currentUser = null;
+export async function signOut() {
+  await apiClient.post('/auth/logout');
+}
+
+export function isAuthenticationError(error) {
+  return error instanceof ApiError && error.status === 401;
 }

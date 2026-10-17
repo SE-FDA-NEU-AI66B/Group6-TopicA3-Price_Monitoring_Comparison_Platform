@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Add an exact product variant to your PriceLens watchlist using a retailer URL.">
+    <title>Add a product — PriceLens</title>
+    <script type="module" crossorigin src="/assets/addProduct-UoYi1MVM.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/common-D31oL8RG.js">
+    <link rel="stylesheet" crossorigin href="/assets/common-VkN7XQHI.css">
+  </head>
+  <body class="page add-product-page">
+    <header id="site-header" class="header" data-active-route="add-product"></header>
+
+    <main id="main-content" class="narrow page-main">
+      <a class="back" href="/watchlist">← Back to watchlist</a>
+      <div class="form-intro">
+        <h1>Add a product</h1>
+        <p>Paste a supported retailer URL and confirm the exact product variant you want to track.</p>
+      </div>
+
+      <form id="product-url-form" class="card card--solid form-card" novalidate>
+        <div class="field">
+          <label for="product-url">Product URL</label>
+          <input
+            class="input"
+            id="product-url"
+            name="productUrl"
+            type="url"
+            inputmode="url"
+            autocomplete="url"
+            placeholder="https://retailer.example/product"
+            aria-describedby="url-help url-feedback"
+            required
+          >
+          <p id="url-help" class="hint">Use the URL for the exact product you want PriceLens to resolve.</p>
+          <p id="url-feedback" class="status" role="status" aria-live="polite"></p>
+        </div>
+        <button class="btn btn--primary btn--full" type="submit">Resolve product</button>
+      </form>
+
+      <section id="resolved-product" class="card card--solid resolve-result" aria-labelledby="resolved-product-title" hidden>
+        <span class="eyebrow">Resolved product</span>
+        <h2 id="resolved-product-title" data-field="resolved-name"></h2>
+        <p class="muted" data-field="resolved-description"></p>
+        <fieldset class="variant-fieldset">
+          <legend>Choose the exact variant</legend>
+          <div id="variant-options" class="variant-list"></div>
+        </fieldset>
+        <button id="confirm-product" type="button" class="btn btn--primary">Add to watchlist</button>
+        <p id="submission-feedback" class="status" role="status" aria-live="polite"></p>
+      </section>
+
+      <template id="variant-option-template">
+        <label class="variant-choice">
+          <input type="radio" name="variant">
+          <span data-field="variant-label"></span>
+        </label>
+      </template>
+    </main>
+
+    <footer id="site-footer" class="footer"></footer>
+  </body>
+</html>

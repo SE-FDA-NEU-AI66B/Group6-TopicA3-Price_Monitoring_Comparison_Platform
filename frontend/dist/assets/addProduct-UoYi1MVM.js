@@ -1,0 +1,1 @@
+import{t as e}from"./common-D31oL8RG.js";e(),document.querySelector(`#product-url-form`)?.addEventListener(`submit`,e=>{e.preventDefault()});

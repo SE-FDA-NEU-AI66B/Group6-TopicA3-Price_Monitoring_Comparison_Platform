@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Review current price, history, and alerts for an exact tracked product variant.">
+    <title>Product details — PriceLens</title>
+    <script type="module" crossorigin src="/assets/productDetail-C-hq8QgK.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/common-D31oL8RG.js">
+    <link rel="modulepreload" crossorigin href="/assets/helpers-hVClJ4Sy.js">
+    <link rel="stylesheet" crossorigin href="/assets/common-VkN7XQHI.css">
+  </head>
+  <body class="page product-detail-page">
+    <header id="site-header" class="header" data-active-route="product"></header>
+
+    <main id="main-content" class="container page-main">
+      <a class="back" href="/watchlist">← Back to watchlist</a>
+      <section class="product-overview" aria-labelledby="product-title">
+        <div class="product-art product-art--compact" aria-hidden="true"></div>
+        <div>
+          <span class="item-label" data-field="product-brand">Tracked product</span>
+          <h1 id="product-title" data-field="product-name">Product details</h1>
+          <p class="muted" data-field="product-variant">Exact variant information will appear here.</p>
+          <p class="product-reference">Product reference: <strong data-product-id>—</strong></p>
+          <div id="product-badges" class="badges" aria-label="Product status"></div>
+        </div>
+      </section>
+
+      <div class="detail-grid">
+        <div class="stack">
+          <section id="current-price" class="card card--solid price-card" aria-labelledby="current-price-title">
+            <h2 id="current-price-title" class="section-title">Current observed price</h2>
+            <p class="money" data-field="current-price">—</p>
+            <p class="observed" data-field="price-observed-at"></p>
+            <a id="source-retailer-link" class="btn btn--light" href="#" target="_blank" rel="noopener noreferrer" hidden>View source retailer</a>
+          </section>
+
+          <section id="price-history" class="card card--solid" aria-labelledby="price-history-title">
+            <h2 id="price-history-title" class="section-title">30-day price history</h2>
+            <p class="muted">Daily observations for the exact selected variant will appear below.</p>
+            <div id="price-history-state" class="chart-region" role="img" aria-label="Price history chart region"></div>
+            <dl class="stat-grid">
+              <div class="stat"><dt>30-day low</dt><dd data-field="history-low">—</dd></div>
+              <div class="stat"><dt>30-day high</dt><dd data-field="history-high">—</dd></div>
+              <div class="stat"><dt>Current</dt><dd data-field="history-current">—</dd></div>
+            </dl>
+          </section>
+
+          <section class="card card--solid compare-callout" aria-labelledby="compare-callout-title">
+            <div>
+              <h2 id="compare-callout-title" class="section-title">Compare retailer offers</h2>
+              <p class="muted">Review eligible offers for this exact variant.</p>
+            </div>
+            <a class="btn btn--primary" data-compare-link href="/watchlist">Compare offers</a>
+          </section>
+        </div>
+
+        <aside class="stack" aria-label="Price alerts">
+          <section class="card card--solid alert-card" aria-labelledby="alert-title">
+            <h2 id="alert-title" class="section-title">Target-price alert</h2>
+            <p class="muted">Choose a target below the current valid price.</p>
+            <div id="alert-guidance" class="notice" role="note">The backend will validate the target and active-alert limit.</div>
+            <form id="alert-form" novalidate>
+              <div class="field">
+                <label for="target-price">Target price</label>
+                <input class="input" id="target-price" name="targetPrice" type="number" min="0.01" step="0.01" inputmode="decimal" required>
+              </div>
+              <button class="btn btn--primary btn--full" type="submit">Create alert</button>
+              <p id="alert-feedback" class="status" role="status" aria-live="polite"></p>
+            </form>
+          </section>
+
+          <section class="card card--solid" aria-labelledby="active-alerts-title">
+            <h2 id="active-alerts-title" class="section-title">Active alerts</h2>
+            <ul id="active-alerts" class="alert-list"></ul>
+          </section>
+        </aside>
+      </div>
+
+      <p id="product-page-status" class="status" role="status" aria-live="polite"></p>
+    </main>
+
+    <footer id="site-footer" class="footer"></footer>
+  </body>
+</html>

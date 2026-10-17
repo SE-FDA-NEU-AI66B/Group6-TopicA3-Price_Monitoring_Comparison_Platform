@@ -1,99 +1,76 @@
-import { API_BASE_URL } from '../config.js';
+const LOCAL_API_BASE_URL = 'http://localhost:3000/api';
+const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
 
-const GENERIC_CLIENT_DETAIL = 'PriceLens could not complete the request. Please try again.';
+export const API_BASE_URL = (configuredBaseUrl || LOCAL_API_BASE_URL).replace(/\/+$/, '');
 
 export class ApiError extends Error {
-  constructor({
-    status = 0,
-    code = 'CLIENT_ERROR',
-    detail = GENERIC_CLIENT_DETAIL,
-    fieldErrors = null,
-  } = {}) {
-    super(detail);
+  constructor(message, { status, code, details } = {}) {
+    super(message);
     this.name = 'ApiError';
     this.status = status;
     this.code = code;
-    this.detail = detail;
-    this.fieldErrors = fieldErrors;
+    this.details = details;
   }
 }
 
-function endpointUrl(endpoint) {
-  if (typeof endpoint !== 'string' || endpoint.trim() === '') {
-    throw new ApiError();
+async function parseResponse(response) {
+  if (response.status === 204) {
+    return null;
   }
 
-  return `${API_BASE_URL}/${endpoint.replace(/^\/+/, '')}`;
-}
+  const contentType = response.headers.get('content-type') || '';
 
-async function parseJson(response) {
-  try {
-    return await response.json();
-  } catch {
-    throw new ApiError({
-      status: response.status,
-      code: 'INVALID_RESPONSE',
-      detail: GENERIC_CLIENT_DETAIL,
-    });
+  if (contentType.includes('application/json')) {
+    return response.json();
   }
+
+  const text = await response.text();
+  return text || null;
 }
 
-export async function apiRequest(endpoint, {
-  method = 'GET',
-  body,
-  headers = {},
-} = {}) {
+export async function apiRequest(path, options = {}) {
+  const { body, headers = {}, ...requestOptions } = options;
   const requestHeaders = new Headers(headers);
-  requestHeaders.set('Accept', 'application/json, application/problem+json');
+  const hasJsonBody = body !== undefined && !(body instanceof FormData);
 
-  const requestOptions = {
-    method,
-    credentials: 'include',
-    headers: requestHeaders,
-  };
-
-  if (body !== undefined) {
+  if (hasJsonBody && !requestHeaders.has('Content-Type')) {
     requestHeaders.set('Content-Type', 'application/json');
-    requestOptions.body = JSON.stringify(body);
   }
 
   let response;
 
   try {
-    response = await fetch(endpointUrl(endpoint), requestOptions);
-  } catch {
-    throw new ApiError({
-      code: 'NETWORK_ERROR',
-      detail: GENERIC_CLIENT_DETAIL,
+    response = await fetch(`${API_BASE_URL}/${String(path).replace(/^\/+/, '')}`, {
+      ...requestOptions,
+      credentials: 'include',
+      headers: requestHeaders,
+      body: hasJsonBody ? JSON.stringify(body) : body,
     });
+  } catch (cause) {
+    throw new ApiError('Unable to reach the PriceLens API.', { details: cause });
   }
 
-  if (response.status === 204) {
-    return null;
-  }
+  const payload = await parseResponse(response);
 
-  if (response.ok) {
-    return parseJson(response);
-  }
-
-  const contentType = response.headers.get('content-type') ?? '';
-
-  if (contentType.toLowerCase().includes('application/problem+json')) {
-    const problem = await parseJson(response);
-
-    throw new ApiError({
+  if (!response.ok) {
+    throw new ApiError(payload?.error?.message || `Request failed with status ${response.status}.`, {
       status: response.status,
-      code: typeof problem.code === 'string' ? problem.code : 'CLIENT_ERROR',
-      detail: typeof problem.detail === 'string'
-        ? problem.detail
-        : GENERIC_CLIENT_DETAIL,
-      fieldErrors: problem.field_errors ?? problem.errors ?? null,
+      code: payload?.error?.code,
+      details: payload?.error?.details,
     });
   }
 
-  throw new ApiError({
-    status: response.status,
-    code: 'INVALID_RESPONSE',
-    detail: GENERIC_CLIENT_DETAIL,
-  });
+  return payload;
 }
+
+export const apiClient = {
+  get(path, options) {
+    return apiRequest(path, { ...options, method: 'GET' });
+  },
+  post(path, body, options) {
+    return apiRequest(path, { ...options, method: 'POST', body });
+  },
+  delete(path, options) {
+    return apiRequest(path, { ...options, method: 'DELETE' });
+  },
+};
