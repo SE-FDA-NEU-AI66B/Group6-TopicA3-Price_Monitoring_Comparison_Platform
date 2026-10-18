@@ -66,7 +66,7 @@ h3 {
 }
 
 :focus-visible {
-  outline: 3px solid #dba91f;
+  outline: 3px solid var(--color-focus-ring);
   outline-offset: 3px;
 }
 
@@ -100,5 +100,7 @@ h3 {
   *::after {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
   }
 }

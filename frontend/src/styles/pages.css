@@ -1,3 +1,4 @@
+/* Page shell */
 .page {
   min-height: 100vh;
   background: var(--color-background);
@@ -35,6 +36,7 @@
   color: var(--color-muted);
 }
 
+/* Landing page */
 .home {
   overflow: hidden;
   background: var(--color-background);
@@ -78,7 +80,7 @@
   padding: 0.65rem 1.05rem;
   margin-bottom: 2rem;
   color: #614926;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: #ffffffa8;
   font-size: 0.9rem;
 }
@@ -213,6 +215,7 @@
   color: #b6c1b6;
 }
 
+/* Watchlist page */
 .products-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -247,14 +250,7 @@
   border-top: 1px solid var(--color-line);
 }
 
-.money {
-  margin-bottom: 0;
-  font-family: var(--font-display);
-  font-size: 2rem;
-  font-weight: 700;
-  line-height: 1;
-}
-
+/* Add Product page */
 .form-intro h1 {
   margin-bottom: 0.75rem;
   font-size: clamp(2.6rem, 4vw, 3.7rem);
@@ -274,37 +270,11 @@
   margin-top: 1.4rem;
 }
 
-.hint {
-  margin: 0;
-  color: var(--color-muted);
-  font-size: 0.88rem;
-}
-
 .resolve-result {
   margin-top: 1.5rem;
 }
 
-.variant-fieldset {
-  padding: 0;
-  margin: 1.25rem 0;
-  border: 0;
-}
-
-.variant-list {
-  display: grid;
-  gap: 0.65rem;
-  margin-top: 0.75rem;
-}
-
-.variant-choice {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.9rem;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-small);
-}
-
+/* Product Detail page */
 .product-overview,
 .compare-summary {
   display: flex;
@@ -313,27 +283,9 @@
   margin-bottom: 2.4rem;
 }
 
-.product-art--compact {
-  width: 12rem;
-  min-height: 12rem;
-  flex: none;
-  border-radius: var(--radius-medium);
-}
-
-.product-art--summary {
-  width: 5.3rem;
-  min-height: 5.3rem;
-  flex: none;
-  border-radius: 1rem;
-}
-
-.product-art--summary::after {
-  font-size: 2rem;
-}
-
 .product-overview h1,
 .compare-summary h1 {
-  margin: 0.25rem 0 0.5rem;
+  margin: var(--space-xs) 0 var(--space-sm);
   font-size: clamp(2rem, 4vw, 3.5rem);
 }
 
@@ -360,11 +312,6 @@
 .stack {
   display: grid;
   gap: 1.9rem;
-}
-
-.section-title {
-  margin-bottom: 0.4rem;
-  font-size: 1.45rem;
 }
 
 .price-card .money {
@@ -422,15 +369,6 @@
   margin-bottom: 0;
 }
 
-.notice {
-  padding: 1rem;
-  margin-block: 1.5rem;
-  color: #61766b;
-  border: 1px solid var(--color-line);
-  border-radius: 0.95rem;
-  background: #f4f2ed;
-}
-
 .alert-card .btn {
   margin-top: 1.2rem;
 }
@@ -441,6 +379,7 @@
   list-style: none;
 }
 
+/* Product Comparison page */
 .comparison-intro {
   margin-bottom: 2.25rem;
 }
@@ -500,6 +439,7 @@
   background: #f5f8f4;
 }
 
+/* Responsive layout composition overrides */
 @media (max-width: 59rem) {
   .hero-grid,
   .detail-grid {
@@ -534,36 +474,6 @@
 }
 
 @media (max-width: 40rem) {
-  .container,
-  .narrow,
-  .compare-width,
-  .header__inner,
-  .footer__inner {
-    width: min(100% - 1.9rem, var(--content-width));
-  }
-
-  .brand {
-    font-size: 1.2rem;
-  }
-
-  .brand__mark {
-    width: 2.35rem;
-    height: 2.35rem;
-  }
-
-  .header__links {
-    gap: 0.2rem;
-  }
-
-  .header__links .nav-link {
-    display: none;
-  }
-
-  .header__links .btn {
-    padding: 0.55rem 0.85rem;
-    font-size: 0.82rem;
-  }
-
   .hero-grid {
     padding-top: 3.4rem;
   }
@@ -587,7 +497,6 @@
   }
 
   .page-head,
-  .footer__inner,
   .compare-callout,
   .best-summary {
     align-items: flex-start;
@@ -600,15 +509,6 @@
 
   .product-overview {
     align-items: flex-start;
-  }
-
-  .product-art--compact {
-    width: 6rem;
-    min-height: 6rem;
-  }
-
-  .product-art--compact::after {
-    font-size: 2.5rem;
   }
 
   .stat-grid {
