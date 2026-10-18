@@ -11,9 +11,13 @@ export async function signIn(credentials) {
 }
 
 export async function signOut() {
-  await apiClient.post('/auth/logout');
+  return apiClient.post('/auth/logout');
 }
 
 export function isAuthenticationError(error) {
   return error instanceof ApiError && error.status === 401;
+}
+
+export function isAuthenticationRequiredError(error) {
+  return isAuthenticationError(error) && error.code === 'AUTHENTICATION_REQUIRED';
 }
