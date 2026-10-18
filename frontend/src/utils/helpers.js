@@ -17,10 +17,3 @@ export function setTextContent(selector, value, root = document) {
     element.textContent = value;
   });
 }
-
-export function formatCurrency(amount, currency = 'USD', locale = 'en-US') {
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency,
-  }).format(Number(amount));
-}
