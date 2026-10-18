@@ -2,7 +2,7 @@ import { jwtVerify } from 'jose';
 
 import { findActiveUserById } from '../modules/auth/auth.repository.js';
 import { config } from '../config.js';
-import { authenticationRequired } from './error-handler.js';
+import { authenticationRequired } from '../shared/problems.js';
 
 export const SESSION_COOKIE_NAME = 'pricelens_session';
 

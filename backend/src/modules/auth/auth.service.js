@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import { SignJWT } from 'jose';
 
 import { config } from '../../config.js';
-import { invalidCredentials } from '../../middleware/error-handler.js';
+import { invalidCredentials } from '../../shared/problems.js';
 import { findUserByEmail } from './auth.repository.js';
 
 export const SESSION_DURATION_SECONDS = 60 * 60;
