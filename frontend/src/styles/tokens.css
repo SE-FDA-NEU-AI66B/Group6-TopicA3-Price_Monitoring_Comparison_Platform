@@ -1,4 +1,5 @@
 :root {
+  /* Brand and core colors */
   --color-ink: #1d2925;
   --color-muted: #667b73;
   --color-green: #194b36;
@@ -9,12 +10,37 @@
   --color-background: #fbfaf7;
   --color-success: #176446;
   --color-error: #a3352c;
+
+  /* Interaction and semantic colors */
+  --color-green-hover: #123b29;
+  --color-warning: #8a611c;
+  --color-on-primary: #ffffff;
+  --color-on-gold: #4b3613;
+  --color-focus-ring: #dba91f;
+  --color-focus-ring-subtle: #bcdacb;
+
+  /* Typography */
   --font-body: Inter, system-ui, sans-serif;
   --font-display: "Space Grotesk", Inter, system-ui, sans-serif;
+
+  /* Border radii */
   --radius-small: 0.75rem;
   --radius-medium: 1.25rem;
+  --radius-pill: 999px;
+
+  /* Shadows */
   --shadow-card: 0 1px 0 #d9d6cb, 0 18px 35px -24px #2244354a;
+  --shadow-elevated: 0 20px 45px -20px #1028203d, 0 1px 0 #d9d6cb;
+
+  /* Layout widths */
   --content-width: 85rem;
   --narrow-width: 53rem;
   --compare-width: 61rem;
+
+  /* Spacing scale */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
 }
