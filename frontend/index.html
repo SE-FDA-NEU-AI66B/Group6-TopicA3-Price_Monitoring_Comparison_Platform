@@ -97,15 +97,15 @@
       <form id="signin-form" class="form-stack" novalidate>
         <div class="field">
           <label for="email">Email address</label>
-          <input class="input" id="email" name="email" type="email" autocomplete="username" required>
+          <input class="input" id="email" name="email" type="email" autocomplete="username" aria-describedby="email-feedback" required>
           <p id="email-feedback" class="field-feedback"></p>
         </div>
         <div class="field">
           <label for="password">Password</label>
-          <input class="input" id="password" name="password" type="password" autocomplete="current-password" required>
+          <input class="input" id="password" name="password" type="password" autocomplete="current-password" aria-describedby="password-feedback" required>
           <p id="password-feedback" class="field-feedback"></p>
         </div>
-        <button class="btn btn--primary btn--full" type="submit">Sign in</button>
+        <button id="signin-submit" class="btn btn--primary btn--full" type="submit">Sign in</button>
         <p id="signin-status" class="status" role="status" aria-live="polite"></p>
       </form>
     </dialog>

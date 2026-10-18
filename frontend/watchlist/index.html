@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="/src/styles/pages.css">
   </head>
   <body class="page watchlist-page">
-    <header id="site-header" class="header" data-active-route="watchlist"></header>
+    <header id="site-header" class="header" data-active-route="watchlist" data-authenticated-shell="true"></header>
 
     <main id="main-content" class="container page-main">
       <div class="page-head">
@@ -19,6 +19,7 @@
           <span class="eyebrow">Your watchlist</span>
           <h1>Tracked products</h1>
           <p id="watchlist-summary" aria-live="polite">Review the products and exact variants you are tracking.</p>
+          <p id="watchlist-action-status" class="status" role="status" aria-live="polite"></p>
         </div>
         <a class="btn btn--primary" href="/products/add">Add product</a>
       </div>
@@ -36,6 +37,7 @@
         <div id="watchlist-empty" class="card card--solid state-panel" hidden>
           <h3>No tracked products yet</h3>
           <p>Add a product URL to begin building your watchlist.</p>
+          <a class="btn btn--primary" href="/products/add">Add product</a>
         </div>
         <div id="watchlist-error" class="card card--solid state-panel state-panel--error" hidden>
           <h3>We could not load your watchlist</h3>
@@ -52,6 +54,7 @@
           <div class="product-art" aria-hidden="true">
             <div class="art-badges">
               <span class="badge" data-field="freshness"></span>
+              <span class="badge" data-field="tracking-status"></span>
               <span class="badge badge--retailer" data-field="retailer"></span>
             </div>
           </div>

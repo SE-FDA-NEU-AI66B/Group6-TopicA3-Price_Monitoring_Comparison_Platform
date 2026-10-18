@@ -34,6 +34,7 @@ function createLink(label, href, className, active = false) {
 function initializeHeader(header) {
   const activeRoute = header.dataset.activeRoute;
   const isHome = header.dataset.variant === 'home';
+  const hasAuthenticatedShell = header.dataset.authenticatedShell === 'true';
   const container = document.createElement('div');
   const navigation = document.createElement('nav');
 
@@ -48,6 +49,23 @@ function initializeHeader(header) {
       createLink('Watchlist', '/watchlist', 'nav-link', activeRoute === 'watchlist'),
       createLink('Add product', '/products/add', 'btn btn--primary', activeRoute === 'add-product'),
     );
+
+    if (hasAuthenticatedShell) {
+      const userContext = document.createElement('span');
+      const signOutButton = document.createElement('button');
+
+      userContext.id = 'authenticated-user';
+      userContext.className = 'nav-link';
+      userContext.hidden = true;
+
+      signOutButton.id = 'signout-button';
+      signOutButton.className = 'btn btn--light';
+      signOutButton.type = 'button';
+      signOutButton.disabled = true;
+      signOutButton.textContent = 'Sign out';
+
+      navigation.append(userContext, signOutButton);
+    }
   }
 
   container.append(createBrand(), navigation);
