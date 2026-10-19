@@ -1,6 +1,10 @@
 import pg from 'pg';
 
 import { config } from '../config.js';
+import {
+  HttpError,
+  translatePersistenceError,
+} from '../shared/problems.js';
 
 const { Pool } = pg;
 
@@ -24,6 +28,49 @@ pool.on('error', (error) => {
 });
 
 let closePromise;
+
+function asApplicationError(error) {
+  return error instanceof HttpError ? error : translatePersistenceError(error);
+}
+
+export async function query(text, parameters) {
+  try {
+    return await pool.query(text, parameters);
+  } catch (error) {
+    throw asApplicationError(error);
+  }
+}
+
+export async function withTransaction(operation, database = pool) {
+  let client;
+
+  try {
+    client = await database.connect();
+  } catch (error) {
+    throw asApplicationError(error);
+  }
+
+  try {
+    await client.query('BEGIN');
+    const result = await operation(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (error) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackError) {
+      console.error('Failed to roll back PostgreSQL transaction', {
+        name: rollbackError.name,
+        code: rollbackError.code,
+        message: rollbackError.message,
+      });
+    }
+
+    throw asApplicationError(error);
+  } finally {
+    client.release();
+  }
+}
 
 export function closePool() {
   closePromise ??= pool.end();
