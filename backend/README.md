@@ -83,3 +83,46 @@ Generated BIGINT IDs are not fixture contracts. PostgreSQL sequences may advance
 The seed uses fixed timestamps and VND `NUMERIC(14,2)` values. Its SQL validation block rejects drift in the 30/1/0 history counts, 20-alert boundary, threshold sequence, exact-variant offer counts, stock states and M2 Watchlist count.
 
 The US05 rows describe deterministic historical fixture state only. The seed does not evaluate transitions or generate runtime notifications; the downstream US05 service/background processor remains responsible for detecting price crossings and persisting notifications during application execution.
+
+## Automated testing convention
+
+PriceLens uses Node's built-in `node:test`, `node:assert` and `fetch`; no second test framework or in-memory persistence layer is used. Run the complete suite from `backend/` with:
+
+```bash
+npm test
+```
+
+The normal command first loads `test-support/environment.js`, requires an explicit `TEST_DB_NAME`, verifies that it differs from the normal `DB_NAME`, and then runs test files serially with `--test-concurrency=1`. This prevents the seed reset from touching the development database and prevents PostgreSQL integration groups from racing with each other. Tests must still establish their own prerequisites and must not rely on execution order.
+
+- Colocate focused unit tests with the production module as `<feature>.test.js`. Pure validation, service decisions and transaction mechanics may use small controlled doubles.
+- Name PostgreSQL/HTTP tests `*.integration.test.js`. They use the real exported Express `app`, real authentication, the shared `db/pool.js` pool and real PostgreSQL fixtures.
+- Keep all reusable test-only utilities in `src/test-support/`; do not add test routes, authentication bypasses, reset endpoints or feature-specific helper directories.
+- Route tests arrange a seeded baseline and login, issue a real HTTP request, then assert status, content type, response/problem body and any relevant persisted effect. Restore the baseline after state-changing scenarios.
+- Service tests cover decisions, orchestration and shared `HttpError` outcomes. A focused service double does not replace route/repository integration coverage.
+- Repository integration tests cover parameter binding, ownership predicates, row shapes and PostgreSQL constraints; they do not duplicate the complete business rule.
+
+### Shared test support
+
+| Module | Reusable contract |
+|---|---|
+| `test-support/environment.js` | npm preload that selects the explicit `TEST_DB_NAME`, rejects a missing designation and rejects reuse of the normal `DB_NAME`. |
+| `test-support/server.js` | `withTestServer(app, operation)` listens on an ephemeral port and always closes the server. |
+| `test-support/request.js` | `requestJson`, `loginAs` and `authenticatedRequest`; `loginAs` calls the real login endpoint and captures only the real `pricelens_session` cookie. |
+| `test-support/database.js` | `prepareSeededDatabase({ confirmedDatabaseName })` explicitly runs the existing `db:init` path. It requires `NODE_ENV=test`, requires configured `DB_NAME` to equal the explicit `TEST_DB_NAME`, requires that test name to differ from the normal application database, and requires an exact confirmation. Importing it never resets data. |
+| `test-support/fixtures.js` | Natural-key resolvers, P0 scenario keys, local demo users and reusable owned/unowned tracked-product relationships. Missing or ambiguous singular fixtures fail clearly. |
+| `test-support/assertions.js` | `assertProblemResponse` validates the real `application/problem+json` shape; `assertProblemCode` adds a concise stable-code assertion. Optional fields are checked only when relevant. |
+
+HTTP tests do not claim isolation through a transaction opened on a different client: application requests may use any pool connection. The shared convention restores the #134 baseline in the separately designated `TEST_DB_NAME` before a DB-mutating integration group, uses targeted cleanup or another explicit restore after test-created state, and closes the shared pool in the test file's `after` hook. `prepareSeededDatabase` reuses the existing initializer and seed; it does not create a second migration, seed system, pool or dataset.
+
+All fixture lookups start from stable keys. Use `userByEmail`, `variantByNaturalKey`, `offerByNormalizedUrl`, `observationByOfferAndTime`, `trackedProductByOwnerAndUrl`, or the collection resolvers in `fixtures.js`; use returned BIGINT IDs as strings only for the current test. Never encode a generated numeric ID as a fixture contract. `ownedAndUnownedTrackedProducts()` supplies a demo-owned record and a boundary-user record without changing ownership.
+
+### Downstream P0 test recipe
+
+1. In a `*.integration.test.js`, call `prepareSeededDatabase({ confirmedDatabaseName: config.database.name })` explicitly.
+2. Resolve the required scenario through `P0_FIXTURE_KEYS` plus the natural-key resolver: US02 history observations, US03 current-price/boundary alerts, US04 normalized URL/variant, US05 fixed observations and historical notification rows, or US09 exact-variant offers.
+3. Use `withTestServer(app, ...)`, then `loginAs(baseUrl, TEST_USERS.demo)` and `authenticatedRequest(session, path, options)`. Never use a submitted `user_id` as identity.
+4. Assert JSON success directly, or call `assertProblemResponse`/`assertProblemCode` for a production problem. Exact `detail` remains available where a requirement fixes its wording.
+5. For ownership, pass IDs returned by `ownedAndUnownedTrackedProducts()` to the production ownership service/repository. Missing and unowned resources must retain the same not-found outcome.
+6. If the test writes state, clean it deterministically or restore the seeded baseline; close the shared pool in `after(() => closePool())`.
+
+`test-support/reference.integration.test.js` is the compact working example. The two US05 notifications it resolves are historical seed state only; downstream US05 tests must still verify runtime threshold evaluation and notification generation in the eventual feature implementation.
