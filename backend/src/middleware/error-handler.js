@@ -1,3 +1,5 @@
+import { config } from '../config.js';
+
 export class HttpError extends Error {
   constructor(status, code, title, detail) {
     super(detail);
@@ -73,5 +75,5 @@ export function errorHandler(error, request, response, next) {
 }
 
 function configForLog() {
-  return process.env.NODE_ENV !== 'production';
+  return config.nodeEnv !== 'production';
 }

@@ -2,10 +2,10 @@ import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express from 'express';
 
-import { authRouter } from './auth/auth.routes.js';
 import { config } from './config.js';
 import { errorHandler } from './middleware/error-handler.js';
-import { watchlistRouter } from './watchlist/watchlist.routes.js';
+import { authRouter } from './modules/auth/auth.routes.js';
+import { watchlistRouter } from './modules/watchlist/watchlist.routes.js';
 
 export const app = express();
 

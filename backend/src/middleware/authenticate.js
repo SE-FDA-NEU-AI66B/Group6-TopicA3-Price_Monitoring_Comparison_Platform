@@ -1,6 +1,6 @@
 import { jwtVerify } from 'jose';
 
-import { findActiveUserById } from '../auth/auth.repository.js';
+import { findActiveUserById } from '../modules/auth/auth.repository.js';
 import { config } from '../config.js';
 import { authenticationRequired } from './error-handler.js';
 
