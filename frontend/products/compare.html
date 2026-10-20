@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Compare eligible retailer offers for an exact tracked product variant.">
+    <title>Retailer comparison — PriceLens</title>
+    <link rel="stylesheet" href="/src/styles/tokens.css">
+    <link rel="stylesheet" href="/src/styles/base.css">
+    <link rel="stylesheet" href="/src/styles/components.css">
+    <link rel="stylesheet" href="/src/styles/pages.css">
+  </head>
+  <body class="page product-compare-page">
+    <header id="site-header" class="header" data-active-route="product" data-authenticated-shell="true"></header>
+
+    <main id="main-content" class="compare-width page-main">
+      <section id="comparison-page-state" aria-live="polite" aria-busy="true">
+        <div id="comparison-loading" class="state-panel">
+          <p class="eyebrow">Retailer comparison</p>
+          <h1 class="session-heading">Loading retailer offers…</h1>
+          <p>PriceLens is retrieving current offers for the exact tracked variant.</p>
+        </div>
+        <div id="comparison-error" class="state-panel state-panel--error" hidden>
+          <p class="eyebrow">Retailer comparison unavailable</p>
+          <h1 class="session-heading">We could not load retailer offers</h1>
+          <p id="comparison-error-message"></p>
+          <button id="comparison-retry" class="btn btn--primary" type="button">Try again</button>
+          <a class="text-link" href="/watchlist">Return to watchlist</a>
+        </div>
+      </section>
+
+      <div id="comparison-content" hidden>
+        <a class="back" data-product-link>← Back to product</a>
+        <section class="compare-summary" aria-labelledby="compare-product-title">
+          <div class="product-art product-art--summary" aria-hidden="true"></div>
+          <div>
+            <span class="item-label" data-field="product-brand"></span>
+            <h1 id="compare-product-title" data-field="product-name"></h1>
+            <p class="muted" data-field="product-variant"></p>
+            <p class="product-reference">Tracked-product reference: <strong data-product-id></strong></p>
+          </div>
+        </section>
+
+        <section aria-labelledby="comparison-title">
+          <h2 id="comparison-title" class="section-title">Retailer comparison</h2>
+          <p class="muted comparison-intro">Current eligible offers for this exact variant, in PriceLens comparison order.</p>
+          <div id="comparison-result" aria-live="polite">
+            <div id="comparison-message" class="card card--solid comparison-notice" role="status" hidden></div>
+            <div id="comparison-empty" class="card card--solid state-panel" hidden>
+              <h3>No available retailer offers</h3>
+              <p>No eligible in-stock retailer offers are currently available for this exact variant.</p>
+            </div>
+            <div id="comparison-data" hidden>
+              <ol id="retailer-offers" class="offer-list" aria-label="Retailer offers"></ol>
+            <section id="best-offer-summary" class="card card--solid best-summary" aria-labelledby="best-offer-title">
+              <div>
+                <span class="muted small">Lowest eligible in-stock offer</span>
+                <h3 id="best-offer-title" data-field="best-offer"></h3>
+              </div>
+              <a class="btn btn--primary" data-field="best-offer-link" href="#" target="_blank" rel="noopener noreferrer">Visit retailer</a>
+            </section>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <template id="retailer-offer-template">
+        <li class="offer">
+          <div class="offer__retailer">
+            <span class="retailer-initial" data-field="retailer-initial" aria-hidden="true"></span>
+            <div>
+              <strong data-field="retailer-name"></strong>
+              <p class="small offer__label" data-field="offer-label"></p>
+            </div>
+          </div>
+          <div class="offer__price" data-field="offer-price"></div>
+          <p class="offer__difference" data-field="difference"></p>
+          <span class="badge" data-field="availability"></span>
+          <span class="offer__time" data-field="observed-at"></span>
+          <a class="text-link" data-field="retailer-link" href="#" target="_blank" rel="noopener noreferrer">Visit</a>
+        </li>
+      </template>
+    </main>
+
+    <footer id="site-footer" class="footer"></footer>
+    <script type="module" src="/src/pages/product-compare.js"></script>
+  </body>
+</html>

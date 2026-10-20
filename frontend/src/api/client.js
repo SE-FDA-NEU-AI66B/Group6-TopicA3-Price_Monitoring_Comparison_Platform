@@ -1,99 +1,160 @@
-import { API_BASE_URL } from '../config.js';
+const LOCAL_API_BASE_URL = 'http://localhost:3000/api';
+const configuredBaseUrl = import.meta.env?.VITE_API_BASE_URL?.trim();
 
-const GENERIC_CLIENT_DETAIL = 'PriceLens could not complete the request. Please try again.';
+export const API_BASE_URL = (configuredBaseUrl || LOCAL_API_BASE_URL).replace(/\/+$/, '');
 
 export class ApiError extends Error {
-  constructor({
-    status = 0,
-    code = 'CLIENT_ERROR',
-    detail = GENERIC_CLIENT_DETAIL,
-    fieldErrors = null,
+  constructor(message, {
+    status = null,
+    code = null,
+    details = null,
+    title = null,
+    type = null,
+    cause,
+    isNetworkError = false,
   } = {}) {
-    super(detail);
+    super(message, { cause });
     this.name = 'ApiError';
     this.status = status;
     this.code = code;
-    this.detail = detail;
-    this.fieldErrors = fieldErrors;
+    this.details = details;
+    this.title = title;
+    this.type = type;
+    this.isNetworkError = isNetworkError;
   }
 }
 
-function endpointUrl(endpoint) {
-  if (typeof endpoint !== 'string' || endpoint.trim() === '') {
-    throw new ApiError();
-  }
-
-  return `${API_BASE_URL}/${endpoint.replace(/^\/+/, '')}`;
+function joinApiPath(path) {
+  const normalizedPath = String(path ?? '').trim().replace(/^\/+/, '');
+  return normalizedPath ? `${API_BASE_URL}/${normalizedPath}` : API_BASE_URL;
 }
 
-async function parseJson(response) {
+function isFormData(value) {
+  return typeof FormData !== 'undefined' && value instanceof FormData;
+}
+
+function isJsonContentType(contentType) {
+  const mediaType = contentType.split(';', 1)[0].trim().toLowerCase();
+  return mediaType === 'application/json' || mediaType.endsWith('+json');
+}
+
+async function parseResponse(response) {
+  if (response.status === 204 || response.status === 205) {
+    return null;
+  }
+
+  const contentType = response.headers.get('content-type') || '';
+  const text = await response.text();
+
+  if (!text) {
+    return null;
+  }
+
+  if (!isJsonContentType(contentType)) {
+    return text;
+  }
+
   try {
-    return await response.json();
-  } catch {
-    throw new ApiError({
+    return JSON.parse(text);
+  } catch (cause) {
+    throw new ApiError('The PriceLens API returned an invalid response.', {
       status: response.status,
-      code: 'INVALID_RESPONSE',
-      detail: GENERIC_CLIENT_DETAIL,
+      cause,
     });
   }
 }
 
-export async function apiRequest(endpoint, {
-  method = 'GET',
-  body,
-  headers = {},
-} = {}) {
+function createHttpError(response, payload) {
+  const problem = payload && typeof payload === 'object' ? payload : {};
+  const legacyError = problem.error && typeof problem.error === 'object'
+    ? problem.error
+    : {};
+
+  return new ApiError(
+    problem.detail
+      || legacyError.message
+      || problem.title
+      || `Request failed with status ${response.status}.`,
+    {
+      status: response.status,
+      code: problem.code || legacyError.code || null,
+      details: problem.errors ?? problem.details ?? legacyError.details ?? null,
+      title: problem.title || legacyError.title || null,
+      type: problem.type || legacyError.type || null,
+    },
+  );
+}
+
+export async function apiRequest(path, options = {}) {
+  const { body, headers = {}, ...requestOptions } = options;
   const requestHeaders = new Headers(headers);
-  requestHeaders.set('Accept', 'application/json, application/problem+json');
+  const hasBody = body !== undefined;
+  const hasJsonBody = hasBody && !isFormData(body);
 
-  const requestOptions = {
-    method,
-    credentials: 'include',
-    headers: requestHeaders,
-  };
+  if (!requestHeaders.has('Accept')) {
+    requestHeaders.set('Accept', 'application/json, application/problem+json');
+  }
 
-  if (body !== undefined) {
+  if (hasJsonBody && !requestHeaders.has('Content-Type')) {
     requestHeaders.set('Content-Type', 'application/json');
-    requestOptions.body = JSON.stringify(body);
   }
 
   let response;
 
   try {
-    response = await fetch(endpointUrl(endpoint), requestOptions);
-  } catch {
-    throw new ApiError({
-      code: 'NETWORK_ERROR',
-      detail: GENERIC_CLIENT_DETAIL,
+    const fetchOptions = {
+      ...requestOptions,
+      credentials: 'include',
+      headers: requestHeaders,
+    };
+
+    if (hasBody) {
+      fetchOptions.body = hasJsonBody ? JSON.stringify(body) : body;
+    }
+
+    response = await fetch(joinApiPath(path), fetchOptions);
+  } catch (cause) {
+    throw new ApiError('Unable to reach the PriceLens API.', {
+      cause,
+      isNetworkError: true,
     });
   }
 
-  if (response.status === 204) {
-    return null;
-  }
+  let payload;
 
-  if (response.ok) {
-    return parseJson(response);
-  }
+  try {
+    payload = await parseResponse(response);
+  } catch (cause) {
+    if (cause instanceof ApiError) {
+      throw cause;
+    }
 
-  const contentType = response.headers.get('content-type') ?? '';
-
-  if (contentType.toLowerCase().includes('application/problem+json')) {
-    const problem = await parseJson(response);
-
-    throw new ApiError({
+    throw new ApiError('Unable to read the PriceLens API response.', {
       status: response.status,
-      code: typeof problem.code === 'string' ? problem.code : 'CLIENT_ERROR',
-      detail: typeof problem.detail === 'string'
-        ? problem.detail
-        : GENERIC_CLIENT_DETAIL,
-      fieldErrors: problem.field_errors ?? problem.errors ?? null,
+      cause,
+      isNetworkError: true,
     });
   }
 
-  throw new ApiError({
-    status: response.status,
-    code: 'INVALID_RESPONSE',
-    detail: GENERIC_CLIENT_DETAIL,
-  });
+  if (!response.ok) {
+    throw createHttpError(response, payload);
+  }
+
+  return payload;
 }
+
+/**
+ * Shared HTTP boundary for page modules. Pass paths relative to API_BASE_URL,
+ * for example apiClient.get('/watchlist') or apiClient.post('/auth/login', body).
+ */
+export const apiClient = {
+  get(path, options) {
+    return apiRequest(path, { ...options, method: 'GET' });
+  },
+  post(path, body, options) {
+    return apiRequest(path, { ...options, method: 'POST', body });
+  },
+  delete(path, options) {
+    return apiRequest(path, { ...options, method: 'DELETE' });
+  },
+};

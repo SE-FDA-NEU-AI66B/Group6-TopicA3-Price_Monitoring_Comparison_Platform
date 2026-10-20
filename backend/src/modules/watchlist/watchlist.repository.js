@@ -1,4 +1,4 @@
-import { pool } from '../db/pool.js';
+import { query } from '../../db/pool.js';
 
 const WATCHLIST_QUERY = `
   SELECT
@@ -69,6 +69,6 @@ const WATCHLIST_QUERY = `
 `;
 
 export async function findWatchlistByUserId(userId) {
-  const result = await pool.query(WATCHLIST_QUERY, [userId]);
+  const result = await query(WATCHLIST_QUERY, [userId]);
   return result.rows;
 }

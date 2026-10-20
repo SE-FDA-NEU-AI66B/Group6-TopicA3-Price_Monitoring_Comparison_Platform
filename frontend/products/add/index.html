@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Add an exact product variant to your PriceLens watchlist using a retailer URL.">
+    <title>Add a product — PriceLens</title>
+    <link rel="stylesheet" href="/src/styles/tokens.css">
+    <link rel="stylesheet" href="/src/styles/base.css">
+    <link rel="stylesheet" href="/src/styles/components.css">
+    <link rel="stylesheet" href="/src/styles/pages.css">
+  </head>
+  <body class="page add-product-page">
+    <header
+      id="site-header"
+      class="header"
+      data-active-route="add-product"
+      data-authenticated-shell="true"
+    ></header>
+
+    <main id="main-content" class="narrow page-main">
+      <section id="add-product-session" class="state-region" aria-live="polite">
+        <div id="add-product-session-loading" class="card card--solid state-panel">
+          <h1 class="session-heading">Checking your session</h1>
+          <p>Please wait while PriceLens prepares the Add Product page.</p>
+        </div>
+        <div id="add-product-session-error" class="card card--solid state-panel state-panel--error" hidden>
+          <h1 class="session-heading">We could not open Add Product</h1>
+          <p id="add-product-session-error-message"></p>
+          <button id="add-product-session-retry" class="btn btn--light" type="button">Try again</button>
+        </div>
+      </section>
+
+      <div id="add-product-content" hidden>
+        <a class="back" href="/watchlist">← Back to watchlist</a>
+        <div class="form-intro">
+          <h1>Add a product</h1>
+          <p>Paste a supported retailer URL and confirm the exact product variant you want to track.</p>
+        </div>
+
+        <form id="product-url-form" class="card card--solid form-card" novalidate>
+          <div class="field">
+            <label for="product-url">Product URL</label>
+            <input
+              class="input"
+              id="product-url"
+              name="productUrl"
+              type="url"
+              inputmode="url"
+              autocomplete="url"
+              placeholder="https://retailer.example/product"
+              aria-describedby="url-help url-feedback"
+              required
+            >
+            <p id="url-help" class="hint">Use the full URL for the exact product you want PriceLens to resolve.</p>
+            <p id="url-feedback" class="status" role="status" aria-live="polite"></p>
+          </div>
+          <button id="resolve-product" class="btn btn--primary btn--full" type="submit">Resolve product</button>
+        </form>
+
+        <section id="resolved-product" class="card card--solid resolve-result" aria-labelledby="resolved-product-title" hidden>
+          <span class="eyebrow">Resolved product</span>
+          <h2 id="resolved-product-title" data-field="resolved-name"></h2>
+          <p class="muted" data-field="resolved-description"></p>
+          <p class="resolved-url"><span class="item-label">Resolved URL</span> <span data-field="resolved-url"></span></p>
+          <fieldset id="variant-fieldset" class="variant-fieldset">
+            <legend>Choose the exact variant</legend>
+            <p class="hint">Select one option before adding the product to your watchlist.</p>
+            <div id="variant-options" class="variant-list"></div>
+          </fieldset>
+          <button id="confirm-product" type="button" class="btn btn--primary" disabled>Add to watchlist</button>
+          <p id="submission-feedback" class="status" role="status" aria-live="polite"></p>
+        </section>
+
+        <section
+          id="tracking-success"
+          class="card card--solid state-panel tracking-success"
+          role="status"
+          aria-live="polite"
+          tabindex="-1"
+          hidden
+        >
+          <span class="eyebrow">Tracking started</span>
+          <h2>Product added to your watchlist</h2>
+          <p id="tracking-success-message"></p>
+          <div class="tracking-success__actions">
+            <a id="view-tracked-product" class="btn btn--primary" href="/watchlist">View product details</a>
+            <a class="btn btn--light" href="/watchlist">Back to watchlist</a>
+          </div>
+        </section>
+      </div>
+
+      <template id="variant-option-template">
+        <label class="variant-choice">
+          <input type="radio" name="variant">
+          <span class="variant-choice__content">
+            <strong data-field="variant-label"></strong>
+            <span class="muted small" data-field="variant-attributes"></span>
+          </span>
+        </label>
+      </template>
+    </main>
+
+    <footer id="site-footer" class="footer"></footer>
+    <script type="module" src="/src/pages/add-product.js"></script>
+  </body>
+</html>

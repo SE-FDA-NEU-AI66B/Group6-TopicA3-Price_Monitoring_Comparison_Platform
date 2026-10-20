@@ -1,34 +1,46 @@
 :root {
-  color-scheme: light;
-  --color-ink: #17202b;
-  --color-ink-soft: #53606e;
-  --color-surface: #ffffff;
-  --color-surface-subtle: #f5f7f8;
-  --color-surface-tint: #eaf6f3;
-  --color-border: #d8e0e4;
-  --color-brand: #0d6b61;
-  --color-brand-strong: #075148;
-  --color-brand-soft: #cfeae4;
-  --color-accent: #f2b84b;
-  --color-danger: #a13d3d;
-  --color-danger-soft: #fbecec;
-  --color-warning: #7a4f00;
-  --color-warning-soft: #fff1cb;
-  --color-focus: #176fbd;
-  --shadow-card: 0 18px 50px rgb(23 32 43 / 10%);
-  --shadow-soft: 0 8px 24px rgb(23 32 43 / 8%);
-  --radius-small: 0.5rem;
-  --radius-medium: 0.875rem;
-  --radius-large: 1.5rem;
-  --space-1: 0.25rem;
-  --space-2: 0.5rem;
-  --space-3: 0.75rem;
-  --space-4: 1rem;
-  --space-5: 1.5rem;
-  --space-6: 2rem;
-  --space-7: 3rem;
-  --space-8: 4rem;
-  --content-width: 75rem;
-  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-display: Georgia, "Times New Roman", serif;
+  /* Brand and core colors */
+  --color-ink: #1d2925;
+  --color-muted: #667b73;
+  --color-green: #194b36;
+  --color-green-dark: #102820;
+  --color-gold: #ebb532;
+  --color-line: #e8e5db;
+  --color-surface: #fffefa;
+  --color-background: #fbfaf7;
+  --color-success: #176446;
+  --color-error: #a3352c;
+
+  /* Interaction and semantic colors */
+  --color-green-hover: #123b29;
+  --color-warning: #8a611c;
+  --color-on-primary: #ffffff;
+  --color-on-gold: #4b3613;
+  --color-focus-ring: #dba91f;
+  --color-focus-ring-subtle: #bcdacb;
+
+  /* Typography */
+  --font-body: Inter, system-ui, sans-serif;
+  --font-display: "Space Grotesk", Inter, system-ui, sans-serif;
+
+  /* Border radii */
+  --radius-small: 0.75rem;
+  --radius-medium: 1.25rem;
+  --radius-pill: 999px;
+
+  /* Shadows */
+  --shadow-card: 0 1px 0 #d9d6cb, 0 18px 35px -24px #2244354a;
+  --shadow-elevated: 0 20px 45px -20px #1028203d, 0 1px 0 #d9d6cb;
+
+  /* Layout widths */
+  --content-width: 85rem;
+  --narrow-width: 53rem;
+  --compare-width: 61rem;
+
+  /* Spacing scale */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
 }

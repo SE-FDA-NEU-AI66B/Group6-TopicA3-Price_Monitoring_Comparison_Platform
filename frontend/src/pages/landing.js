@@ -1,121 +1,175 @@
-import { ApiError } from '../api/client.js';
-import { getSession, login } from '../auth/session.js';
+import { initializePageShell } from '../components/common.js';
+import {
+  getCurrentSession,
+  isAuthenticationRequiredError,
+  signIn,
+} from '../auth/session.js';
+import { toErrorState } from '../utils/errors.js';
 
-const form = document.querySelector('#sign-in-form');
+initializePageShell();
+
+const dialog = document.querySelector('#signin-dialog');
+const openButton = document.querySelector('#open-signin');
+const closeButton = document.querySelector('#close-signin');
+const signInForm = document.querySelector('#signin-form');
 const emailInput = document.querySelector('#email');
 const passwordInput = document.querySelector('#password');
-const submitButton = document.querySelector('#sign-in-submit');
-const pendingIndicator = document.querySelector('#sign-in-pending');
-const formStatus = document.querySelector('#form-status');
 const emailFeedback = document.querySelector('#email-feedback');
 const passwordFeedback = document.querySelector('#password-feedback');
+const signInStatus = document.querySelector('#signin-status');
+const submitButton = document.querySelector('#signin-submit');
+let isSubmitting = false;
 
-function navigateToWatchlist() {
-  window.location.assign('/watchlist');
-}
-
-function setPending(isPending) {
-  form.setAttribute('aria-busy', String(isPending));
-  submitButton.disabled = isPending;
-  pendingIndicator.hidden = !isPending;
-}
-
-function clearFeedback() {
-  formStatus.textContent = '';
-  formStatus.className = 'form-status';
-  emailFeedback.textContent = '';
-  passwordFeedback.textContent = '';
-  emailInput.removeAttribute('aria-invalid');
-  passwordInput.removeAttribute('aria-invalid');
-}
-
-function fieldMessages(fieldErrors, fieldName) {
-  if (!fieldErrors) {
-    return [];
-  }
-
-  if (Array.isArray(fieldErrors)) {
-    return fieldErrors
-      .filter((entry) => entry?.field === fieldName)
-      .map((entry) => entry.message)
-      .filter((message) => typeof message === 'string');
-  }
-
-  const value = fieldErrors[fieldName];
-
-  if (Array.isArray(value)) {
-    return value.filter((message) => typeof message === 'string');
-  }
-
-  return typeof value === 'string' ? [value] : [];
-}
-
-function showInvalidRequest(error) {
-  const emailMessages = fieldMessages(error.fieldErrors, 'email');
-  const passwordMessages = fieldMessages(error.fieldErrors, 'password');
-
-  if (emailMessages.length) {
-    emailFeedback.textContent = emailMessages[0];
-    emailInput.setAttribute('aria-invalid', 'true');
-  }
-
-  if (passwordMessages.length) {
-    passwordFeedback.textContent = passwordMessages[0];
-    passwordInput.setAttribute('aria-invalid', 'true');
-  }
-
-  formStatus.textContent = emailMessages.length || passwordMessages.length
-    ? 'Please correct the highlighted fields.'
-    : error.detail;
-  formStatus.className = 'form-status form-status--error';
-}
-
-async function restoreSession() {
-  setPending(true);
-  formStatus.textContent = 'Checking your session…';
-
-  try {
-    await getSession();
-    navigateToWatchlist();
-  } catch (error) {
-    if (error instanceof ApiError && error.code === 'AUTHENTICATION_REQUIRED') {
-      clearFeedback();
-    } else {
-      formStatus.textContent = 'We could not check your session. You can still sign in.';
-      formStatus.className = 'form-status form-status--notice';
-    }
-  } finally {
-    setPending(false);
-  }
-}
-
-form.addEventListener('submit', async (event) => {
-  event.preventDefault();
-
-  if (submitButton.disabled) {
+function setFieldError(input, feedback, message = '') {
+  if (!input || !feedback) {
     return;
   }
 
-  clearFeedback();
-  setPending(true);
+  input.setAttribute('aria-invalid', message ? 'true' : 'false');
+  feedback.textContent = message;
+}
 
+function resetFeedback() {
+  setFieldError(emailInput, emailFeedback);
+  setFieldError(passwordInput, passwordFeedback);
+
+  if (signInStatus) {
+    signInStatus.className = 'status';
+    signInStatus.textContent = '';
+  }
+}
+
+function validateCredentials() {
+  const email = emailInput?.value.trim() ?? '';
+  const password = passwordInput?.value ?? '';
+  let firstInvalidField = null;
+
+  resetFeedback();
+
+  if (!email) {
+    setFieldError(emailInput, emailFeedback, 'Enter your email address.');
+    firstInvalidField = emailInput;
+  } else if (emailInput?.validity.typeMismatch) {
+    setFieldError(emailInput, emailFeedback, 'Enter a valid email address.');
+    firstInvalidField = emailInput;
+  }
+
+  if (!password) {
+    setFieldError(passwordInput, passwordFeedback, 'Enter your password.');
+    firstInvalidField ??= passwordInput;
+  }
+
+  if (firstInvalidField) {
+    firstInvalidField.focus();
+    return null;
+  }
+
+  return { email, password };
+}
+
+function setSubmitting(isPending) {
+  isSubmitting = isPending;
+  signInForm?.setAttribute('aria-busy', String(isPending));
+
+  if (submitButton) {
+    submitButton.disabled = isPending;
+    submitButton.textContent = isPending ? 'Signing in…' : 'Sign in';
+  }
+}
+
+function getLoginErrorMessage(error) {
+  const errorState = toErrorState(error);
+
+  if (errorState.code === 'INVALID_CREDENTIALS') {
+    return 'Invalid email or password.';
+  }
+
+  if (errorState.code === 'INVALID_REQUEST') {
+    return errorState.message;
+  }
+
+  if (errorState.isNetworkError) {
+    return 'PriceLens could not reach the sign-in service. Please try again.';
+  }
+
+  return 'PriceLens could not sign you in. Please try again.';
+}
+
+async function restoreExistingSession() {
   try {
-    await login(emailInput.value.trim(), passwordInput.value);
-    passwordInput.value = '';
-    navigateToWatchlist();
-  } catch (error) {
-    if (error instanceof ApiError && error.code === 'INVALID_REQUEST') {
-      showInvalidRequest(error);
-    } else if (error instanceof ApiError && error.code === 'INVALID_CREDENTIALS') {
-      formStatus.textContent = 'Invalid email or password';
-      formStatus.className = 'form-status form-status--error';
-    } else {
-      formStatus.textContent = 'Sign-in is unavailable right now. Please try again.';
-      formStatus.className = 'form-status form-status--error';
+    const user = await getCurrentSession();
+
+    if (user) {
+      window.location.assign('/watchlist');
     }
-  } finally {
-    setPending(false);
+  } catch (error) {
+    if (!isAuthenticationRequiredError(error)) {
+      // A restoration failure must not prevent a guest from using the sign-in form.
+    }
+  }
+}
+
+openButton?.addEventListener('click', () => {
+  resetFeedback();
+  dialog?.showModal();
+  emailInput?.focus();
+});
+
+closeButton?.addEventListener('click', () => dialog?.close());
+
+dialog?.addEventListener('click', (event) => {
+  if (event.target === dialog) {
+    dialog.close();
   }
 });
 
-restoreSession();
+dialog?.addEventListener('close', () => {
+  if (passwordInput) {
+    passwordInput.value = '';
+  }
+
+  openButton?.focus();
+});
+
+signInForm?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+
+  if (isSubmitting) {
+    return;
+  }
+
+  const credentials = validateCredentials();
+
+  if (!credentials) {
+    return;
+  }
+
+  let didAuthenticate = false;
+  setSubmitting(true);
+
+  if (signInStatus) {
+    signInStatus.textContent = 'Signing in…';
+  }
+
+  try {
+    await signIn(credentials);
+    didAuthenticate = true;
+
+    if (passwordInput) {
+      passwordInput.value = '';
+    }
+
+    window.location.assign('/watchlist');
+  } catch (error) {
+    if (signInStatus) {
+      signInStatus.className = 'status status--error';
+      signInStatus.textContent = getLoginErrorMessage(error);
+    }
+  } finally {
+    if (!didAuthenticate) {
+      setSubmitting(false);
+    }
+  }
+});
+
+void restoreExistingSession();

@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Review current price, history, and alerts for an exact tracked product variant.">
+    <title>Product details — PriceLens</title>
+    <link rel="stylesheet" href="/src/styles/tokens.css">
+    <link rel="stylesheet" href="/src/styles/base.css">
+    <link rel="stylesheet" href="/src/styles/components.css">
+    <link rel="stylesheet" href="/src/styles/pages.css">
+  </head>
+  <body class="page product-detail-page">
+    <header id="site-header" class="header" data-active-route="product" data-authenticated-shell="true"></header>
+
+    <main id="main-content" class="container page-main">
+      <section id="product-page-state" aria-live="polite" aria-busy="true">
+        <div id="product-loading" class="state-panel">
+          <p class="eyebrow">Product details</p>
+          <h1 class="session-heading">Loading tracked product…</h1>
+          <p>PriceLens is retrieving the exact variant and its price history.</p>
+        </div>
+        <div id="product-error" class="state-panel state-panel--error" hidden>
+          <p class="eyebrow">Product details unavailable</p>
+          <h1 class="session-heading">We could not load this tracked product</h1>
+          <p id="product-error-message"></p>
+          <button id="product-retry" class="btn btn--primary" type="button">Try again</button>
+          <a class="text-link" href="/watchlist">Return to watchlist</a>
+        </div>
+      </section>
+
+      <div id="product-content" hidden>
+        <a class="back" href="/watchlist">← Back to watchlist</a>
+        <section class="product-overview" aria-labelledby="product-title">
+          <div class="product-art product-art--compact" aria-hidden="true"></div>
+          <div>
+            <span class="item-label" data-field="product-brand"></span>
+            <h1 id="product-title" data-field="product-name"></h1>
+            <p class="muted" data-field="product-variant"></p>
+            <p class="product-reference">Tracked-product reference: <strong data-product-id></strong></p>
+            <div id="product-badges" class="badges" aria-label="Product status"></div>
+          </div>
+        </section>
+
+        <div class="detail-grid">
+          <div class="stack">
+            <section id="current-price" class="card card--solid price-card" aria-labelledby="current-price-title">
+              <h2 id="current-price-title" class="section-title">Current observed price</h2>
+              <p class="money" data-field="current-price"></p>
+              <p class="observed" data-field="price-observed-at"></p>
+              <a id="source-retailer-link" class="btn btn--light" target="_blank" rel="noopener noreferrer" hidden>View source retailer</a>
+            </section>
+
+            <section id="price-history" class="card card--solid" aria-labelledby="price-history-title">
+              <h2 id="price-history-title" class="section-title">30-day price history</h2>
+              <p id="history-range" class="muted"></p>
+              <div id="price-history-state" class="chart-region" aria-live="polite"></div>
+              <dl id="history-summary" class="stat-grid" hidden>
+                <div class="stat"><dt>30-day low</dt><dd data-field="history-low"></dd></div>
+                <div class="stat"><dt>30-day high</dt><dd data-field="history-high"></dd></div>
+                <div class="stat"><dt>Current</dt><dd data-field="history-current"></dd></div>
+              </dl>
+            </section>
+
+            <section class="card card--solid compare-callout" aria-labelledby="compare-callout-title">
+              <div>
+                <h2 id="compare-callout-title" class="section-title">Compare retailer offers</h2>
+                <p class="muted">Review eligible offers for this exact variant.</p>
+              </div>
+              <a class="btn btn--primary" data-compare-link>Compare offers</a>
+            </section>
+          </div>
+
+          <aside class="stack" aria-label="Price alerts">
+            <section id="price-alert-region" class="card card--solid alert-card" aria-labelledby="alert-region-title">
+              <h2 id="alert-region-title" class="section-title">Price alerts</h2>
+              <p class="muted">Choose a target and PriceLens will save an active alert for this tracked product.</p>
+              <div class="alert-price-context">
+                <span class="item-label">Current price</span>
+                <strong id="alert-current-price" class="alert-price-context__amount">Checking price…</strong>
+              </div>
+              <form id="price-alert-form" class="form-stack" novalidate>
+                <div class="field">
+                  <label for="target-price">Target price</label>
+                  <input
+                    id="target-price"
+                    class="input"
+                    name="target_price"
+                    type="text"
+                    inputmode="decimal"
+                    autocomplete="off"
+                    aria-describedby="target-price-hint alert-feedback"
+                    required
+                  >
+                  <p id="target-price-hint" class="hint">Enter a price below the current price. PriceLens will verify it when you submit.</p>
+                </div>
+                <button id="price-alert-submit" class="btn btn--primary" type="submit">Create price alert</button>
+              </form>
+              <div id="alert-feedback" class="alert-feedback" aria-live="polite" tabindex="-1"></div>
+              <section id="created-alert" class="created-alert" aria-labelledby="created-alert-title" aria-live="polite" tabindex="-1" hidden>
+                <div class="created-alert__heading">
+                  <h3 id="created-alert-title">Price alert created</h3>
+                  <span class="badge" data-field="alert-status"></span>
+                </div>
+                <dl class="created-alert__details">
+                  <div>
+                    <dt>Target price</dt>
+                    <dd data-field="alert-target-price"></dd>
+                  </div>
+                  <div>
+                    <dt>Created</dt>
+                    <dd data-field="alert-created-at"></dd>
+                  </div>
+                </dl>
+              </section>
+            </section>
+          </aside>
+        </div>
+      </div>
+    </main>
+
+    <footer id="site-footer" class="footer"></footer>
+    <script type="module" src="/src/pages/product-detail.js"></script>
+  </body>
+</html>

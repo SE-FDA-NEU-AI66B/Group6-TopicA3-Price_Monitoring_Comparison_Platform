@@ -1,6 +1,6 @@
 import { Router } from 'express';
 
-import { authenticate } from '../middleware/authenticate.js';
+import { authenticate } from '../../middleware/authenticate.js';
 import { findWatchlistByUserId } from './watchlist.repository.js';
 
 const router = Router();

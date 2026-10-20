@@ -1,68 +1,108 @@
-const DECIMAL_AMOUNT = /^\d+(?:\.(\d+))?$/;
+const DECIMAL_VALUE = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/;
 const CURRENCY_CODE = /^[A-Z]{3}$/;
-const NO_FRACTION_CURRENCIES = new Set(['VND']);
 
-function groupThousands(integerDigits) {
-  return integerDigits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+function toFiniteNumber(value) {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const normalizedValue = value.trim();
+
+  if (!DECIMAL_VALUE.test(normalizedValue)) {
+    return null;
+  }
+
+  const numericValue = Number(normalizedValue);
+  return Number.isFinite(numericValue) ? numericValue : null;
 }
 
-export function formatMoney(amount, currencyCode) {
-  if (
-    typeof amount !== 'string'
-    || typeof currencyCode !== 'string'
-    || !CURRENCY_CODE.test(currencyCode)
-  ) {
-    return 'Price unavailable';
+function toValidDate(value) {
+  if (typeof value !== 'string' && typeof value !== 'number' && !(value instanceof Date)) {
+    return null;
   }
 
-  const match = amount.match(DECIMAL_AMOUNT);
-
-  if (!match) {
-    return 'Price unavailable';
-  }
-
-  const [integerDigits, fractionalDigits = ''] = amount.split('.');
-  const groupedInteger = groupThousands(integerDigits);
-
-  if (NO_FRACTION_CURRENCIES.has(currencyCode)) {
-    return `${groupedInteger} ${currencyCode}`;
-  }
-
-  const twoFractionDigits = fractionalDigits.padEnd(2, '0').slice(0, 2);
-  return `${groupedInteger}.${twoFractionDigits} ${currencyCode}`;
+  const date = value instanceof Date ? new Date(value.getTime()) : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
-export function formatObservationTime(value) {
-  if (typeof value !== 'string' || value.trim() === '') {
-    return 'Update time unavailable';
-  }
+export function formatCurrency(
+  amount,
+  currencyCode,
+  locale,
+  fallback = 'Price unavailable',
+) {
+  const numericAmount = toFiniteNumber(amount);
+  const normalizedCurrency = typeof currencyCode === 'string'
+    ? currencyCode.trim().toUpperCase()
+    : '';
 
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return 'Update time unavailable';
+  if (numericAmount === null || !CURRENCY_CODE.test(normalizedCurrency)) {
+    return fallback;
   }
 
   try {
-    const formatted = new Intl.DateTimeFormat(undefined, {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    }).format(date);
+    if (normalizedCurrency === 'VND') {
+      return `${new Intl.NumberFormat(locale, {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }).format(numericAmount)} VND`;
+    }
 
-    return `Updated ${formatted}`;
+    return new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency: normalizedCurrency,
+      currencyDisplay: 'code',
+    }).format(numericAmount);
   } catch {
-    return 'Update time unavailable';
+    return fallback;
+  }
+}
+
+export function formatDate(value, locale, fallback = 'Date unavailable') {
+  const date = toValidDate(value);
+
+  if (!date) {
+    return fallback;
+  }
+
+  try {
+    return new Intl.DateTimeFormat(locale, {
+      dateStyle: 'medium',
+    }).format(date);
+  } catch {
+    return fallback;
+  }
+}
+
+export function formatDateTime(value, locale, fallback = 'Time unavailable') {
+  const date = toValidDate(value);
+
+  if (!date) {
+    return fallback;
+  }
+
+  try {
+    return new Intl.DateTimeFormat(locale, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(date);
+  } catch {
+    return fallback;
   }
 }
 
 export function formatStatusLabel(value, fallback = 'Unknown') {
-  if (typeof value !== 'string' || value.trim() === '') {
+  if (typeof value !== 'string' || !value.trim()) {
     return fallback;
   }
 
-  return value
-    .trim()
-    .toLowerCase()
-    .replaceAll('_', ' ')
-    .replace(/^./, (character) => character.toUpperCase());
+  const normalizedValue = value.trim().toLowerCase().replace(/[_-]+/g, ' ');
+  return normalizedValue.replace(/^./, (character) => character.toUpperCase());
 }

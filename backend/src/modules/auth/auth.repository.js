@@ -1,15 +1,11 @@
-import { pool } from '../db/pool.js';
-
-const PUBLIC_USER_COLUMNS = `
-  user_id,
-  email,
-  display_name
-`;
+import { query } from '../../db/pool.js';
 
 export async function findUserByEmail(email) {
-  const result = await pool.query(
+  const result = await query(
     `SELECT
-       ${PUBLIC_USER_COLUMNS},
+       user_id,
+       email,
+       display_name,
        password_hash,
        account_status
      FROM users
@@ -21,8 +17,11 @@ export async function findUserByEmail(email) {
 }
 
 export async function findActiveUserById(userId) {
-  const result = await pool.query(
-    `SELECT ${PUBLIC_USER_COLUMNS}
+  const result = await query(
+    `SELECT
+       user_id,
+       email,
+       display_name
      FROM users
      WHERE user_id = $1
        AND account_status = 'ACTIVE'`,
