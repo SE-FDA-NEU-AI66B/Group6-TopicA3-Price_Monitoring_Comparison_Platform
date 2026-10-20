@@ -30,6 +30,7 @@ export const P0_FIXTURE_KEYS = freeze({
   us04: freeze({
     sourceCode: 'TECHMART',
     duplicateUrl: 'https://techmart.example/apple-iphone-15-128gb-black',
+    creationUrl: 'https://digital-hub.example/apple-iphone-15-128gb-black',
     exactVariants: freeze([
       freeze({ canonicalKey: 'apple-iphone-15', variantKey: '128gb-black' }),
       freeze({ canonicalKey: 'apple-iphone-15', variantKey: '256gb-black' }),
@@ -390,6 +391,46 @@ export async function missingTrackedProductId() {
     result.rows,
     'generated missing tracked-product identifier',
   ).tracked_product_id;
+}
+
+export async function missingRetailerOfferId() {
+  const result = await query(
+    `SELECT (COALESCE(MAX(retailer_offer_id), 0) + 1)::TEXT AS retailer_offer_id
+     FROM retailer_offers`,
+  );
+
+  return expectExactlyOneFixture(
+    result.rows,
+    'generated missing retailer-offer identifier',
+  ).retailer_offer_id;
+}
+
+export async function trackedProductCountByOwnerEmail(email) {
+  const result = await query(
+    `SELECT COUNT(*)::INTEGER AS count
+     FROM tracked_products AS tp
+     JOIN users AS u ON u.user_id = tp.user_id
+     WHERE u.email = $1`,
+    [email],
+  );
+
+  return expectExactlyOneFixture(
+    result.rows,
+    `tracked-product count for ${email}`,
+  ).count;
+}
+
+export async function deleteTrackedProductByOwnerAndUrl({ email, normalizedUrl }) {
+  const result = await query(
+    `DELETE FROM tracked_products AS tp
+     USING users AS u
+     WHERE tp.user_id = u.user_id
+       AND u.email = $1
+       AND tp.normalized_source_url = $2`,
+    [email, normalizedUrl],
+  );
+
+  return result.rowCount;
 }
 
 function assertExpectedCount(rows, expectedCount, description) {
