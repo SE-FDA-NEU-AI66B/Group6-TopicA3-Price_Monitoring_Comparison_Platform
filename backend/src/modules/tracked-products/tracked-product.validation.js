@@ -12,3 +12,7 @@ export function parseCreateTrackedProductBody(value) {
     retailerOfferId: parseIdentifier(retailerOfferId, 'retailer_offer_id'),
   };
 }
+
+export function parseTrackedProductId(value) {
+  return parseIdentifier(value, 'tracked_product_id');
+}
