@@ -84,6 +84,40 @@ The seed uses fixed timestamps and VND `NUMERIC(14,2)` values. Its SQL validatio
 
 The US05 rows describe deterministic historical fixture state only. The seed does not evaluate transitions or generate runtime notifications; the downstream US05 service/background processor remains responsible for detecting price crossings and persisting notifications during application execution.
 
+## US02 price-history API
+
+`GET /api/tracked-products/:tracked_product_id/price-history` requires the existing session cookie and derives ownership from `request.user.user_id`. Missing and unowned IDs both return `404 TRACKED_PRODUCT_NOT_FOUND`; malformed IDs use the shared `400 INVALID_REQUEST` response.
+
+The response reads real `price_observations` for the tracked source's currency and exact `product_variant_id`. It covers the previous 30 complete UTC calendar days (`from_date` and `to_date` are inclusive display dates), groups by UTC date, selects the lowest `IN_STOCK` amount for each day, and orders points chronologically. No missing date is synthesized. The summary minimum and maximum come from those daily values; current uses the existing M2 definition: the lowest price among each matching offer's latest `IN_STOCK` observation in the tracked currency.
+
+```json
+{
+  "data": {
+    "tracked_product_id": "<runtime string ID>",
+    "range": {
+      "days": 30,
+      "from_date": "2026-09-20",
+      "to_date": "2026-10-19",
+      "timezone": "UTC"
+    },
+    "status": "AVAILABLE",
+    "message": null,
+    "points": [
+      { "date": "2026-09-20", "amount": "23990000.00" },
+      { "date": "2026-10-19", "amount": "20890000.00" }
+    ],
+    "summary": {
+      "minimum": "20890000.00",
+      "maximum": "23990000.00",
+      "current": "20890000.00",
+      "currency_code": "VND"
+    }
+  }
+}
+```
+
+Exactly one point returns `INSUFFICIENT_DATA` with `"Insufficient data for a 30-day chart"` and keeps its point and summary. Zero points returns `NO_HISTORY` with `"No price history available"`, `points: []` and `summary: null`. At least two points returns `AVAILABLE` with `message: null`.
+
 ## US04 product registration API
 
 Both US04 endpoints require the existing `pricelens_session` cookie and derive ownership only from `request.user`.

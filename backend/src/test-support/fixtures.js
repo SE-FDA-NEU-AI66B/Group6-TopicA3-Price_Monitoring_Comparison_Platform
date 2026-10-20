@@ -19,6 +19,7 @@ export const P0_FIXTURE_KEYS = freeze({
     fullHistory: freeze({
       canonicalKey: 'apple-macbook-air-m2',
       variantKey: '8gb-256gb-midnight',
+      sourceUrl: 'https://gadget-world.example/macbook-air-m2-8-256-midnight',
     }),
     singleObservationUrl: 'https://digital-hub.example/kindle-paperwhite-16gb-black',
     noObservationUrl: 'https://digital-hub.example/sony-wh-1000xm5-black',
