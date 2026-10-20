@@ -8,7 +8,7 @@ backend/src/
 ├── app.js           Express composition: middleware, then mount each module under /api/...
 ├── config.js        environment variables are read and validated here
 ├── middleware/      cross-feature request handling (authenticate, error-handler)
-├── db/              the one shared PostgreSQL pool (pool.js)
+├── db/              the one shared PostgreSQL pool, query and transaction helpers (pool.js)
 ├── database/        db:init tooling only: migrations/, seeds/, init-database.js
 ├── shared/          cross-feature problem definitions and request-validation helpers
 └── modules/<feature>/
@@ -40,9 +40,9 @@ any layer throws -> error-handler -> application/problem+json
 
 ## Rules that apply to every module
 
-- **Identity:** `authenticate` sets `request.user` from the signed session cookie. `user_id` is never read from the request body, query or path.
-- **Ownership:** pass `request.user.user_id` down to the repository and enforce it in the SQL predicate (for example `WHERE tp.user_id = $1`), as `watchlist.repository.js` does. A missing and an unowned resource return the same 404. Shared ownership helpers and transaction conventions are planned in #133; do not invent a different approach per feature.
-- **Database:** import `pool` from `db/pool.js`. Never `new Pool()`.
+- **Identity:** `authenticate` verifies the signed `pricelens_session`, resolves an active database user and sets the public `request.user` context (`user_id`, `email`, `display_name`). `user_id` is never read from the request body, query, path or headers for ownership decisions.
+- **Ownership:** pass `request.user.user_id` to `requireOwnedTrackedProduct` in `modules/tracked-products/tracked-product.service.js`. Its repository query predicates on both `tracked_product_id` and `user_id`, so missing and unowned records produce the same `TRACKED_PRODUCT_NOT_FOUND` response without an existence-revealing global lookup.
+- **Database:** import `query` or `withTransaction` from `db/pool.js`. Never create another `Pool`. `query` translates persistence failures through the shared problem layer. `withTransaction` acquires one client, runs `BEGIN`/callback/`COMMIT`, attempts `ROLLBACK` on failure, always releases the client and preserves application errors while safely translating persistence errors.
 - **Errors:** use a factory from `shared/problems.js`; the central `error-handler` is the only place that formats `application/problem+json`. Do not send ad-hoc error bodies from a route.
 - **Validation:** feature validation modules compose the small helpers in `shared/validation.js`. Malformed request values use `400 INVALID_REQUEST`; feature services decide documented `409` and `422` outcomes.
 - **Persistence failures:** translate only known PostgreSQL constraints with `translatePersistenceError`. Unknown database failures remain a safe `500 INTERNAL_SERVER_ERROR`; raw PostgreSQL fields never enter the response.
