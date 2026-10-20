@@ -190,7 +190,7 @@ The processor reports `qualifiedAt`, `sentAt`, `deliveryLatencyMilliseconds` and
 
 ### #148 demonstration handoff
 
-Resolve an offer by stable normalized URL, invoke `processPriceObservation(...)`, and verify the resulting `PENDING` row. Run `npm --prefix backend run notifications:deliver -- --limit=10`, inspect `.local/pricelens-email-outbox.jsonl`, and verify the row is now `SENT`. Repeat with a below-target update (no event), an above-target reset, and a later downward crossing followed by a second delivery. The deterministic PostgreSQL tests under both background processor folders are the reference pieces; #148 owns assembling them into the full demonstration. US05 and parent #143 remain open until that proof is complete.
+The complete UI-to-JSONL procedure is in `docs/us05-demo.md`. Its internal `npm run prices:process -- ...` wrapper resolves the Dell fixture by normalized URL and delegates unchanged acquisition data to `processPriceObservation()`; it contains no BR4 logic and exposes no HTTP route. The guide covers clean test-DB/outbox setup, UI alert creation, four strictly ordered `--observed-at=now` observations, two BG-03 deliveries, read-only PostgreSQL evidence and Windows/macOS/Linux commands.
 
 ## US09 retailer-comparison API
 

@@ -1,5 +1,26 @@
 import { query } from '../../db/pool.js';
 
+export async function findOfferByNormalizedUrl(
+  normalizedUrl,
+  executeQuery = query,
+) {
+  const result = await executeQuery(
+    `SELECT
+       retailer_offer_id::TEXT AS retailer_offer_id,
+       normalized_url
+     FROM retailer_offers
+     WHERE normalized_url = $1
+     ORDER BY retailer_offer_id`,
+    [normalizedUrl],
+  );
+
+  if (result.rows.length !== 1) {
+    return null;
+  }
+
+  return result.rows[0];
+}
+
 export async function lockOfferVariantContext(
   retailerOfferId,
   executeQuery = query,
