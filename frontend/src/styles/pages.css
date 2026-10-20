@@ -362,9 +362,93 @@
 .chart-region {
   min-height: 15rem;
   margin: 1.75rem 0;
-  border: 1px dashed #c9cec8;
+  border: 1px dashed var(--color-line);
   border-radius: var(--radius-small);
   background: linear-gradient(180deg, #f5faf6, #faf9f5);
+}
+
+.chart-region--available {
+  min-height: 0;
+  padding: var(--space-md);
+  border-style: solid;
+}
+
+.history-message {
+  min-height: 11rem;
+}
+
+.history-message p {
+  color: var(--color-ink);
+  font-weight: 700;
+}
+
+.history-chart {
+  min-width: 0;
+}
+
+.history-chart__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.history-chart__grid-line {
+  stroke: var(--color-line);
+  stroke-width: 1;
+}
+
+.history-chart__line {
+  fill: none;
+  stroke: var(--color-green);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 4;
+}
+
+.history-chart__point {
+  fill: var(--color-surface);
+  stroke: var(--color-green);
+  stroke-width: 3;
+}
+
+.history-chart__axis {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin: var(--space-sm) 0 var(--space-md);
+  color: var(--color-muted);
+  font-size: 0.78rem;
+}
+
+.history-data {
+  border-top: 1px solid var(--color-line);
+}
+
+.history-data summary {
+  padding: var(--space-md) 0 0;
+  color: var(--color-green);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.history-data table {
+  width: 100%;
+  margin-top: var(--space-md);
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.history-data th,
+.history-data td {
+  padding: var(--space-sm);
+  text-align: left;
+  border-bottom: 1px solid var(--color-line);
+}
+
+.history-data th:last-child,
+.history-data td:last-child {
+  text-align: right;
 }
 
 .stat-grid {
@@ -553,6 +637,14 @@
 
   .stat {
     padding: 0.9rem 0.35rem;
+  }
+
+  .chart-region--available {
+    padding: var(--space-sm);
+  }
+
+  .history-chart__axis {
+    font-size: 0.7rem;
   }
 
   .price-card .money {
