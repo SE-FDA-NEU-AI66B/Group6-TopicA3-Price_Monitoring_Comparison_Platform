@@ -41,6 +41,15 @@ test('processor validation accepts documented success and failure acquisition sh
     observedAt: '2026-10-20T08:01:00.000Z',
     failureReason: 'Source timeout',
   });
+
+  assert.equal(parsePriceObservationResult({
+    retailerOfferId: '42',
+    acquisitionStatus: 'SUCCEEDED',
+    priceAmount: '14000000.00',
+    currencyCode: 'VND',
+    availabilityStatus: 'IN_STOCK',
+    observedAt: '2026-10-20T08:02:00.123Z',
+  }).observedAt, '2026-10-20T08:02:00.123Z');
 });
 
 test('processor validation rejects malformed acquisition results before persistence', () => {

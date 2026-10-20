@@ -80,7 +80,7 @@ function parseObservedAt(result) {
   }
 
   const normalized = date.toISOString();
-  const equivalentInput = value.endsWith('.000Z')
+  const equivalentInput = /\.\d{3}Z$/.test(value)
     ? value
     : value.replace(/Z$/, '.000Z');
 

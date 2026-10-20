@@ -127,7 +127,11 @@ JOIN products AS p
 JOIN product_variants AS pv
     ON pv.product_id = p.product_id
    AND pv.variant_key = so.variant_key
-ON CONFLICT (retailer_id, product_variant_id, normalized_url) DO NOTHING;
+ON CONFLICT (retailer_id, product_variant_id, normalized_url) DO UPDATE
+SET external_offer_id = EXCLUDED.external_offer_id,
+    last_refresh_attempt_at = EXCLUDED.last_refresh_attempt_at,
+    last_refresh_status = EXCLUDED.last_refresh_status,
+    last_refresh_error = NULL;
 
 -- Preserve the 10-item M2 Watchlist and add one isolated boundary-user item.
 WITH seed_tracking (email, normalized_url, created_at) AS (

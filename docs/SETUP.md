@@ -334,6 +334,8 @@ On PowerShell, use `$env:TEST_DB_NAME='pricelens_test'` before the npm command. 
 
 BG-03 does not include a scheduler. It proves that an invoked delivery is requested and persisted within five minutes for the reproducible workflow; #148 owns the complete observation-to-email demonstration. A production provider would also need idempotency keyed by `notification_id` because a database cannot by itself guarantee exactly-once effects after external delivery succeeds.
 
+For the complete Story #40 demonstration beginning with alert creation in the real Product Details UI and ending with two observable JSONL messages, follow [`docs/us05-demo.md`](./us05-demo.md). That guide keeps the long transition sequence and evidence queries separate from this installation checklist.
+
 ## Start PriceLens Again Later
 
 Confirm that PostgreSQL is running, then open two terminals in the PriceLens project directory.
