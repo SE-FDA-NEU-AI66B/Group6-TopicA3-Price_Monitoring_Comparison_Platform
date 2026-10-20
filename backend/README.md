@@ -118,6 +118,81 @@ The response reads real `price_observations` for the tracked source's currency a
 
 Exactly one point returns `INSUFFICIENT_DATA` with `"Insufficient data for a 30-day chart"` and keeps its point and summary. Zero points returns `NO_HISTORY` with `"No price history available"`, `points: []` and `summary: null`. At least two points returns `AVAILABLE` with `message: null`.
 
+## US09 retailer-comparison API
+
+`GET /api/tracked-products/:tracked_product_id/offers` requires the existing session cookie and derives ownership only from `request.user.user_id`. Missing and unowned IDs both return `404 TRACKED_PRODUCT_NOT_FOUND`; malformed IDs use the shared `400 INVALID_REQUEST` response.
+
+The tracked product supplies the exact `product_variant_id`, and the latest valid observation on its source offer supplies the comparison currency. For every offer of that exact variant, API-06 considers only the offer's latest persisted observation. Only latest `IN_STOCK` observations in the source currency enter `offers`; an older in-stock observation cannot replace a newer out-of-stock state. PostgreSQL orders eligible offers by amount ascending and then retailer name ascending, and calculates every decimal `difference_from_lowest` without JavaScript floating-point arithmetic.
+
+An available multi-source result has this shape (IDs are runtime strings, not fixture contracts):
+
+```json
+{
+  "data": {
+    "tracked_product_id": "<runtime string ID>",
+    "product": {
+      "product_id": "<runtime string ID>",
+      "brand": "Apple",
+      "model": "iPhone 15",
+      "display_name": "Apple iPhone 15",
+      "variant": {
+        "product_variant_id": "<runtime string ID>",
+        "display_name": "iPhone 15 128GB Black",
+        "attributes": { "storage": "128GB", "color": "Black" }
+      }
+    },
+    "status": "AVAILABLE",
+    "message": null,
+    "offers": [
+      {
+        "retailer_offer_id": "<runtime string ID>",
+        "retailer": {
+          "retailer_id": "<runtime string ID>",
+          "source_code": "TECHMART",
+          "name": "TechMart"
+        },
+        "amount": "19900000.00",
+        "currency_code": "VND",
+        "availability_status": "IN_STOCK",
+        "observed_at": "2026-10-10T08:00:00.000Z",
+        "url": "https://techmart.example/apple-iphone-15-128gb-black",
+        "difference_from_lowest": "0.00"
+      },
+      {
+        "retailer_offer_id": "<runtime string ID>",
+        "retailer": {
+          "retailer_id": "<runtime string ID>",
+          "source_code": "DIGITAL_HUB",
+          "name": "Digital Hub"
+        },
+        "amount": "20200000.00",
+        "currency_code": "VND",
+        "availability_status": "IN_STOCK",
+        "observed_at": "2026-10-10T08:00:00.000Z",
+        "url": "https://digital-hub.example/apple-iphone-15-128gb-black",
+        "difference_from_lowest": "300000.00"
+      }
+    ],
+    "lowest_offer": {
+      "retailer_offer_id": "<same runtime ID as the first offer>",
+      "retailer": {
+        "retailer_id": "<runtime string ID>",
+        "source_code": "TECHMART",
+        "name": "TechMart"
+      },
+      "amount": "19900000.00",
+      "currency_code": "VND",
+      "availability_status": "IN_STOCK",
+      "observed_at": "2026-10-10T08:00:00.000Z",
+      "url": "https://techmart.example/apple-iphone-15-128gb-black",
+      "difference_from_lowest": "0.00"
+    }
+  }
+}
+```
+
+Exactly one eligible offer returns `SINGLE_OFFER`, keeps that offer as `lowest_offer`, gives it `difference_from_lowest: "0.00"`, and returns the exact message `"No multi-source comparison is currently available"`. No eligible in-stock offer returns `NO_AVAILABLE_OFFERS`, `message: null`, `offers: []` and `lowest_offer: null`. Out-of-stock observations remain stored for BR8 but are not exposed as eligible API-06 offers; full US10 presentation remains outside this endpoint's scope.
+
 ## US04 product registration API
 
 Both US04 endpoints require the existing `pricelens_session` cookie and derive ownership only from `request.user`.
