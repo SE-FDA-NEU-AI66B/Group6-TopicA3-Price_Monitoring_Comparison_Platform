@@ -74,7 +74,45 @@
           <aside class="stack" aria-label="Price alerts">
             <section id="price-alert-region" class="card card--solid alert-card" aria-labelledby="alert-region-title">
               <h2 id="alert-region-title" class="section-title">Price alerts</h2>
-              <p class="muted">Price alerts will be available here.</p>
+              <p class="muted">Choose a target and PriceLens will save an active alert for this tracked product.</p>
+              <div class="alert-price-context">
+                <span class="item-label">Current price</span>
+                <strong id="alert-current-price" class="alert-price-context__amount">Checking price…</strong>
+              </div>
+              <form id="price-alert-form" class="form-stack" novalidate>
+                <div class="field">
+                  <label for="target-price">Target price</label>
+                  <input
+                    id="target-price"
+                    class="input"
+                    name="target_price"
+                    type="text"
+                    inputmode="decimal"
+                    autocomplete="off"
+                    aria-describedby="target-price-hint alert-feedback"
+                    required
+                  >
+                  <p id="target-price-hint" class="hint">Enter a price below the current price. PriceLens will verify it when you submit.</p>
+                </div>
+                <button id="price-alert-submit" class="btn btn--primary" type="submit">Create price alert</button>
+              </form>
+              <div id="alert-feedback" class="alert-feedback" aria-live="polite" tabindex="-1"></div>
+              <section id="created-alert" class="created-alert" aria-labelledby="created-alert-title" aria-live="polite" tabindex="-1" hidden>
+                <div class="created-alert__heading">
+                  <h3 id="created-alert-title">Price alert created</h3>
+                  <span class="badge" data-field="alert-status"></span>
+                </div>
+                <dl class="created-alert__details">
+                  <div>
+                    <dt>Target price</dt>
+                    <dd data-field="alert-target-price"></dd>
+                  </div>
+                  <div>
+                    <dt>Created</dt>
+                    <dd data-field="alert-created-at"></dd>
+                  </div>
+                </dl>
+              </section>
             </section>
           </aside>
         </div>
