@@ -58,3 +58,28 @@ any layer throws -> error-handler -> application/problem+json
 ```
 
 Throw or pass the shared `HttpError` to `next(error)`. Internal `cause` and stack information are available only to server-side logging and are never serialized for the client. Missing and unowned tracked products both use `trackedProductNotFound()`; #133 owns the shared ownership lookup itself.
+
+## Deterministic P0 seed fixtures
+
+Run `npm run db:init` to create or restore the fixture state. The primary M2 account remains `demo@pricelens.local` with its documented password and exactly 10 Watchlist records. The isolated BR1 account is `alert-boundary@pricelens.local` and uses the same local-only demo password.
+
+Generated BIGINT IDs are not fixture contracts. PostgreSQL sequences may advance during re-initialization, and seed-owned observations, alerts and notifications may receive new IDs when rebuilt. Downstream tests must locate fixtures by stable values such as email, `canonical_key`, `variant_key`, normalized URL and fixed timestamp rather than asserting numeric IDs.
+
+| Scenario | User | Stable product / variant or URL | Fixture purpose |
+|---|---|---|---|
+| US02-A | demo | `apple-macbook-air-m2` / `8gb-256gb-midnight` | Exactly 30 daily VND observations, 2026-09-20 through 2026-10-19. |
+| US02-B | demo | `amazon-kindle-paperwhite` / `16gb-black` | Exactly one observation. |
+| US02-C | demo | `sony-wh-1000xm5` / `black` | Owned tracked product with zero observations. |
+| US03-A/B | demo | `dell-xps-13-9340` / `16gb-512gb-silver` | Current price `34990000.00` VND; supports valid-below, zero, equal and above-current target submissions. |
+| US03-C | alert-boundary | `apple-iphone-15` / `512gb-black` | Exactly 20 active alerts; targets `10500000.00`–`20000000.00` VND against current price `29900000.00`. |
+| US04-A/C | demo | `https://techmart.example/apple-iphone-15-128gb-black` | Active supported source plus canonical tracked URL for BR6 duplicate-normalization tests. |
+| US04-B | — | `apple-iphone-15` variants `128gb-black`, `256gb-black`, `512gb-black` | Three unambiguous exact variants for resolver selection. |
+| US05 | demo | `https://gadget-world.example/nintendo-switch-oled-white` | Target `8000000.00` VND; ordered prices `8500000`, `7900000`, `7800000`, `8200000`, `7950000`; two pre-seeded historical notification records for the expected crossings. |
+| US09-A/C | demo | `apple-iphone-15` / `128gb-black` | TechMart and Digital Hub in stock; Gadget World exact match out of stock. |
+| US09-B | — | `apple-iphone-15` / `256gb-black` | Similar Gadget World offer attached to a different variant and therefore excluded. |
+| US09-D | demo | `dell-xps-13-9340` / `16gb-512gb-silver` | Exactly one available offer. |
+| US09-E | demo | `xiaomi-robot-vacuum-s10` / `white` | Tracked product exists, but its only offer is out of stock. |
+
+The seed uses fixed timestamps and VND `NUMERIC(14,2)` values. Its SQL validation block rejects drift in the 30/1/0 history counts, 20-alert boundary, threshold sequence, exact-variant offer counts, stock states and M2 Watchlist count.
+
+The US05 rows describe deterministic historical fixture state only. The seed does not evaluate transitions or generate runtime notifications; the downstream US05 service/background processor remains responsible for detecting price crossings and persisting notifications during application execution.
