@@ -4,7 +4,10 @@ import { after, test } from 'node:test';
 import { app } from '../app.js';
 import { config } from '../config.js';
 import { closePool } from '../db/pool.js';
-import { requireOwnedTrackedProduct } from '../modules/tracked-products/tracked-product.service.js';
+import {
+  createTrackedProductForUser,
+  requireOwnedTrackedProduct,
+} from '../modules/tracked-products/tracked-product.service.js';
 import { assertProblemCode } from './assertions.js';
 import { prepareSeededDatabase } from './database.js';
 import {
@@ -19,6 +22,7 @@ import {
   ownedAndUnownedTrackedProducts,
   P0_FIXTURE_KEYS,
   TEST_USERS,
+  trackedProductCountByOwnerEmail,
   userByEmail,
 } from './fixtures.js';
 import {
@@ -100,8 +104,19 @@ test('shared integration support uses real auth, PostgreSQL fixtures and problem
     normalizedUrl: P0_FIXTURE_KEYS.us05.url,
     observedAt: P0_FIXTURE_KEYS.us05.lastCrossingAt,
   });
+  const creationOffer = await offerByNormalizedUrl(P0_FIXTURE_KEYS.us04.creationUrl);
+  const transientTrackedProduct = await createTrackedProductForUser(
+    creationOffer.retailer_offer_id,
+    demoUser.user_id,
+  );
+  assert.equal(
+    transientTrackedProduct.source.url,
+    P0_FIXTURE_KEYS.us04.creationUrl,
+  );
+  assert.equal(await trackedProductCountByOwnerEmail(TEST_USERS.demo.email), 11);
 
   await prepareSeededDatabase({ confirmedDatabaseName: config.database.name });
+  assert.equal(await trackedProductCountByOwnerEmail(TEST_USERS.demo.email), 10);
 
   const secondResolution = await observationByOfferAndTime({
     normalizedUrl: P0_FIXTURE_KEYS.us05.url,

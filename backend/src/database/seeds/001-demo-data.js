@@ -134,6 +134,32 @@ SET external_offer_id = EXCLUDED.external_offer_id,
     last_refresh_error = NULL;
 
 -- Preserve the 10-item M2 Watchlist and add one isolated boundary-user item.
+DELETE FROM tracked_products AS tp
+USING users AS u
+WHERE tp.user_id = u.user_id
+  AND (
+      (
+          u.email = 'demo@pricelens.local'
+          AND tp.normalized_source_url NOT IN (
+              'https://techmart.example/apple-iphone-15-128gb-black',
+              'https://digital-hub.example/samsung-galaxy-s24-256gb-gray',
+              'https://gadget-world.example/macbook-air-m2-8-256-midnight',
+              'https://techmart.example/dell-xps-13-9340-16-512-silver',
+              'https://digital-hub.example/sony-wh-1000xm5-black',
+              'https://gadget-world.example/nintendo-switch-oled-white',
+              'https://techmart.example/canon-eos-r50-18-45-black',
+              'https://digital-hub.example/kindle-paperwhite-16gb-black',
+              'https://gadget-world.example/xiaomi-robot-vacuum-s10-white',
+              'https://techmart.example/logitech-mx-master-3s-graphite'
+          )
+      )
+      OR (
+          u.email = 'alert-boundary@pricelens.local'
+          AND tp.normalized_source_url <>
+              'https://techmart.example/apple-iphone-15-512gb-black'
+      )
+  );
+
 WITH seed_tracking (email, normalized_url, created_at) AS (
     VALUES
         ('demo@pricelens.local', 'https://techmart.example/apple-iphone-15-128gb-black', '2026-09-01T09:00:00Z'::TIMESTAMPTZ),
