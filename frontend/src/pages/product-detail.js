@@ -21,6 +21,9 @@ const HISTORY_STATUSES = new Set([
 ]);
 const EXACT_INSUFFICIENT_MESSAGE = 'Insufficient data for a 30-day chart';
 const EXACT_NO_HISTORY_MESSAGE = 'No price history available';
+const TARGET_NOT_BELOW_MESSAGE = 'Target price must be lower than the current price';
+const TARGET_NOT_POSITIVE_MESSAGE = 'Target price must be greater than 0';
+const ACTIVE_ALERT_LIMIT_MESSAGE = 'Maximum 20 active alerts reached';
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
 
 const trackedProductId = getProductIdFromPathname(window.location.pathname);
@@ -37,11 +40,19 @@ const sourceLink = document.querySelector('#source-retailer-link');
 const chartRegion = document.querySelector('#price-history-state');
 const summaryRegion = document.querySelector('#history-summary');
 const alertRegion = document.querySelector('#price-alert-region');
+const alertCurrentPrice = document.querySelector('#alert-current-price');
+const alertForm = document.querySelector('#price-alert-form');
+const targetPriceInput = document.querySelector('#target-price');
+const alertSubmitButton = document.querySelector('#price-alert-submit');
+const alertFeedback = document.querySelector('#alert-feedback');
+const createdAlert = document.querySelector('#created-alert');
 const compareLink = document.querySelector('[data-compare-link]');
 let currentUser = null;
 let activeAttempt = 0;
 let isLoading = false;
 let isSigningOut = false;
+let isSubmittingAlert = false;
+let isAlertCreationBlocked = true;
 
 function isObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -258,6 +269,233 @@ function renderCurrentPrice(history, context) {
 
   currentPrice.textContent = 'Price unavailable';
   observedAt.textContent = 'No in-stock current price is available.';
+}
+
+function getAlertPriceContext(history, context) {
+  if (history.summary && history.summary.current !== null) {
+    return {
+      amount: history.summary.current,
+      currencyCode: history.summary.currency_code,
+    };
+  }
+
+  if (history.summary === null && context.current_price) {
+    return {
+      amount: context.current_price.amount,
+      currencyCode: context.current_price.currency_code,
+    };
+  }
+
+  return null;
+}
+
+function setAlertControlsState() {
+  const disabled = isAlertCreationBlocked || isSubmittingAlert;
+  targetPriceInput.disabled = disabled;
+  alertSubmitButton.disabled = disabled;
+  alertForm.setAttribute('aria-busy', String(isSubmittingAlert));
+  alertSubmitButton.textContent = isSubmittingAlert
+    ? 'Creating alert…'
+    : 'Create price alert';
+}
+
+function clearAlertFeedback() {
+  alertFeedback.replaceChildren();
+  alertFeedback.className = 'alert-feedback';
+  alertFeedback.removeAttribute('role');
+  targetPriceInput.removeAttribute('aria-invalid');
+}
+
+function showAlertFeedback({ kind = 'error', message, guidance, focus = true }) {
+  const messageElement = document.createElement('p');
+  const guidanceElement = document.createElement('p');
+
+  messageElement.className = 'alert-feedback__message';
+  messageElement.textContent = message;
+  guidanceElement.className = 'alert-feedback__guidance';
+  guidanceElement.textContent = guidance;
+  alertFeedback.className = `alert-feedback alert-feedback--${kind}`;
+  alertFeedback.setAttribute('role', kind === 'error' ? 'alert' : 'status');
+  alertFeedback.replaceChildren(messageElement, guidanceElement);
+
+  if (kind === 'error') {
+    targetPriceInput.setAttribute('aria-invalid', 'true');
+  } else {
+    targetPriceInput.removeAttribute('aria-invalid');
+  }
+
+  if (focus) {
+    alertFeedback.focus();
+  }
+}
+
+function renderAlertRegion(history, context) {
+  const currentPrice = getAlertPriceContext(history, context);
+
+  isAlertCreationBlocked = currentPrice === null;
+  isSubmittingAlert = false;
+  createdAlert.hidden = true;
+  clearAlertFeedback();
+
+  if (currentPrice) {
+    alertCurrentPrice.textContent = formatCurrency(
+      currentPrice.amount,
+      currentPrice.currencyCode,
+    );
+  } else {
+    alertCurrentPrice.textContent = 'Price unavailable';
+    showAlertFeedback({
+      kind: 'warning',
+      message: 'A current price is unavailable.',
+      guidance: 'Try again later when a valid in-stock current price is available.',
+      focus: false,
+    });
+  }
+
+  setAlertControlsState();
+}
+
+function isIsoTimestamp(value) {
+  if (!isNonEmptyString(value)) {
+    return false;
+  }
+
+  const date = new Date(value);
+  return !Number.isNaN(date.getTime()) && date.toISOString() === value;
+}
+
+function getCreatedAlert(response, routeId) {
+  const alert = response?.data;
+
+  if (
+    !isObject(alert)
+    || !isIdentifier(alert.price_alert_id)
+    || alert.tracked_product_id !== routeId
+    || !isDecimalAmount(alert.target_price)
+    || !/^[A-Z]{3}$/.test(alert.currency_code)
+    || alert.status !== 'ACTIVE'
+    || !isDecimalAmount(alert.current_price)
+    || !isIsoTimestamp(alert.created_at)
+  ) {
+    throw new Error('The create-alert response does not match the documented contract.');
+  }
+
+  return alert;
+}
+
+function renderCreatedAlert(alert) {
+  document.querySelector('[data-field="alert-status"]').textContent = formatStatusLabel(alert.status);
+  document.querySelector('[data-field="alert-target-price"]').textContent = formatCurrency(
+    alert.target_price,
+    alert.currency_code,
+  );
+  document.querySelector('[data-field="alert-created-at"]').textContent = formatDateTime(
+    alert.created_at,
+  );
+  createdAlert.hidden = false;
+  createdAlert.focus();
+}
+
+function blockAlertCreationForCurrentPrice() {
+  isAlertCreationBlocked = true;
+  alertCurrentPrice.textContent = 'Price unavailable';
+  setAlertControlsState();
+}
+
+function handleAlertRequestError(error) {
+  const state = toErrorState(error);
+
+  if (state.code === 'TARGET_PRICE_NOT_BELOW_CURRENT') {
+    showAlertFeedback({
+      message: TARGET_NOT_BELOW_MESSAGE,
+      guidance: 'Enter a lower target price and submit again.',
+    });
+    return;
+  }
+
+  if (state.code === 'TARGET_PRICE_NOT_POSITIVE') {
+    showAlertFeedback({
+      message: TARGET_NOT_POSITIVE_MESSAGE,
+      guidance: 'Enter a target price greater than zero and submit again.',
+    });
+    return;
+  }
+
+  if (state.code === 'ACTIVE_ALERT_LIMIT_REACHED') {
+    isAlertCreationBlocked = true;
+    showAlertFeedback({
+      message: ACTIVE_ALERT_LIMIT_MESSAGE,
+      guidance: 'You cannot create another alert until an active alert is no longer active.',
+    });
+    return;
+  }
+
+  if (state.code === 'CURRENT_PRICE_UNAVAILABLE') {
+    blockAlertCreationForCurrentPrice();
+    showAlertFeedback({
+      kind: 'warning',
+      message: 'The current price is no longer available.',
+      guidance: 'Try again later when a valid in-stock current price is available.',
+    });
+    return;
+  }
+
+  if (state.isNetworkError) {
+    showAlertFeedback({
+      message: 'PriceLens could not reach the alert service.',
+      guidance: 'Check your connection, then submit the same target price again.',
+    });
+    return;
+  }
+
+  showAlertFeedback({
+    message: 'PriceLens could not create the price alert.',
+    guidance: 'Review the target price and try again.',
+  });
+}
+
+async function handleCreateAlert(event) {
+  event.preventDefault();
+
+  if (isSubmittingAlert || isAlertCreationBlocked) {
+    return;
+  }
+
+  const targetPrice = targetPriceInput.value.trim();
+
+  if (!targetPrice) {
+    showAlertFeedback({
+      message: 'Enter a target price.',
+      guidance: 'Use the target-price field before submitting the form.',
+      focus: false,
+    });
+    targetPriceInput.focus();
+    return;
+  }
+
+  isSubmittingAlert = true;
+  createdAlert.hidden = true;
+  clearAlertFeedback();
+  setAlertControlsState();
+
+  try {
+    const encodedId = encodeURIComponent(trackedProductId);
+    const response = await apiClient.post(
+      `/tracked-products/${encodedId}/alerts`,
+      { target_price: targetPrice },
+    );
+    renderCreatedAlert(getCreatedAlert(response, trackedProductId));
+  } catch (error) {
+    if (isAuthenticationRequiredError(error)) {
+      redirectToLanding();
+      return;
+    }
+
+    handleAlertRequestError(error);
+  } finally {
+    isSubmittingAlert = false;
+    setAlertControlsState();
+  }
 }
 
 function renderHistory(history) {
@@ -482,6 +720,7 @@ async function loadProductDetails() {
     renderProductContext(context);
     renderCurrentPrice(history, context);
     renderHistory(history);
+    renderAlertRegion(history, context);
     showPageState('ready');
   } catch (error) {
     if (attempt !== activeAttempt) {
@@ -528,5 +767,11 @@ async function handleSignOut() {
 
 retryButton.addEventListener('click', () => void loadProductDetails());
 signOutButton.addEventListener('click', () => void handleSignOut());
+alertForm.addEventListener('submit', (event) => void handleCreateAlert(event));
+targetPriceInput.addEventListener('input', () => {
+  if (targetPriceInput.getAttribute('aria-invalid') === 'true') {
+    clearAlertFeedback();
+  }
+});
 
 void loadProductDetails();
