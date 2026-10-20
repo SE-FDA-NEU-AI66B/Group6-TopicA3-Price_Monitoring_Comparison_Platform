@@ -84,6 +84,15 @@ The seed uses fixed timestamps and VND `NUMERIC(14,2)` values. Its SQL validatio
 
 The US05 rows describe deterministic historical fixture state only. The seed does not evaluate transitions or generate runtime notifications; the downstream US05 service/background processor remains responsible for detecting price crossings and persisting notifications during application execution.
 
+## US04 product registration API
+
+Both US04 endpoints require the existing `pricelens_session` cookie and derive ownership only from `request.user`.
+
+- `POST /api/product-sources/resolve` accepts `{ "url": "string" }`. It parses the URL without fetching it, removes only the documented `utm_source` tracking parameter, and resolves the normalized URL against active PostgreSQL retailer offers. Success returns `{ data }` with `normalized_url`, retailer and product identity, plus exact selectable variants containing string `product_variant_id` and `retailer_offer_id` values, display labels and attributes. Malformed or unsupported URLs return `422 INVALID_PRODUCT_URL` with `Unsupported or invalid product URL`.
+- `POST /api/tracked-products` accepts `{ "retailer_offer_id": "string" }`. The backend derives the exact product, variant, retailer and normalized URL from that active offer, creates one authenticated-user row with `TRACKING`, and returns `201` plus a `Location` header. Missing selections return `404 RETAILER_OFFER_NOT_FOUND`; the per-user database uniqueness constraint remains the race-safe source for `409 DUPLICATE_TRACKED_URL` and `This product URL is already being tracked`.
+
+Resolution uses the deterministic catalogue only: it performs no retailer HTTP request, scraping or arbitrary URL fetch. One untracked demo URL suitable for the #138 frontend flow after `db:init` is `https://digital-hub.example/apple-iphone-15-128gb-black`. Frontend code must submit the runtime `retailer_offer_id` returned by API-03 rather than hard-coding a generated ID.
+
 ## Automated testing convention
 
 PriceLens uses Node's built-in `node:test`, `node:assert` and `fetch`; no second test framework or in-memory persistence layer is used. Run the complete suite from `backend/` with:
