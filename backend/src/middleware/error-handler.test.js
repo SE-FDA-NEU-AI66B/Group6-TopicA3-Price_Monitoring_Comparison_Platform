@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
-import { once } from 'node:events';
 import { test } from 'node:test';
 
 import express from 'express';
 
 import { errorHandler } from './error-handler.js';
+import { assertProblemResponse } from '../test-support/assertions.js';
+import { requestJson } from '../test-support/request.js';
+import { withTestServer } from '../test-support/server.js';
 import {
   activeAlertLimitReached,
   authenticationRequired,
@@ -23,41 +25,14 @@ async function requestProblem(error, request = {}) {
   app.all('/', (incomingRequest, response, next) => next(error));
   app.use(errorHandler);
 
-  const server = app.listen(0, '127.0.0.1');
-  await once(server, 'listening');
-  const { port } = server.address();
-
-  try {
-    const response = await fetch(`http://127.0.0.1:${port}/`, request);
-    return {
-      response,
-      body: await response.json(),
-    };
-  } finally {
-    await new Promise((resolve, reject) => {
-      server.close((error) => (error ? reject(error) : resolve()));
-    });
-  }
-}
-
-function assertProblem(result, expected) {
-  assert.equal(result.response.status, expected.status);
-  assert.match(
-    result.response.headers.get('content-type'),
-    /^application\/problem\+json(?:;|$)/,
-  );
-  assert.equal(result.body.type, expected.type);
-  assert.equal(result.body.title, expected.title);
-  assert.equal(result.body.status, expected.status);
-  assert.equal(result.body.code, expected.code);
-  assert.equal(result.body.detail, expected.detail);
+  return withTestServer(app, ({ baseUrl }) => requestJson(baseUrl, '/', request));
 }
 
 test('representative shared problems preserve status, code and safe response shape', async (context) => {
   await context.test('401 authentication required', async () => {
     const result = await requestProblem(authenticationRequired());
 
-    assertProblem(result, {
+    assertProblemResponse(result, {
       status: 401,
       type: '/problems/authentication-required',
       title: 'Authentication required',
@@ -72,7 +47,7 @@ test('representative shared problems preserve status, code and safe response sha
     const unowned = await requestProblem(trackedProductNotFound());
 
     assert.deepEqual(unowned.body, missing.body);
-    assertProblem(missing, {
+    assertProblemResponse(missing, {
       status: 404,
       type: '/problems/tracked-product-not-found',
       title: 'Tracked product not found',
@@ -89,7 +64,7 @@ test('representative shared problems preserve status, code and safe response sha
     };
     const result = await requestProblem(translatePersistenceError(persistenceError));
 
-    assertProblem(result, {
+    assertProblemResponse(result, {
       status: 409,
       type: '/problems/duplicate-tracked-url',
       title: 'Duplicate tracked product',
@@ -104,7 +79,7 @@ test('representative shared problems preserve status, code and safe response sha
       { field: 'url', reason: 'unsupported_or_invalid' },
     ]));
 
-    assertProblem(result, {
+    assertProblemResponse(result, {
       status: 422,
       type: '/problems/invalid-product-url',
       title: 'Invalid product URL',
@@ -123,31 +98,22 @@ test('malformed JSON produces a 400 problem with a field error', async () => {
   app.post('/', (request, response) => response.json({ data: request.body }));
   app.use(errorHandler);
 
-  const server = app.listen(0, '127.0.0.1');
-  await once(server, 'listening');
-  const { port } = server.address();
-
-  try {
-    const response = await fetch(`http://127.0.0.1:${port}/`, {
+  await withTestServer(app, async ({ baseUrl }) => {
+    const result = await requestJson(baseUrl, '/', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: '{',
     });
-    const body = await response.json();
 
-    assertProblem({ response, body }, {
+    assertProblemResponse(result, {
       status: 400,
       type: '/problems/invalid-request',
       title: 'Invalid request',
       code: 'INVALID_REQUEST',
       detail: 'The request body must contain valid JSON.',
     });
-    assert.deepEqual(body.errors, [{ field: 'body', reason: 'invalid_json' }]);
-  } finally {
-    await new Promise((resolve, reject) => {
-      server.close((error) => (error ? reject(error) : resolve()));
-    });
-  }
+    assert.deepEqual(result.body.errors, [{ field: 'body', reason: 'invalid_json' }]);
+  });
 });
 
 test('unexpected and unknown persistence errors produce a safe 500 problem', async () => {
@@ -164,7 +130,7 @@ test('unexpected and unknown persistence errors produce a safe 500 problem', asy
     }));
 
     for (const result of [rawResult, persistenceResult]) {
-      assertProblem(result, {
+      assertProblemResponse(result, {
         status: 500,
         type: '/problems/internal-server-error',
         title: 'Internal server error',
