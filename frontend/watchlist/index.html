@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="View your PriceLens product watchlist and current prices.">
+    <title>Your watchlist — PriceLens</title>
+    <link rel="stylesheet" href="/src/styles/tokens.css">
+    <link rel="stylesheet" href="/src/styles/base.css">
+    <link rel="stylesheet" href="/src/styles/components.css">
+    <link rel="stylesheet" href="/src/styles/pages.css">
+  </head>
+  <body class="watchlist-page">
+    <div id="session-loading" class="session-gate" role="status" aria-live="polite">
+      <span class="spinner spinner--dark" aria-hidden="true"></span>
+      Checking your session…
+    </div>
+
+    <div id="protected-content" hidden>
+      <header class="app-header">
+        <div class="app-header__inner">
+          <a class="brand brand--compact" href="/watchlist" aria-label="PriceLens watchlist">
+            <span class="brand__mark" aria-hidden="true">P</span>
+            <span>PriceLens</span>
+          </a>
+          <div class="user-actions">
+            <p class="user-actions__greeting">Signed in as <strong id="user-name"></strong></p>
+            <button id="logout-button" class="button button--secondary" type="button">Sign out</button>
+          </div>
+        </div>
+      </header>
+
+      <main class="watchlist-shell">
+        <section class="watchlist-heading" aria-labelledby="watchlist-title">
+          <div>
+            <p class="eyebrow">Saved products</p>
+            <h1 id="watchlist-title">Your watchlist</h1>
+            <p class="watchlist-heading__lead">Current prices for the exact product variants you follow.</p>
+          </div>
+          <p id="watchlist-count" class="watchlist-count">Loading…</p>
+        </section>
+
+        <p id="page-status" class="page-status page-status--loading" aria-live="polite">
+          Loading your watchlist…
+        </p>
+
+        <section id="request-failure" class="state-panel state-panel--error" hidden aria-labelledby="failure-title">
+          <h2 id="failure-title">Your watchlist is temporarily unavailable</h2>
+          <p>PriceLens could not retrieve your saved products.</p>
+          <button id="retry-button" class="button button--primary" type="button">Try again</button>
+        </section>
+
+        <section id="empty-state" class="state-panel" hidden aria-labelledby="empty-title">
+          <h2 id="empty-title">No saved products yet</h2>
+          <p>Your watchlist will appear here when products have been added.</p>
+        </section>
+
+        <ul id="watchlist-items" class="watchlist-grid" aria-label="Tracked products" hidden></ul>
+      </main>
+    </div>
+
+    <script type="module" src="/src/pages/watchlist.js"></script>
+  </body>
+</html>
