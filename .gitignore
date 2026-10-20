@@ -9,5 +9,7 @@ npm-debug.log*
 *.sqlite
 *.sqlite3
 *.dump
-frontend/dist/
 frontend/node_modules/
+frontend/dist/
+backend/.local/
+
