@@ -118,6 +118,40 @@ The response reads real `price_observations` for the tracked source's currency a
 
 Exactly one point returns `INSUFFICIENT_DATA` with `"Insufficient data for a 30-day chart"` and keeps its point and summary. Zero points returns `NO_HISTORY` with `"No price history available"`, `points: []` and `summary: null`. At least two points returns `AVAILABLE` with `message: null`.
 
+## US03 price-alert creation API
+
+`POST /api/tracked-products/:tracked_product_id/alerts` requires the existing session cookie and accepts only `{ "target_price": "decimal string" }`. The tracked product must belong to `request.user.user_id`. The backend derives the tracked source currency, then selects the lowest latest `IN_STOCK` observation for the same exact variant and currency. The client does not supply the current price, currency, status or threshold state.
+
+A successful request returns `201` with the public `PriceAlert` representation:
+
+```json
+{
+  "data": {
+    "price_alert_id": "<runtime string ID>",
+    "tracked_product_id": "<runtime string ID>",
+    "target_price": "30000000.10",
+    "currency_code": "VND",
+    "status": "ACTIVE",
+    "current_price": "34990000.00",
+    "created_at": "<ISO 8601 UTC timestamp>"
+  }
+}
+```
+
+The insert stores `ACTIVE`, `ABOVE_TARGET`, the derived currency and the exact supporting `price_observation_id`; it does not create a notification. PostgreSQL `NUMERIC` performs the authoritative positive/below-current comparisons. The same transaction locks the authenticated user's `users` row with `FOR UPDATE`, counts that user's `ACTIVE` alerts and inserts only when the count is below 20. Concurrent alert creations for one user therefore serialize around the BR1 count and insert.
+
+Stable failures for the #145 frontend are:
+
+- `400 INVALID_REQUEST` for a malformed identifier, body, type or decimal string.
+- `401 AUTHENTICATION_REQUIRED` when no valid session exists.
+- `404 TRACKED_PRODUCT_NOT_FOUND` for both missing and unowned tracked products.
+- `409 CURRENT_PRICE_UNAVAILABLE` — `No valid in-stock current price exists, so BR2 cannot be evaluated.`
+- `409 ACTIVE_ALERT_LIMIT_REACHED` — `Maximum 20 active alerts reached`
+- `422 TARGET_PRICE_NOT_POSITIVE` — `Target price must be greater than 0`
+- `422 TARGET_PRICE_NOT_BELOW_CURRENT` — `Target price must be lower than the current price`
+
+For #146, each newly created alert begins with `status = ACTIVE`, `last_threshold_state = ABOVE_TARGET`, the accepted decimal `target_price`, the derived `currency_code`, and the supporting `price_observation_id`. Threshold-transition evaluation and notification creation remain outside API-05.
+
 ## US09 retailer-comparison API
 
 `GET /api/tracked-products/:tracked_product_id/offers` requires the existing session cookie and derives ownership only from `request.user.user_id`. Missing and unowned IDs both return `404 TRACKED_PRODUCT_NOT_FOUND`; malformed IDs use the shared `400 INVALID_REQUEST` response.

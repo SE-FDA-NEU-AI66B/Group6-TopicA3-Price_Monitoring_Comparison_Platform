@@ -76,6 +76,7 @@ export async function findCurrentPrice(
          po.price_observation_id DESC
      )
      SELECT
+       price_observation_id::TEXT AS price_observation_id,
        price_amount::TEXT AS price_amount,
        currency_code,
        observed_at

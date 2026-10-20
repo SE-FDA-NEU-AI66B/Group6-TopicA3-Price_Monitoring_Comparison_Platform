@@ -2,6 +2,8 @@ import { Router } from 'express';
 
 import { authenticate } from '../../middleware/authenticate.js';
 import { getOfferComparisonForUser } from './offer-comparison.service.js';
+import { createPriceAlertForUser } from './price-alert.service.js';
+import { parseCreatePriceAlertBody } from './price-alert.validation.js';
 import { getPriceHistoryForUser } from './price-history.service.js';
 import { createTrackedProductForUser } from './tracked-product.service.js';
 import {
@@ -10,6 +12,28 @@ import {
 } from './tracked-product.validation.js';
 
 const router = Router();
+
+router.post('/:tracked_product_id/alerts', authenticate, async (
+  request,
+  response,
+  next,
+) => {
+  try {
+    const trackedProductId = parseTrackedProductId(
+      request.params.tracked_product_id,
+    );
+    const { targetPrice } = parseCreatePriceAlertBody(request.body);
+    const data = await createPriceAlertForUser(
+      trackedProductId,
+      request.user.user_id,
+      targetPrice,
+    );
+
+    response.status(201).json({ data });
+  } catch (error) {
+    next(error);
+  }
+});
 
 router.get('/:tracked_product_id/offers', authenticate, async (
   request,
