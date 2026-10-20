@@ -1,5 +1,20 @@
 import { query } from '../../db/pool.js';
 
+export async function lockProductVariantForPriceEvaluation(
+  productVariantId,
+  executeQuery = query,
+) {
+  const result = await executeQuery(
+    `SELECT product_variant_id::TEXT AS product_variant_id
+     FROM product_variants
+     WHERE product_variant_id = $1
+     FOR UPDATE`,
+    [productVariantId],
+  );
+
+  return result.rows[0] ?? null;
+}
+
 export async function findPriceHistoryCurrency(
   retailerOfferId,
   executeQuery = query,

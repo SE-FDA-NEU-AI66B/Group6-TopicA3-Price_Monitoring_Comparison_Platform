@@ -9,6 +9,7 @@ import {
 import {
   findCurrentPrice,
   findPriceHistoryCurrency,
+  lockProductVariantForPriceEvaluation,
 } from './price-history.repository.js';
 import {
   countActiveAlertsForUser,
@@ -40,6 +41,11 @@ export async function createPriceAlertForUser(
         { field: 'target_price', reason: 'must_be_positive' },
       ]);
     }
+
+    await lockProductVariantForPriceEvaluation(
+      trackedProduct.product_variant_id,
+      executeQuery,
+    );
 
     const currencyCode = await findPriceHistoryCurrency(
       trackedProduct.retailer_offer_id,

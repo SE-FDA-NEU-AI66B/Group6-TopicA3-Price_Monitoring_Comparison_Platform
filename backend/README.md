@@ -10,6 +10,7 @@ backend/src/
 ├── middleware/      cross-feature request handling (authenticate, error-handler)
 ├── db/              the one shared PostgreSQL pool, query and transaction helpers (pool.js)
 ├── database/        db:init tooling only: migrations/, seeds/, init-database.js
+├── background/      internal processors with no public HTTP routes
 ├── shared/          cross-feature problem definitions and request-validation helpers
 └── modules/<feature>/
 ```
@@ -150,7 +151,40 @@ Stable failures for the #145 frontend are:
 - `422 TARGET_PRICE_NOT_POSITIVE` — `Target price must be greater than 0`
 - `422 TARGET_PRICE_NOT_BELOW_CURRENT` — `Target price must be lower than the current price`
 
-For #146, each newly created alert begins with `status = ACTIVE`, `last_threshold_state = ABOVE_TARGET`, the accepted decimal `target_price`, the derived `currency_code`, and the supporting `price_observation_id`. Threshold-transition evaluation and notification creation remain outside API-05.
+Each newly created alert begins with `status = ACTIVE`, `last_threshold_state = ABOVE_TARGET`, the accepted decimal `target_price`, the derived `currency_code`, and the supporting `price_observation_id`. Threshold-transition evaluation and notification creation remain outside API-05 and are owned by the internal price-observation processor below.
+
+## US05 price-observation processor
+
+`background/price-observation/price-observation.processor.js` exports the internal `processPriceObservation(acquisitionResult)` entry point. It is called by a trusted acquisition source or a test/command harness; there is deliberately no shopper-facing trigger endpoint and no scraper, queue, scheduler or email provider in this issue.
+
+A successful acquisition uses this shape:
+
+```js
+import { processPriceObservation } from './src/background/price-observation/price-observation.processor.js';
+
+const result = await processPriceObservation({
+  retailerOfferId: '<runtime retailer_offer_id>',
+  acquisitionStatus: 'SUCCEEDED',
+  priceAmount: '13900000.00',
+  currencyCode: 'VND',
+  availabilityStatus: 'IN_STOCK',
+  observedAt: '2026-10-20T08:00:00.000Z',
+});
+```
+
+Use a runtime offer ID resolved from a normalized URL; generated IDs are never fixture contracts. A failed acquisition supplies `retailerOfferId`, `acquisitionStatus: 'FAILED'`, `observedAt` and `failureReason`; it may advance refresh metadata but never inserts price history or evaluates alerts.
+
+For a valid success, one transaction locks the offer's exact variant, derives the previous current price, inserts the immutable observation, derives the new current price, locks matching `ACTIVE` alert rows and applies BR4. Current price reuses API-02/API-05 semantics: the lowest of each exact-variant, same-currency offer's latest `IN_STOCK` observation. Numeric comparison remains in PostgreSQL. An exact retry returns `DUPLICATE`; an older inserted event returns `OUT_OF_ORDER` and is retained as history without regressing alert state. If the new current price is unavailable, no crossing is invented: the threshold state is preserved and its evaluation reference advances to the valid incoming observation.
+
+An above-to-at-or-below crossing inserts one row in `notifications` with `delivery_status = 'PENDING'`, the alert and triggering observation IDs, a recipient email snapshot, subject `Price Drop Alert: <product name>`, and `qualified_at`. It does not set `sent_at`, `provider_message_id` or `failure_reason`. Remaining below creates no event; returning above resets the alert so a later downward crossing can create a new pending row. The database uniqueness constraint on `(price_alert_id, price_observation_id)` is the final duplicate guard.
+
+### #147 delivery handoff
+
+The delivery worker should claim/read pending rows from `notifications` and may join `price_alerts`, `price_observations`, `retailer_offers`, `retailers`, `tracked_products`, `product_variants` and `products` by the stored IDs. Every pending row already contains `notification_id`, `price_alert_id`, the triggering `price_observation_id`, `recipient_email`, `subject`, `delivery_status = PENDING` and `qualified_at`; the joins provide target price, currency, triggering amount/time, retailer and product context if the delivery template needs them. #147 owns provider delivery and the transition to `SENT` with `sent_at`/`provider_message_id`, or `FAILED` with `failure_reason`. It must not re-evaluate BR4.
+
+### #148 demonstration handoff
+
+Resolve an offer by stable normalized URL, invoke `processPriceObservation(...)` with the successful shape above, then inspect its `observation`, `previousCurrentPrice`, `newCurrentPrice`, `evaluatedAlertCount` and `notificationCount`. Confirm the pending event directly with a parameterized query such as `SELECT * FROM notifications WHERE price_alert_id = $1 AND price_observation_id = $2`. The deterministic PostgreSQL integration test in `background/price-observation/price-observation.integration.test.js` is the reproducible reference flow. US05 and parent #143 remain open until #147 delivery and #148 end-to-end proof are complete.
 
 ## US09 retailer-comparison API
 
