@@ -203,7 +203,10 @@ Continue when both commands finish without `npm ERR!`.
    DB_HOST=localhost
    DB_PORT=5432
    DB_NAME=pricelens
+   TEST_DB_NAME=pricelens_test
    DB_USER=postgres
+   EMAIL_TRANSPORT=jsonl
+   EMAIL_OUTBOX_PATH=.local/pricelens-email-outbox.jsonl
    VITE_API_BASE_URL=http://localhost:3000/api
    ```
 
@@ -218,6 +221,8 @@ npm --prefix backend run db:init
 ```
 
 This creates the `pricelens` database and schema, then adds the demonstration user with exactly 10 tracked products. A complete initialization contains 9 application tables and 4 update triggers. The command can be rerun without duplicating the demonstration products when the schema is complete.
+
+Backend automated tests use `TEST_DB_NAME=pricelens_test`, never the normal `DB_NAME=pricelens`. `npm --prefix backend test` creates or restores that explicitly designated test database and refuses to run its reset helper if both names are the same.
 
 The final output must include:
 
@@ -261,6 +266,73 @@ Keep this terminal open.
 6. Confirm that Sony WH-1000XM5 and Xiaomi Robot Vacuum S10 display `Price unavailable`.
 
 If every result above appears, PriceLens is set up correctly.
+
+## Reproduce BG-03 Notification Delivery
+
+BG-03 consumes notification rows that BG-01/BG-02 have already created with `delivery_status = 'PENDING'`; it does not create notifications or reevaluate prices. The development transport requires no email account, API key or SMTP password.
+
+1. Confirm a pending notification exists. Generated IDs are runtime values, so obtain the ID rather than hard-coding it:
+
+   ```text
+   psql -h localhost -p 5432 -U postgres -d pricelens -W -c "SELECT notification_id, recipient_email, subject, qualified_at FROM notifications WHERE delivery_status = 'PENDING' ORDER BY qualified_at, notification_id;"
+   ```
+
+   The #146 processor creates this row after a qualifying crossing. The seed contains historical `SENT` evidence only; it deliberately does not pretend that a new delivery is pending.
+
+2. Process up to ten pending notifications:
+
+   ```text
+   npm --prefix backend run notifications:deliver -- --limit=10
+   ```
+
+   The command prints structured results. A successful row has `status: "SENT"`, its database timestamp and the measured interval from `qualified_at`.
+
+3. Inspect the captured email evidence.
+
+   Windows Command Prompt:
+
+   ```cmd
+   type backend\.local\pricelens-email-outbox.jsonl
+   ```
+
+   PowerShell:
+
+   ```powershell
+   Get-Content backend/.local/pricelens-email-outbox.jsonl
+   ```
+
+   macOS/Linux:
+
+   ```bash
+   cat backend/.local/pricelens-email-outbox.jsonl
+   ```
+
+   Each accepted JSON line contains the notification ID, recipient snapshot, exact subject, body, request time and stable development message ID. The directory is ignored by Git.
+
+4. Confirm persisted delivery state, replacing `<id>` with the runtime notification ID:
+
+   ```text
+   psql -h localhost -p 5432 -U postgres -d pricelens -W -c "SELECT notification_id, delivery_status, qualified_at, sent_at, provider_message_id, failure_reason FROM notifications WHERE notification_id = <id>;"
+   ```
+
+5. To reproduce failure, use a different pending notification and its runtime ID:
+
+   ```text
+   npm --prefix backend run notifications:deliver -- --limit=10 --fail-notification-id=<id>
+   ```
+
+   The adapter records deterministic rejected evidence and BG-03 persists `FAILED`, a null `sent_at` and a safe `failure_reason`. `FAILED` is terminal in this milestone because the approved design does not define a retry transition. Rerunning the command never resends `SENT` or `FAILED` rows.
+
+Automated reproduction uses only the explicitly designated `pricelens_test` database:
+
+```text
+set TEST_DB_NAME=pricelens_test
+npm --prefix backend test
+```
+
+On PowerShell, use `$env:TEST_DB_NAME='pricelens_test'` before the npm command. On macOS/Linux, use `TEST_DB_NAME=pricelens_test npm --prefix backend test`. These tests create their own temporary PENDING fixtures by natural keys, exercise success, failure and concurrent claims with an in-memory adapter, restore the seed and send no real email.
+
+BG-03 does not include a scheduler. It proves that an invoked delivery is requested and persisted within five minutes for the reproducible workflow; #148 owns the complete observation-to-email demonstration. A production provider would also need idempotency keyed by `notification_id` because a database cannot by itself guarantee exactly-once effects after external delivery succeeds.
 
 ## Start PriceLens Again Later
 

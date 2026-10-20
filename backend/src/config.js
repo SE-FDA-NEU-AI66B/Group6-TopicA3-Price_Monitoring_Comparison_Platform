@@ -47,5 +47,10 @@ export const config = Object.freeze({
   apiPort: parsePort('API_PORT', '3000'),
   frontendOrigin: requireString('FRONTEND_ORIGIN'),
   jwtSecret: requireString('JWT_SECRET'),
+  email: Object.freeze({
+    transport: process.env.EMAIL_TRANSPORT?.trim() || 'jsonl',
+    outboxPath: process.env.EMAIL_OUTBOX_PATH?.trim()
+      || '.local/pricelens-email-outbox.jsonl',
+  }),
   nodeEnv,
 });
