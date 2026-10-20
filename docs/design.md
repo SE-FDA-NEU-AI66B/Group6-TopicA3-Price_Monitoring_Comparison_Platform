@@ -683,7 +683,7 @@ The stable `code` is used by the client for branching; `detail` preserves the ap
 | `409` | `ACTIVE_ALERT_LIMIT_REACHED` | `Maximum 20 active alerts reached` (BR1). |
 | `422` | `INVALID_PRODUCT_URL` | `Unsupported or invalid product URL`. |
 | `422` | `TARGET_PRICE_NOT_POSITIVE` | `Target price must be greater than 0` (BR2). |
-| `422` | `TARGET_PRICE_NOT_BELOW_CURRENT` | `Target price must be lower than current price` (BR2). |
+| `422` | `TARGET_PRICE_NOT_BELOW_CURRENT` | `Target price must be lower than the current price` (BR2). |
 | `500` | `INTERNAL_SERVER_ERROR` | An unexpected server failure occurred; internal implementation and database details are not exposed. |
 | `503` | `SOURCE_UNAVAILABLE` | The supported source could not be resolved at that time; no tracking record is created. |
 
@@ -1038,7 +1038,7 @@ This decision should be reconsidered if PriceLens requires immediate global logo
 
 ## 6. Changes Since Milestone 1
 
-Milestone 1 defined the PriceLens product requirements, users, Business Rules and expected screen flow. During Sprint 2, architecture design and walking-skeleton implementation clarified how those requirements should be realised.
+Milestone 1 defined the PriceLens product requirements, users, Business Rules and expected screen flow. During Sprint 2 and Sprint 3, architecture design, walking-skeleton implementation and P0 UI integration clarified how those requirements should be realised.
 
 The following changes record genuine design and implementation discoveries. They do not alter the approved User Stories or Business Rules in `docs/requirements.md`.
 
@@ -1130,8 +1130,36 @@ It improves cross-platform reproducibility while preserving the same schema, see
 **Traceability:**  
 Section 2.4 and Section 4.4 of this document, `docs/sprint-log.md` and `docs/SETUP.md`.
 
+### Change 4 — Consolidate the Sprint 3 Product Decision Flow on Product Details
+
+**Previous state:**
+
+Milestone 2 proved the authenticated Login → Watchlist browser-to-PostgreSQL slice. The target API design also defined price history (API-02), alert creation (API-05) and exact-variant comparison (API-06), but the walking-skeleton milestone did not settle their final composition into one user-facing decision flow.
+
+**Reason for change:**
+
+Sprint 3 implementation showed that current price, price history, alert creation and the handoff to retailer comparison all depend on the same owned `tracked_product_id` and exact variant. Presenting them as disconnected conceptual destinations would repeat context, encourage typed identifiers and make loading and validation feedback harder to understand.
+
+**Change made:**
+
+Product Details at `/products/:trackedProductId` is now the hub for this flow. It resolves the owned tracked-product context from `GET /api/watchlist`, obtains the server-defined 30-day UTC history through API-02, submits active alerts through API-05 and links the same tracked identity to the API-06 Compare screen. Compare remains a separate focused page. Its backend response is authoritative for eligible offers, sort order, lowest offer and differences.
+
+The route parameter represents `tracked_products.tracked_product_id`; it is not a catalogue `product_id`. Product Details explicitly presents loading, error and successful history states, including `AVAILABLE`, `INSUFFICIENT_DATA` and `NO_HISTORY`. Alert creation remains on Product Details, while BG-01/BG-02 processing, BG-03 delivery and email remain background outcomes rather than a dedicated browser screen.
+
+**Impact:**
+
+This is a UI integration and navigation change. API contracts, the PostgreSQL data model, ownership enforcement, Business Rules and background notification architecture are unchanged. The frontend orchestrates the existing contracts without recomputing comparison business decisions.
+
+**Evidence:**
+
+`frontend/products/product.html`, `frontend/src/pages/product-detail.js`, `frontend/src/pages/product-compare.js`, `docs/ui.md` and `docs/p0-acceptance.md`.
+
+**Traceability:**
+
+Sections 1.6, 3.3, 3.4 and 4 of this document; UI flow and wireframes in `docs/ui.md`.
+
 ### Requirement Alignment
 
 No approved Milestone 1 User Story, acceptance criterion or Business Rule is changed by these updates. Therefore, `docs/requirements.md` does not require modification.
 
-The changes clarify the architecture, select the implemented vertical slice and standardise the database initialization method used to realise the existing requirements.
+The changes clarify the architecture, select the implemented vertical slice, standardise database initialization and document the final Sprint 3 Product Details composition used to realise the existing requirements.
