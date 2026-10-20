@@ -41,6 +41,24 @@ export async function query(text, parameters) {
   }
 }
 
+export async function withClient(operation, database = pool) {
+  let client;
+
+  try {
+    client = await database.connect();
+  } catch (error) {
+    throw asApplicationError(error);
+  }
+
+  try {
+    return await operation(client);
+  } catch (error) {
+    throw asApplicationError(error);
+  } finally {
+    client.release();
+  }
+}
+
 export async function withTransaction(operation, database = pool) {
   let client;
 
