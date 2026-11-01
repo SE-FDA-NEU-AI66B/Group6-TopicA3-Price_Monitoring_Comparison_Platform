@@ -166,5 +166,8 @@ test('shared integration support uses real auth, PostgreSQL fixtures and problem
 
     const afterLogout = await requestJson(baseUrl, '/api/auth/session');
     assertProblemCode(afterLogout, 'AUTHENTICATION_REQUIRED', { status: 401 });
+
+    const revokedCookie = await authenticatedRequest(session, '/api/auth/session');
+    assertProblemCode(revokedCookie, 'AUTHENTICATION_REQUIRED', { status: 401 });
   });
 });

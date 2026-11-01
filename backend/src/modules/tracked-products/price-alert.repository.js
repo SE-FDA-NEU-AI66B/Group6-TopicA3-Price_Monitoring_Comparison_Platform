@@ -1,5 +1,15 @@
 import { query } from '../../db/pool.js';
 
+const PRICE_ALERT_COLUMNS = `
+  price_alert_id::TEXT AS price_alert_id,
+  tracked_product_id::TEXT AS tracked_product_id,
+  target_price::TEXT AS target_price,
+  currency_code,
+  status,
+  last_threshold_state,
+  created_at
+`;
+
 export async function isPositiveTargetPrice(
   targetPrice,
   executeQuery = query,
@@ -54,6 +64,52 @@ export async function countActiveAlertsForUser(
   );
 
   return result.rows[0].active_alert_count;
+}
+
+export async function findPriceAlertsForTrackedProduct(
+  trackedProductId,
+  executeQuery = query,
+) {
+  const result = await executeQuery(
+    `SELECT ${PRICE_ALERT_COLUMNS}
+     FROM price_alerts
+     WHERE tracked_product_id = $1
+     ORDER BY status = 'ACTIVE' DESC, created_at DESC, price_alert_id DESC`,
+    [trackedProductId],
+  );
+
+  return result.rows;
+}
+
+export async function lockPriceAlert(
+  { trackedProductId, priceAlertId },
+  executeQuery = query,
+) {
+  const result = await executeQuery(
+    `SELECT ${PRICE_ALERT_COLUMNS}
+     FROM price_alerts
+     WHERE price_alert_id = $1
+       AND tracked_product_id = $2
+     FOR UPDATE`,
+    [priceAlertId, trackedProductId],
+  );
+
+  return result.rows[0] ?? null;
+}
+
+export async function updatePriceAlertStatus(
+  { priceAlertId, status, thresholdState },
+  executeQuery = query,
+) {
+  const result = await executeQuery(
+    `UPDATE price_alerts
+     SET status = $2, last_threshold_state = $3
+     WHERE price_alert_id = $1
+     RETURNING ${PRICE_ALERT_COLUMNS}`,
+    [priceAlertId, status, thresholdState],
+  );
+
+  return result.rows[0];
 }
 
 export async function insertPriceAlert(

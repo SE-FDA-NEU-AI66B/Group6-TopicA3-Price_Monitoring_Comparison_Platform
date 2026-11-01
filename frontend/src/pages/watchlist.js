@@ -3,12 +3,14 @@ import { apiClient } from '../api/client.js';
 import {
   getCurrentSession,
   isAuthenticationRequiredError,
+  redirectToSignIn,
   signOut,
 } from '../auth/session.js';
 import {
   formatCurrency,
   formatDateTime,
   formatStatusLabel,
+  getFreshnessBadge,
 } from '../utils/format.js';
 import { toErrorState } from '../utils/errors.js';
 
@@ -25,6 +27,12 @@ const itemsContainer = document.querySelector('#watchlist-items');
 const itemTemplate = document.querySelector('#watchlist-item-template');
 const userContext = document.querySelector('#authenticated-user');
 const signOutButton = document.querySelector('#signout-button');
+const searchInput = document.querySelector('#watchlist-search');
+const noResults = document.querySelector('#watchlist-no-results');
+const removeDialog = document.querySelector('#remove-dialog');
+const removeMessage = document.querySelector('#remove-message');
+const removeStatus = document.querySelector('#remove-status');
+const removeConfirmButton = document.querySelector('#remove-confirm');
 const stateElements = {
   placeholder: document.querySelector('#watchlist-placeholder'),
   loading: document.querySelector('#watchlist-loading'),
@@ -33,8 +41,11 @@ const stateElements = {
   data: document.querySelector('#watchlist-data'),
 };
 let currentUser = null;
+let watchlistItems = [];
+let pendingRemoval = null;
 let isLoading = false;
 let isSigningOut = false;
+let isRemoving = false;
 
 function isObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -73,6 +84,8 @@ function isWatchlistItem(value) {
     && isObject(value.source)
     && isNonEmptyString(value.source.retailer_name)
     && FRESHNESS_STATES.has(value.freshness_status)
+    && Number.isInteger(value.alert_count)
+    && Number.isInteger(value.active_alert_count)
     && (
       (value.current_price === null && value.freshness_status === 'UNAVAILABLE')
       || (hasAvailablePrice && value.freshness_status !== 'UNAVAILABLE')
@@ -121,19 +134,17 @@ function setAuthenticatedUser(user) {
 }
 
 function setFreshness(element, freshnessStatus) {
-  element.classList.remove('badge--warning', 'badge--neutral');
+  const { label, modifier } = getFreshnessBadge(freshnessStatus);
 
-  if (freshnessStatus === 'STALE') {
-    element.textContent = 'Stale data';
-    element.classList.add('badge--warning');
-    return;
+  element.textContent = label;
+
+  if (modifier) {
+    element.classList.add(modifier);
   }
+}
 
-  element.textContent = formatStatusLabel(freshnessStatus);
-
-  if (freshnessStatus === 'UNAVAILABLE') {
-    element.classList.add('badge--neutral');
-  }
+function pluralize(count, noun) {
+  return `${count} ${noun}${count === 1 ? '' : 's'}`;
 }
 
 function renderWatchlistItem(item) {
@@ -147,6 +158,8 @@ function renderWatchlistItem(item) {
   const price = fragment.querySelector('[data-field="price"]');
   const updated = fragment.querySelector('[data-field="updated"]');
   const detailLink = fragment.querySelector('[data-field="detail-link"]');
+  const alerts = fragment.querySelector('[data-field="alerts"]');
+  const removeButton = fragment.querySelector('[data-field="remove"]');
 
   setFreshness(freshness, item.freshness_status);
   trackingStatus.textContent = formatStatusLabel(item.tracking_status);
@@ -166,19 +179,32 @@ function renderWatchlistItem(item) {
     updated.textContent = 'No in-stock price is currently available.';
   }
 
+  alerts.textContent = item.active_alert_count > 0
+    ? pluralize(item.active_alert_count, 'active alert')
+    : '';
   detailLink.href = `/products/${encodeURIComponent(item.tracked_product_id)}`;
   detailLink.textContent = 'View';
   detailLink.setAttribute('aria-label', `View ${item.product.display_name}`);
+  removeButton.dataset.trackedProductId = item.tracked_product_id;
+  removeButton.setAttribute('aria-label', `Remove ${item.product.display_name}`);
 
   return fragment;
 }
 
-function renderWatchlist(items) {
+function renderWatchlist() {
+  const searchText = searchInput.value.trim();
+  const searchTerm = searchText.toLocaleLowerCase();
+  const items = watchlistItems.filter((item) => (
+    `${item.product.display_name} ${item.product.variant.display_name}`
+      .toLocaleLowerCase()
+      .includes(searchTerm)
+  ));
   const fragment = document.createDocumentFragment();
 
-  itemsContainer.replaceChildren();
   items.forEach((item) => fragment.append(renderWatchlistItem(item)));
-  itemsContainer.append(fragment);
+  itemsContainer.replaceChildren(fragment);
+  noResults.textContent = `No products found matching '${searchText}'`;
+  noResults.hidden = items.length > 0;
 }
 
 function getWatchlistErrorMessage(error) {
@@ -226,17 +252,19 @@ async function loadWatchlist() {
       watchlistSummary.textContent = `${count} ${count === 1 ? 'item' : 'items'} in your watchlist.`;
     }
 
+    watchlistItems = items;
+
     if (count === 0) {
       itemsContainer.replaceChildren();
       showWatchlistState('empty');
       return;
     }
 
-    renderWatchlist(items);
+    renderWatchlist();
     showWatchlistState('data');
   } catch (error) {
     if (isAuthenticationRequiredError(error)) {
-      redirectToLanding();
+      redirectToSignIn();
       return;
     }
 
@@ -258,6 +286,11 @@ async function loadWatchlist() {
   }
 }
 
+function setActionStatus(message, kind = '') {
+  actionStatus.className = `status${kind ? ` status--${kind}` : ''}`;
+  actionStatus.textContent = message;
+}
+
 async function handleSignOut() {
   if (isSigningOut) {
     return;
@@ -265,11 +298,7 @@ async function handleSignOut() {
 
   isSigningOut = true;
   signOutButton.disabled = true;
-
-  if (actionStatus) {
-    actionStatus.className = 'status';
-    actionStatus.textContent = 'Signing out…';
-  }
+  setActionStatus('Signing out…');
 
   try {
     await signOut();
@@ -280,20 +309,76 @@ async function handleSignOut() {
       return;
     }
 
-    const errorState = toErrorState(error);
-
-    if (actionStatus) {
-      actionStatus.className = 'status status--error';
-      actionStatus.textContent = errorState.isNetworkError
+    setActionStatus(
+      toErrorState(error).isNetworkError
         ? 'PriceLens could not reach the sign-out service. Please try again.'
-        : 'PriceLens could not sign you out. Please try again.';
-    }
-
+        : 'PriceLens could not sign you out. Please try again.',
+      'error',
+    );
     signOutButton.disabled = false;
     isSigningOut = false;
   }
 }
 
+function openRemoveDialog(trackedProductId) {
+  pendingRemoval = watchlistItems.find(
+    (item) => item.tracked_product_id === trackedProductId,
+  );
+
+  if (!pendingRemoval) {
+    return;
+  }
+
+  removeMessage.textContent = pendingRemoval.alert_count > 0
+    ? `Deleting this product will also delete ${pluralize(pendingRemoval.alert_count, 'price alert')}`
+    : `Remove ${pendingRemoval.product.display_name} — ${pendingRemoval.product.variant.display_name} from your watchlist?`;
+  removeStatus.className = 'status';
+  removeStatus.textContent = '';
+  removeDialog.showModal();
+}
+
+async function handleRemove() {
+  if (isRemoving || !pendingRemoval) {
+    return;
+  }
+
+  isRemoving = true;
+  removeConfirmButton.disabled = true;
+
+  try {
+    await apiClient.delete(`/tracked-products/${encodeURIComponent(pendingRemoval.tracked_product_id)}`);
+    removeDialog.close();
+    await loadWatchlist();
+    setActionStatus('Product removed from your watchlist', 'success');
+  } catch (error) {
+    if (isAuthenticationRequiredError(error)) {
+      redirectToSignIn();
+      return;
+    }
+
+    removeStatus.className = 'status status--error';
+    removeStatus.textContent = 'PriceLens could not remove this product. Please try again.';
+  } finally {
+    isRemoving = false;
+    removeConfirmButton.disabled = false;
+  }
+}
+
+itemsContainer.addEventListener('click', (event) => {
+  const removeButton = event.target.closest('[data-field="remove"]');
+
+  if (removeButton) {
+    openRemoveDialog(removeButton.dataset.trackedProductId);
+  }
+});
+
+removeDialog.addEventListener('close', () => {
+  pendingRemoval = null;
+});
+
+searchInput.addEventListener('input', () => renderWatchlist());
+removeConfirmButton.addEventListener('click', () => void handleRemove());
+document.querySelector('#remove-cancel').addEventListener('click', () => removeDialog.close());
 retryButton?.addEventListener('click', () => void loadWatchlist());
 signOutButton?.addEventListener('click', () => void handleSignOut());
 

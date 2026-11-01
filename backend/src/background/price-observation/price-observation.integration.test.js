@@ -407,6 +407,48 @@ test('BG-02 uses derived multi-offer current price and preserves OOS/unavailable
   }
 });
 
+test('one crossing sends a single notification per recipient when several alerts qualify', {
+  timeout: 90_000,
+}, async () => {
+  await resetTestDatabase();
+
+  try {
+    const offer = await offerByNormalizedUrl(DELL_URL);
+    const demoUser = await userByEmail(TEST_USERS.demo.email);
+    const tracked = await trackedProductByOwnerAndUrl({
+      email: TEST_USERS.demo.email,
+      normalizedUrl: DELL_URL,
+    });
+    const alerts = [];
+
+    for (const targetPrice of ['30000000.00', '31000000.00', '32000000.00']) {
+      alerts.push(await createPriceAlertForUser(
+        tracked.tracked_product_id,
+        demoUser.user_id,
+        targetPrice,
+      ));
+    }
+
+    const crossing = await processPriceObservation(successResult(
+      offer.retailer_offer_id,
+      '29000000.00',
+      '2026-10-20T01:00:00.000Z',
+    ));
+
+    assert.equal(crossing.evaluatedAlertCount, 3);
+    assert.equal(crossing.notificationCount, 1);
+
+    for (const alert of alerts) {
+      assert.equal(
+        (await alertState(alert.price_alert_id)).last_threshold_state,
+        'AT_OR_BELOW_TARGET',
+      );
+    }
+  } finally {
+    await resetTestDatabase();
+  }
+});
+
 function successResult(retailerOfferId, priceAmount, observedAt) {
   return {
     retailerOfferId,

@@ -78,6 +78,7 @@
               <div class="alert-price-context">
                 <span class="item-label">Current price</span>
                 <strong id="alert-current-price" class="alert-price-context__amount">Checking price…</strong>
+                <p id="alert-price-note" class="hint" hidden></p>
               </div>
               <form id="price-alert-form" class="form-stack" novalidate>
                 <div class="field">
@@ -92,31 +93,31 @@
                     aria-describedby="target-price-hint alert-feedback"
                     required
                   >
-                  <p id="target-price-hint" class="hint">Enter a price below the current price. PriceLens will verify it when you submit.</p>
+                  <p id="target-price-hint" class="hint">Enter a price below the current price, for example 14000000.</p>
                 </div>
                 <button id="price-alert-submit" class="btn btn--primary" type="submit">Create price alert</button>
               </form>
               <div id="alert-feedback" class="alert-feedback" aria-live="polite" tabindex="-1"></div>
-              <section id="created-alert" class="created-alert" aria-labelledby="created-alert-title" aria-live="polite" tabindex="-1" hidden>
-                <div class="created-alert__heading">
-                  <h3 id="created-alert-title">Price alert created</h3>
-                  <span class="badge" data-field="alert-status"></span>
-                </div>
-                <dl class="created-alert__details">
-                  <div>
-                    <dt>Target price</dt>
-                    <dd data-field="alert-target-price"></dd>
-                  </div>
-                  <div>
-                    <dt>Created</dt>
-                    <dd data-field="alert-created-at"></dd>
-                  </div>
-                </dl>
+              <section class="alert-list-region" aria-labelledby="alert-list-title">
+                <h3 id="alert-list-title">Your alerts for this product</h3>
+                <p id="alert-list-empty" class="hint">No alerts yet.</p>
+                <ul id="alert-list" class="alert-list" aria-live="polite"></ul>
               </section>
             </section>
           </aside>
         </div>
       </div>
+
+      <template id="alert-item-template">
+        <li class="alert-item">
+          <div class="alert-item__details">
+            <strong data-field="alert-target-price"></strong>
+            <span class="small" data-field="alert-created-at"></span>
+          </div>
+          <span class="badge" data-field="alert-status"></span>
+          <button class="text-link" type="button" data-field="alert-toggle"></button>
+        </li>
+      </template>
     </main>
 
     <footer id="site-footer" class="footer"></footer>

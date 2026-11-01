@@ -45,6 +45,11 @@
           <button id="watchlist-retry" class="btn btn--light" type="button">Try again</button>
         </div>
         <div id="watchlist-data" hidden>
+          <div class="field watchlist-search">
+            <label for="watchlist-search">Search tracked products</label>
+            <input id="watchlist-search" class="input" type="search" autocomplete="off" placeholder="Product name">
+          </div>
+          <p id="watchlist-no-results" class="card card--solid state-panel" role="status" hidden></p>
           <div id="watchlist-items" class="products-grid" aria-label="Tracked products"></div>
         </div>
       </section>
@@ -66,13 +71,29 @@
               <div>
                 <span class="money" data-field="price"></span>
                 <p class="muted small" data-field="updated"></p>
+                <p class="small product-card__alerts" data-field="alerts"></p>
               </div>
-              <a class="text-link" data-field="detail-link" href="/watchlist">View</a>
+              <div class="product-card__actions">
+                <a class="text-link" data-field="detail-link" href="/watchlist">View</a>
+                <button class="text-link text-link--danger" data-field="remove" type="button">Remove</button>
+              </div>
             </div>
           </div>
         </article>
       </template>
     </main>
+
+    <dialog id="remove-dialog" class="dialog" aria-labelledby="remove-title" aria-describedby="remove-message">
+      <div class="dialog__heading">
+        <h2 id="remove-title">Remove tracked product</h2>
+      </div>
+      <p id="remove-message"></p>
+      <p id="remove-status" class="status" role="status" aria-live="polite"></p>
+      <div class="dialog__actions">
+        <button id="remove-cancel" class="btn btn--light" type="button">Cancel</button>
+        <button id="remove-confirm" class="btn btn--danger" type="button">Remove product</button>
+      </div>
+    </dialog>
 
     <footer id="site-footer" class="footer"></footer>
     <script type="module" src="/src/pages/watchlist.js"></script>

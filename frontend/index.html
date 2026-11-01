@@ -27,6 +27,7 @@
               <a class="btn btn--primary" href="/products/add">Track a product</a>
               <a class="btn btn--light" href="/watchlist">View watchlist</a>
               <button class="btn btn--ghost" id="open-signin" type="button">Sign in</button>
+              <button class="btn btn--ghost" id="open-register" type="button">Create account</button>
             </div>
             <p class="hero-note">Exact variants · Visible freshness · Designed for small screens</p>
           </div>
@@ -107,6 +108,35 @@
         </div>
         <button id="signin-submit" class="btn btn--primary btn--full" type="submit">Sign in</button>
         <p id="signin-status" class="status" role="status" aria-live="polite"></p>
+        <p class="dialog__switch">New to PriceLens? <button id="switch-to-register" class="text-link" type="button">Create an account</button></p>
+      </form>
+    </dialog>
+
+    <dialog id="register-dialog" class="dialog" aria-labelledby="register-title">
+      <div class="dialog__heading">
+        <h2 id="register-title">Create your account</h2>
+        <button id="close-register" type="button" class="btn btn--ghost" aria-label="Close account creation">×</button>
+      </div>
+      <form id="register-form" class="form-stack" novalidate>
+        <div class="field">
+          <label for="register-name">Name</label>
+          <input class="input" id="register-name" name="display_name" type="text" autocomplete="name" maxlength="120" aria-describedby="register-name-feedback" required>
+          <p id="register-name-feedback" class="field-feedback"></p>
+        </div>
+        <div class="field">
+          <label for="register-email">Email address</label>
+          <input class="input" id="register-email" name="email" type="email" autocomplete="email" aria-describedby="register-email-feedback" required>
+          <p id="register-email-feedback" class="field-feedback"></p>
+        </div>
+        <div class="field">
+          <label for="register-password">Password</label>
+          <input class="input" id="register-password" name="password" type="password" autocomplete="new-password" minlength="8" aria-describedby="register-password-hint register-password-feedback" required>
+          <p id="register-password-hint" class="hint">Use at least 8 characters.</p>
+          <p id="register-password-feedback" class="field-feedback"></p>
+        </div>
+        <button id="register-submit" class="btn btn--primary btn--full" type="submit">Create account</button>
+        <p id="register-status" class="status" role="status" aria-live="polite"></p>
+        <p class="dialog__switch">Already have an account? <button id="switch-to-signin" class="text-link" type="button">Sign in</button></p>
       </form>
     </dialog>
 

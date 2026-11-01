@@ -2,12 +2,20 @@ import { apiClient } from '../api/client.js';
 import {
   getCurrentSession,
   isAuthenticationRequiredError,
+  redirectToSignIn,
   signOut,
 } from '../auth/session.js';
 import { initializePageShell } from '../components/common.js';
 import { toErrorState } from '../utils/errors.js';
-import { formatCurrency, formatDateTime, formatStatusLabel } from '../utils/format.js';
-import { getProductIdFromPathname } from '../utils/helpers.js';
+import {
+  formatCompactNumber,
+  formatCurrency,
+  formatDate,
+  formatDateTime,
+  formatStatusLabel,
+  getFreshnessBadge,
+} from '../utils/format.js';
+import { getProductIdFromPathname, parseTargetPrice } from '../utils/helpers.js';
 
 initializePageShell();
 
@@ -19,12 +27,16 @@ const HISTORY_STATUSES = new Set([
   'INSUFFICIENT_DATA',
   'NO_HISTORY',
 ]);
+const FRESHNESS_STATES = new Set(['CURRENT', 'STALE', 'UNAVAILABLE']);
+const ALERT_STATUSES = new Set(['ACTIVE', 'INACTIVE', 'EXPIRED']);
 const EXACT_INSUFFICIENT_MESSAGE = 'Insufficient data for a 30-day chart';
 const EXACT_NO_HISTORY_MESSAGE = 'No price history available';
 const TARGET_NOT_BELOW_MESSAGE = 'Target price must be lower than the current price';
 const TARGET_NOT_POSITIVE_MESSAGE = 'Target price must be greater than 0';
 const ACTIVE_ALERT_LIMIT_MESSAGE = 'Maximum 20 active alerts reached';
+const DUPLICATE_ALERT_MESSAGE = 'An active alert with this target price already exists';
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
+const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 
 const trackedProductId = getProductIdFromPathname(window.location.pathname);
 const pageStateRegion = document.querySelector('#product-page-state');
@@ -41,11 +53,14 @@ const chartRegion = document.querySelector('#price-history-state');
 const summaryRegion = document.querySelector('#history-summary');
 const alertRegion = document.querySelector('#price-alert-region');
 const alertCurrentPrice = document.querySelector('#alert-current-price');
+const alertPriceNote = document.querySelector('#alert-price-note');
 const alertForm = document.querySelector('#price-alert-form');
 const targetPriceInput = document.querySelector('#target-price');
 const alertSubmitButton = document.querySelector('#price-alert-submit');
 const alertFeedback = document.querySelector('#alert-feedback');
-const createdAlert = document.querySelector('#created-alert');
+const alertList = document.querySelector('#alert-list');
+const alertListEmpty = document.querySelector('#alert-list-empty');
+const alertItemTemplate = document.querySelector('#alert-item-template');
 const compareLink = document.querySelector('[data-compare-link]');
 let currentUser = null;
 let activeAttempt = 0;
@@ -53,6 +68,7 @@ let isLoading = false;
 let isSigningOut = false;
 let isSubmittingAlert = false;
 let isAlertCreationBlocked = true;
+let priceAlerts = [];
 
 function isObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -81,6 +97,15 @@ function isCalendarDate(value) {
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
+function isIsoTimestamp(value) {
+  if (!isNonEmptyString(value)) {
+    return false;
+  }
+
+  const date = new Date(value);
+  return !Number.isNaN(date.getTime()) && date.toISOString() === value;
+}
+
 function isAuthenticatedUser(value) {
   return isObject(value)
     && isIdentifier(value.user_id)
@@ -105,7 +130,8 @@ function isCurrentPrice(value) {
   return isObject(value)
     && isDecimalAmount(value.amount)
     && /^[A-Z]{3}$/.test(value.currency_code)
-    && isNonEmptyString(value.observed_at);
+    && isIsoTimestamp(value.observed_at)
+    && isNonEmptyString(value.retailer_name);
 }
 
 function isProductContext(value) {
@@ -120,23 +146,47 @@ function isProductContext(value) {
     && isObject(value.source)
     && isNonEmptyString(value.source.retailer_name)
     && isHttpUrl(value.source.url)
+    && FRESHNESS_STATES.has(value.freshness_status)
     && (value.current_price === null || isCurrentPrice(value.current_price));
 }
 
+function isPriceAlert(value, routeId) {
+  return isObject(value)
+    && isIdentifier(value.price_alert_id)
+    && value.tracked_product_id === routeId
+    && isDecimalAmount(value.target_price)
+    && /^[A-Z]{3}$/.test(value.currency_code)
+    && ALERT_STATUSES.has(value.status)
+    && isIsoTimestamp(value.created_at);
+}
+
 function getProductContext(response, routeId) {
-  if (!Array.isArray(response?.data)) {
-    throw new Error('The watchlist response does not match the documented contract.');
-  }
+  const context = response?.data;
 
-  const context = response.data.find(
-    (item) => item?.tracked_product_id === routeId,
-  );
-
-  if (!isProductContext(context)) {
-    throw new Error('The tracked product context is unavailable.');
+  if (!isProductContext(context) || context.tracked_product_id !== routeId) {
+    throw new Error('The tracked product response does not match the documented contract.');
   }
 
   return context;
+}
+
+function getPriceAlert(response, routeId) {
+  if (!isPriceAlert(response?.data, routeId)) {
+    throw new Error('The price-alert response does not match the documented contract.');
+  }
+
+  return response.data;
+}
+
+function getPriceAlerts(response, routeId) {
+  if (
+    !Array.isArray(response?.data)
+    || !response.data.every((alert) => isPriceAlert(alert, routeId))
+  ) {
+    throw new Error('The price-alert list does not match the documented contract.');
+  }
+
+  return response.data;
 }
 
 function isHistoryPoint(value) {
@@ -228,11 +278,14 @@ function createBadge(label, modifier = '') {
 }
 
 function renderProductContext(context) {
+  const freshness = getFreshnessBadge(context.freshness_status);
+
   document.querySelector('[data-field="product-brand"]').textContent = context.product.brand;
   document.querySelector('[data-field="product-name"]').textContent = context.product.display_name;
   document.querySelector('[data-field="product-variant"]').textContent = context.product.variant.display_name;
   document.querySelector('[data-product-id]').textContent = context.tracked_product_id;
   badges.replaceChildren(
+    createBadge(freshness.label, freshness.modifier),
     createBadge(formatStatusLabel(context.tracking_status)),
     createBadge(context.source.retailer_name, 'badge--retailer'),
   );
@@ -243,50 +296,25 @@ function renderProductContext(context) {
   compareLink.href = `/products/${encodeURIComponent(context.tracked_product_id)}/compare`;
 }
 
-function renderCurrentPrice(history, context) {
+function describeObservation(currentPrice) {
+  return `Updated ${formatDateTime(currentPrice.observed_at)} at ${currentPrice.retailer_name}`;
+}
+
+function renderCurrentPrice(context) {
   const currentPrice = document.querySelector('[data-field="current-price"]');
   const observedAt = document.querySelector('[data-field="price-observed-at"]');
 
-  if (history.summary && history.summary.current !== null) {
-    currentPrice.textContent = formatCurrency(
-      history.summary.current,
-      history.summary.currency_code,
-    );
-    observedAt.textContent = context.current_price
-      ? `Updated ${formatDateTime(context.current_price.observed_at)}`
-      : 'Current price derived from matching in-stock offers.';
-    return;
-  }
-
-  if (history.summary === null && context.current_price) {
+  if (context.current_price) {
     currentPrice.textContent = formatCurrency(
       context.current_price.amount,
       context.current_price.currency_code,
     );
-    observedAt.textContent = `Updated ${formatDateTime(context.current_price.observed_at)}`;
+    observedAt.textContent = describeObservation(context.current_price);
     return;
   }
 
   currentPrice.textContent = 'Price unavailable';
   observedAt.textContent = 'No in-stock current price is available.';
-}
-
-function getAlertPriceContext(history, context) {
-  if (history.summary && history.summary.current !== null) {
-    return {
-      amount: history.summary.current,
-      currencyCode: history.summary.currency_code,
-    };
-  }
-
-  if (history.summary === null && context.current_price) {
-    return {
-      amount: context.current_price.amount,
-      currencyCode: context.current_price.currency_code,
-    };
-  }
-
-  return null;
 }
 
 function setAlertControlsState() {
@@ -329,19 +357,20 @@ function showAlertFeedback({ kind = 'error', message, guidance, focus = true }) 
   }
 }
 
-function renderAlertRegion(history, context) {
-  const currentPrice = getAlertPriceContext(history, context);
+function renderAlertRegion(context) {
+  const currentPrice = context.current_price;
 
   isAlertCreationBlocked = currentPrice === null;
   isSubmittingAlert = false;
-  createdAlert.hidden = true;
   clearAlertFeedback();
+  alertPriceNote.hidden = context.freshness_status !== 'STALE';
 
   if (currentPrice) {
     alertCurrentPrice.textContent = formatCurrency(
       currentPrice.amount,
-      currentPrice.currencyCode,
+      currentPrice.currency_code,
     );
+    alertPriceNote.textContent = `Stale data. Last updated ${formatDateTime(currentPrice.observed_at)}; check the retailer before relying on this price.`;
   } else {
     alertCurrentPrice.textContent = 'Price unavailable';
     showAlertFeedback({
@@ -355,147 +384,33 @@ function renderAlertRegion(history, context) {
   setAlertControlsState();
 }
 
-function isIsoTimestamp(value) {
-  if (!isNonEmptyString(value)) {
-    return false;
-  }
+function renderAlertItem(alert) {
+  const fragment = alertItemTemplate.content.cloneNode(true);
+  const status = fragment.querySelector('[data-field="alert-status"]');
+  const toggle = fragment.querySelector('[data-field="alert-toggle"]');
+  const isActive = alert.status === 'ACTIVE';
 
-  const date = new Date(value);
-  return !Number.isNaN(date.getTime()) && date.toISOString() === value;
-}
-
-function getCreatedAlert(response, routeId) {
-  const alert = response?.data;
-
-  if (
-    !isObject(alert)
-    || !isIdentifier(alert.price_alert_id)
-    || alert.tracked_product_id !== routeId
-    || !isDecimalAmount(alert.target_price)
-    || !/^[A-Z]{3}$/.test(alert.currency_code)
-    || alert.status !== 'ACTIVE'
-    || !isDecimalAmount(alert.current_price)
-    || !isIsoTimestamp(alert.created_at)
-  ) {
-    throw new Error('The create-alert response does not match the documented contract.');
-  }
-
-  return alert;
-}
-
-function renderCreatedAlert(alert) {
-  document.querySelector('[data-field="alert-status"]').textContent = formatStatusLabel(alert.status);
-  document.querySelector('[data-field="alert-target-price"]').textContent = formatCurrency(
+  fragment.querySelector('[data-field="alert-target-price"]').textContent = formatCurrency(
     alert.target_price,
     alert.currency_code,
   );
-  document.querySelector('[data-field="alert-created-at"]').textContent = formatDateTime(
-    alert.created_at,
-  );
-  createdAlert.hidden = false;
-  createdAlert.focus();
+  fragment.querySelector('[data-field="alert-created-at"]').textContent = `Created ${formatDate(alert.created_at)}`;
+  status.textContent = formatStatusLabel(alert.status);
+  status.classList.toggle('badge--neutral', !isActive);
+  toggle.textContent = isActive ? 'Deactivate' : 'Reactivate';
+  toggle.dataset.priceAlertId = alert.price_alert_id;
+  toggle.dataset.nextStatus = isActive ? 'INACTIVE' : 'ACTIVE';
+  toggle.hidden = alert.status === 'EXPIRED';
+
+  return fragment;
 }
 
-function blockAlertCreationForCurrentPrice() {
-  isAlertCreationBlocked = true;
-  alertCurrentPrice.textContent = 'Price unavailable';
-  setAlertControlsState();
-}
+function renderAlertList() {
+  const fragment = document.createDocumentFragment();
 
-function handleAlertRequestError(error) {
-  const state = toErrorState(error);
-
-  if (state.code === 'TARGET_PRICE_NOT_BELOW_CURRENT') {
-    showAlertFeedback({
-      message: TARGET_NOT_BELOW_MESSAGE,
-      guidance: 'Enter a lower target price and submit again.',
-    });
-    return;
-  }
-
-  if (state.code === 'TARGET_PRICE_NOT_POSITIVE') {
-    showAlertFeedback({
-      message: TARGET_NOT_POSITIVE_MESSAGE,
-      guidance: 'Enter a target price greater than zero and submit again.',
-    });
-    return;
-  }
-
-  if (state.code === 'ACTIVE_ALERT_LIMIT_REACHED') {
-    isAlertCreationBlocked = true;
-    showAlertFeedback({
-      message: ACTIVE_ALERT_LIMIT_MESSAGE,
-      guidance: 'You cannot create another alert until an active alert is no longer active.',
-    });
-    return;
-  }
-
-  if (state.code === 'CURRENT_PRICE_UNAVAILABLE') {
-    blockAlertCreationForCurrentPrice();
-    showAlertFeedback({
-      kind: 'warning',
-      message: 'The current price is no longer available.',
-      guidance: 'Try again later when a valid in-stock current price is available.',
-    });
-    return;
-  }
-
-  if (state.isNetworkError) {
-    showAlertFeedback({
-      message: 'PriceLens could not reach the alert service.',
-      guidance: 'Check your connection, then submit the same target price again.',
-    });
-    return;
-  }
-
-  showAlertFeedback({
-    message: 'PriceLens could not create the price alert.',
-    guidance: 'Review the target price and try again.',
-  });
-}
-
-async function handleCreateAlert(event) {
-  event.preventDefault();
-
-  if (isSubmittingAlert || isAlertCreationBlocked) {
-    return;
-  }
-
-  const targetPrice = targetPriceInput.value.trim();
-
-  if (!targetPrice) {
-    showAlertFeedback({
-      message: 'Enter a target price.',
-      guidance: 'Use the target-price field before submitting the form.',
-      focus: false,
-    });
-    targetPriceInput.focus();
-    return;
-  }
-
-  isSubmittingAlert = true;
-  createdAlert.hidden = true;
-  clearAlertFeedback();
-  setAlertControlsState();
-
-  try {
-    const encodedId = encodeURIComponent(trackedProductId);
-    const response = await apiClient.post(
-      `/tracked-products/${encodedId}/alerts`,
-      { target_price: targetPrice },
-    );
-    renderCreatedAlert(getCreatedAlert(response, trackedProductId));
-  } catch (error) {
-    if (isAuthenticationRequiredError(error)) {
-      redirectToLanding();
-      return;
-    }
-
-    handleAlertRequestError(error);
-  } finally {
-    isSubmittingAlert = false;
-    setAlertControlsState();
-  }
+  priceAlerts.forEach((alert) => fragment.append(renderAlertItem(alert)));
+  alertList.replaceChildren(fragment);
+  alertListEmpty.hidden = priceAlerts.length > 0;
 }
 
 function renderHistory(history) {
@@ -507,7 +422,7 @@ function renderHistory(history) {
 
   if (history.status === 'AVAILABLE') {
     chartRegion.className = 'chart-region chart-region--available';
-    chartRegion.append(createHistoryChart(history.points, history.summary.currency_code));
+    chartRegion.append(createHistoryChart(history));
   } else {
     const message = document.createElement('p');
     chartRegion.className = 'chart-region state-panel history-message';
@@ -534,7 +449,12 @@ function renderHistory(history) {
   }
 }
 
-function createHistoryChart(points, currencyCode) {
+function utcDay(date) {
+  const [year, month, day] = date.split('-').map(Number);
+  return Date.UTC(year, month - 1, day);
+}
+
+function createHistoryChart({ points, range, summary }) {
   const wrapper = document.createElement('div');
   const svg = document.createElementNS(SVG_NAMESPACE, 'svg');
   const title = document.createElementNS(SVG_NAMESPACE, 'title');
@@ -542,26 +462,30 @@ function createHistoryChart(points, currencyCode) {
   const plot = document.createElementNS(SVG_NAMESPACE, 'polyline');
   const width = 800;
   const height = 280;
-  const horizontalPadding = 54;
+  const leftPadding = 76;
+  const rightPadding = 24;
   const verticalPadding = 34;
   const numericAmounts = points.map((point) => Number(point.amount));
-  const datePositions = points.map(({ date }) => {
-    const [year, month, day] = date.split('-').map(Number);
-    return Date.UTC(year, month - 1, day);
-  });
+  const firstDay = utcDay(range.from_date);
+  const daySpan = utcDay(range.to_date) - firstDay;
   const minimum = Math.min(...numericAmounts);
   const maximum = Math.max(...numericAmounts);
-  const range = maximum - minimum;
+  const priceRange = maximum - minimum;
+  const plotWidth = width - leftPadding - rightPadding;
+  const plotHeight = height - verticalPadding * 2;
   const coordinates = points.map((point, index) => ({
-    x: horizontalPadding
-      + ((datePositions[index] - datePositions[0])
-        / (datePositions.at(-1) - datePositions[0])) * (width - horizontalPadding * 2),
-    y: range === 0
+    x: leftPadding + ((utcDay(point.date) - firstDay) / daySpan) * plotWidth,
+    y: priceRange === 0
       ? height / 2
-      : verticalPadding
-        + ((maximum - numericAmounts[index]) / range) * (height - verticalPadding * 2),
+      : verticalPadding + ((maximum - numericAmounts[index]) / priceRange) * plotHeight,
     point,
   }));
+  const gridValues = priceRange === 0
+    ? [{ y: height / 2, value: minimum }]
+    : [0, 1, 2, 3].map((index) => ({
+        y: verticalPadding + (index / 3) * plotHeight,
+        value: maximum - (index / 3) * priceRange,
+      }));
 
   wrapper.className = 'history-chart';
   svg.classList.add('history-chart__svg');
@@ -571,19 +495,24 @@ function createHistoryChart(points, currencyCode) {
   title.id = 'history-chart-title';
   title.textContent = `Price history with ${points.length} daily points`;
   description.id = 'history-chart-description';
-  description.textContent = `Daily prices from ${points[0].date} to ${points.at(-1).date}.`;
+  description.textContent = `Daily prices from ${points[0].date} to ${points.at(-1).date} within ${range.from_date} to ${range.to_date}.`;
   svg.append(title, description);
 
-  for (let index = 0; index < 4; index += 1) {
+  gridValues.forEach(({ y, value }) => {
     const line = document.createElementNS(SVG_NAMESPACE, 'line');
-    const y = verticalPadding + (index / 3) * (height - verticalPadding * 2);
-    line.setAttribute('x1', horizontalPadding);
-    line.setAttribute('x2', width - horizontalPadding);
+    const label = document.createElementNS(SVG_NAMESPACE, 'text');
+
+    line.setAttribute('x1', leftPadding);
+    line.setAttribute('x2', width - rightPadding);
     line.setAttribute('y1', y);
     line.setAttribute('y2', y);
     line.classList.add('history-chart__grid-line');
-    svg.append(line);
-  }
+    label.setAttribute('x', leftPadding - 12);
+    label.setAttribute('y', y);
+    label.classList.add('history-chart__value');
+    label.textContent = formatCompactNumber(value);
+    svg.append(line, label);
+  });
 
   plot.classList.add('history-chart__line');
   plot.setAttribute(
@@ -602,23 +531,23 @@ function createHistoryChart(points, currencyCode) {
     marker.setAttribute('cx', x.toFixed(2));
     marker.setAttribute('cy', y.toFixed(2));
     marker.setAttribute('r', '4.5');
-    markerTitle.textContent = `${point.date}: ${formatCurrency(point.amount, currencyCode)}`;
+    markerTitle.textContent = `${point.date}: ${formatCurrency(point.amount, summary.currency_code)}`;
     marker.append(markerTitle);
     svg.append(marker);
   });
 
   const axis = document.createElement('div');
+  const middleDate = new Date(firstDay + Math.round(daySpan / MILLISECONDS_PER_DAY / 2) * MILLISECONDS_PER_DAY)
+    .toISOString()
+    .slice(0, 10);
   axis.className = 'history-chart__axis';
-  (points.length === 2
-    ? [points[0], points[1]]
-    : [points[0], points[Math.floor((points.length - 1) / 2)], points.at(-1)])
-    .forEach((point) => {
-      const label = document.createElement('span');
-      label.textContent = point.date;
-      axis.append(label);
-    });
+  [range.from_date, middleDate, range.to_date].forEach((date) => {
+    const label = document.createElement('span');
+    label.textContent = date;
+    axis.append(label);
+  });
 
-  wrapper.append(svg, axis, createAccessibleHistoryTable(points, currencyCode));
+  wrapper.append(svg, axis, createAccessibleHistoryTable(points, summary.currency_code));
   return wrapper;
 }
 
@@ -673,6 +602,135 @@ function getRequestErrorMessage(error) {
   return 'The tracked product could not be loaded. Please try again.';
 }
 
+function handleAlertRequestError(error) {
+  const state = toErrorState(error);
+  const knownErrors = {
+    TARGET_PRICE_NOT_BELOW_CURRENT: {
+      message: TARGET_NOT_BELOW_MESSAGE,
+      guidance: 'Enter a lower target price and submit again.',
+    },
+    TARGET_PRICE_NOT_POSITIVE: {
+      message: TARGET_NOT_POSITIVE_MESSAGE,
+      guidance: 'Enter a target price greater than zero and submit again.',
+    },
+    ACTIVE_ALERT_LIMIT_REACHED: {
+      message: ACTIVE_ALERT_LIMIT_MESSAGE,
+      guidance: 'Deactivate an alert on this or another product to free a slot.',
+    },
+    DUPLICATE_ACTIVE_ALERT: {
+      message: DUPLICATE_ALERT_MESSAGE,
+      guidance: 'Choose a different target price or keep the existing alert below.',
+    },
+  };
+
+  if (knownErrors[state.code]) {
+    showAlertFeedback(knownErrors[state.code]);
+    return;
+  }
+
+  if (state.code === 'CURRENT_PRICE_UNAVAILABLE') {
+    isAlertCreationBlocked = true;
+    alertCurrentPrice.textContent = 'Price unavailable';
+    setAlertControlsState();
+    showAlertFeedback({
+      kind: 'warning',
+      message: 'The current price is no longer available.',
+      guidance: 'Try again later when a valid in-stock current price is available.',
+    });
+    return;
+  }
+
+  showAlertFeedback(state.isNetworkError
+    ? {
+        message: 'PriceLens could not reach the alert service.',
+        guidance: 'Check your connection, then try again.',
+      }
+    : {
+        message: 'PriceLens could not update your price alerts.',
+        guidance: 'Review the target price and try again.',
+      });
+}
+
+async function handleCreateAlert(event) {
+  event.preventDefault();
+
+  if (isSubmittingAlert || isAlertCreationBlocked) {
+    return;
+  }
+
+  const targetPrice = parseTargetPrice(targetPriceInput.value);
+
+  if (!targetPrice) {
+    showAlertFeedback({
+      message: targetPriceInput.value.trim()
+        ? 'Enter the target price as a number.'
+        : 'Enter a target price.',
+      guidance: 'Use digits, for example 14000000 or 14,000,000.',
+      focus: false,
+    });
+    targetPriceInput.focus();
+    return;
+  }
+
+  isSubmittingAlert = true;
+  clearAlertFeedback();
+  setAlertControlsState();
+
+  try {
+    const encodedId = encodeURIComponent(trackedProductId);
+    const response = await apiClient.post(
+      `/tracked-products/${encodedId}/alerts`,
+      { target_price: targetPrice },
+    );
+    const alert = getPriceAlert(response, trackedProductId);
+
+    priceAlerts = [alert, ...priceAlerts];
+    renderAlertList();
+    targetPriceInput.value = '';
+    showAlertFeedback({
+      kind: 'success',
+      message: 'Price alert created',
+      guidance: `PriceLens will email you when the price reaches ${formatCurrency(alert.target_price, alert.currency_code)}.`,
+    });
+  } catch (error) {
+    if (isAuthenticationRequiredError(error)) {
+      redirectToSignIn();
+      return;
+    }
+
+    handleAlertRequestError(error);
+  } finally {
+    isSubmittingAlert = false;
+    setAlertControlsState();
+  }
+}
+
+async function handleToggleAlert(button) {
+  button.disabled = true;
+  clearAlertFeedback();
+
+  try {
+    const response = await apiClient.patch(
+      `/tracked-products/${encodeURIComponent(trackedProductId)}/alerts/${encodeURIComponent(button.dataset.priceAlertId)}`,
+      { status: button.dataset.nextStatus },
+    );
+    const updated = getPriceAlert(response, trackedProductId);
+
+    priceAlerts = priceAlerts.map((alert) => (
+      alert.price_alert_id === updated.price_alert_id ? updated : alert
+    ));
+    renderAlertList();
+  } catch (error) {
+    if (isAuthenticationRequiredError(error)) {
+      redirectToSignIn();
+      return;
+    }
+
+    button.disabled = false;
+    handleAlertRequestError(error);
+  }
+}
+
 function redirectToLanding() {
   window.location.assign('/');
 }
@@ -706,21 +764,24 @@ async function loadProductDetails() {
     }
 
     const encodedId = encodeURIComponent(trackedProductId);
-    const [watchlistResponse, historyResponse] = await Promise.all([
-      apiClient.get('/watchlist'),
+    const [productResponse, historyResponse, alertsResponse] = await Promise.all([
+      apiClient.get(`/tracked-products/${encodedId}`),
       apiClient.get(`/tracked-products/${encodedId}/price-history`),
+      apiClient.get(`/tracked-products/${encodedId}/alerts`),
     ]);
 
     if (attempt !== activeAttempt) {
       return;
     }
 
-    const context = getProductContext(watchlistResponse, trackedProductId);
+    const context = getProductContext(productResponse, trackedProductId);
     const history = getPriceHistory(historyResponse, trackedProductId);
+    priceAlerts = getPriceAlerts(alertsResponse, trackedProductId);
     renderProductContext(context);
-    renderCurrentPrice(history, context);
+    renderCurrentPrice(context);
     renderHistory(history);
-    renderAlertRegion(history, context);
+    renderAlertRegion(context);
+    renderAlertList();
     showPageState('ready');
   } catch (error) {
     if (attempt !== activeAttempt) {
@@ -728,7 +789,7 @@ async function loadProductDetails() {
     }
 
     if (isAuthenticationRequiredError(error)) {
-      redirectToLanding();
+      redirectToSignIn();
       return;
     }
 
@@ -768,6 +829,13 @@ async function handleSignOut() {
 retryButton.addEventListener('click', () => void loadProductDetails());
 signOutButton.addEventListener('click', () => void handleSignOut());
 alertForm.addEventListener('submit', (event) => void handleCreateAlert(event));
+alertList.addEventListener('click', (event) => {
+  const toggle = event.target.closest('[data-field="alert-toggle"]');
+
+  if (toggle) {
+    void handleToggleAlert(toggle);
+  }
+});
 targetPriceInput.addEventListener('input', () => {
   if (targetPriceInput.getAttribute('aria-invalid') === 'true') {
     clearAlertFeedback();

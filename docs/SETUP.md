@@ -166,13 +166,7 @@ Continue when both commands finish without `npm ERR!`.
    cp .env.example .env
    ```
 
-2. Generate a local JWT secret:
-
-   ```text
-   node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
-   ```
-
-3. Open `.env`.
+2. Open `.env`.
 
    Windows Command Prompt:
 
@@ -188,14 +182,13 @@ Continue when both commands finish without `npm ERR!`.
 
    In `nano`, press `Ctrl+O`, then `Enter` to save, and press `Ctrl+X` to exit.
 
-4. Replace these placeholders:
+3. Replace this placeholder:
 
-   - Set `JWT_SECRET` to the generated value.
    - Set `DB_PASSWORD` to the PostgreSQL password created in Section 1.
 
    If the password contains `#` or leading or trailing spaces, enclose the complete value in double quotes.
 
-5. Keep these local defaults unless the ports or database names conflict with another local service:
+4. Keep these local defaults unless the ports or database names conflict with another local service:
 
    ```dotenv
    NODE_ENV=development
@@ -213,7 +206,7 @@ Continue when both commands finish without `npm ERR!`.
 
    | Setting | Use |
    |---|---|
-   | `NODE_ENV`, `API_PORT`, `FRONTEND_ORIGIN`, `JWT_SECRET` | Required by the backend. |
+   | `NODE_ENV`, `API_PORT`, `FRONTEND_ORIGIN` | Required by the backend. Sessions are stored in PostgreSQL, so no signing secret is needed. |
    | `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | Required PostgreSQL connection and initializer settings. |
    | `TEST_DB_NAME` | Required only when running `npm --prefix backend test`; it must differ from `DB_NAME`. |
    | `EMAIL_TRANSPORT`, `EMAIL_OUTBOX_PATH` | Optional development email settings. The backend defaults to the JSONL values shown above. |
@@ -229,9 +222,11 @@ Run one command:
 npm --prefix backend run db:init
 ```
 
-This creates the `pricelens` database and schema, then loads the deterministic Sprint 3 fixtures. A complete initialization contains 9 application tables, 4 update triggers and 10 tracked products for the demonstration user. The fixtures also include price-history states, the 20-alert BR1 boundary, exact-variant comparison data and two historical US05 notifications.
+This creates the `pricelens` database and schema, then loads the deterministic Sprint 3 fixtures. A complete initialization contains 10 application tables, 4 update triggers and 10 tracked products for the demonstration user. The fixtures also include price-history states, the 20-alert BR1 boundary, exact-variant comparison data and two historical US05 notifications.
 
-The initializer creates a missing database and applies the schema only when the public schema is empty. It rejects a partially initialized schema. On later runs, it restores the managed fixture users, tracked products, observations, alerts and notifications by stable natural keys. It does not target unrelated user accounts.
+Fixture dates move with the calendar: every run treats the day it runs as the fixture's reference day (20 October 2026), so the MacBook Air M2 always has a complete 30-day history ending yesterday. The automated tests keep the original dates.
+
+The initializer creates a missing database and applies the initial schema only when the public schema is empty. It rejects a partially initialized schema, and it applies the session and alert-uniqueness migration on every run. On later runs, it restores the managed fixture users, tracked products, observations, alerts and notifications by stable natural keys. It does not delete other user accounts or their tracked products, but price alerts and notifications that reference the rebuilt demo observations are removed because those observations are recreated.
 
 Backend automated tests use `TEST_DB_NAME=pricelens_test`, never the normal `DB_NAME=pricelens`. `npm --prefix backend test` creates or restores that explicitly designated test database and refuses to run its reset helper if both names are the same.
 
@@ -275,6 +270,7 @@ Keep this terminal open.
 4. Confirm that the page displays `10 items` and ten product cards.
 5. Confirm that every card displays retailer and freshness information.
 6. Confirm that Sony WH-1000XM5 and Xiaomi Robot Vacuum S10 display `Price unavailable`.
+7. Optional: select **Sign out**, then **Create account** on the landing page to register a separate local account. A new account starts with an empty watchlist.
 
 If every result above appears, PriceLens is set up correctly.
 

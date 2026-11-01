@@ -1,23 +1,7 @@
-import { jwtVerify } from 'jose';
-
-import { findActiveUserById } from '../modules/auth/auth.repository.js';
-import { config } from '../config.js';
+import { findSessionUser } from '../modules/auth/auth.service.js';
 import { authenticationRequired } from '../shared/problems.js';
-import { parseIdentifier } from '../shared/validation.js';
 
 export const SESSION_COOKIE_NAME = 'pricelens_session';
-
-const jwtSecret = new TextEncoder().encode(config.jwtSecret);
-
-export async function verifySessionToken(token) {
-  const { payload } = await jwtVerify(token, jwtSecret, {
-    issuer: 'pricelens',
-    audience: 'pricelens-web',
-    algorithms: ['HS256'],
-  });
-
-  return parseIdentifier(payload.sub, 'user_id');
-}
 
 function authenticatedUserContext(user) {
   return Object.freeze({
@@ -27,10 +11,7 @@ function authenticatedUserContext(user) {
   });
 }
 
-export function createAuthenticate({
-  verifyToken = verifySessionToken,
-  findUser = findActiveUserById,
-} = {}) {
+export function createAuthenticate({ findUser = findSessionUser } = {}) {
   return async function authenticateRequest(request, response, next) {
     const token = request.cookies?.[SESSION_COOKIE_NAME];
 
@@ -39,17 +20,8 @@ export function createAuthenticate({
       return;
     }
 
-    let userId;
-
     try {
-      userId = await verifyToken(token);
-    } catch {
-      next(authenticationRequired());
-      return;
-    }
-
-    try {
-      const user = await findUser(userId);
+      const user = await findUser(token);
 
       if (!user) {
         next(authenticationRequired());

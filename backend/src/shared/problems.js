@@ -23,6 +23,30 @@ const PROBLEM_DEFINITIONS = Object.freeze({
     title: 'Tracked product not found',
     detail: 'Tracked product not found',
   }),
+  PRICE_ALERT_NOT_FOUND: Object.freeze({
+    status: 404,
+    type: '/problems/price-alert-not-found',
+    title: 'Price alert not found',
+    detail: 'Price alert not found',
+  }),
+  ROUTE_NOT_FOUND: Object.freeze({
+    status: 404,
+    type: '/problems/route-not-found',
+    title: 'Route not found',
+    detail: 'The requested API route does not exist.',
+  }),
+  EMAIL_ALREADY_REGISTERED: Object.freeze({
+    status: 409,
+    type: '/problems/email-already-registered',
+    title: 'Email already registered',
+    detail: 'An account with this email address already exists',
+  }),
+  DUPLICATE_ACTIVE_ALERT: Object.freeze({
+    status: 409,
+    type: '/problems/duplicate-active-alert',
+    title: 'Duplicate price alert',
+    detail: 'An active alert with this target price already exists',
+  }),
   RETAILER_OFFER_NOT_FOUND: Object.freeze({
     status: 404,
     type: '/problems/retailer-offer-not-found',
@@ -64,6 +88,12 @@ const PROBLEM_DEFINITIONS = Object.freeze({
     type: '/problems/target-price-not-below-current',
     title: 'Invalid target price',
     detail: 'Target price must be lower than the current price',
+  }),
+  TOO_MANY_REQUESTS: Object.freeze({
+    status: 429,
+    type: '/problems/too-many-requests',
+    title: 'Too many requests',
+    detail: 'Too many attempts. Try again in a few minutes.',
   }),
   INTERNAL_SERVER_ERROR: Object.freeze({
     status: 500,
@@ -124,6 +154,14 @@ export function trackedProductNotFound() {
   return problem('TRACKED_PRODUCT_NOT_FOUND');
 }
 
+export function priceAlertNotFound() {
+  return problem('PRICE_ALERT_NOT_FOUND');
+}
+
+export function routeNotFound() {
+  return problem('ROUTE_NOT_FOUND');
+}
+
 export function retailerOfferNotFound() {
   return problem('RETAILER_OFFER_NOT_FOUND');
 }
@@ -156,19 +194,26 @@ export function sourceUnavailable(cause) {
   return problem('SOURCE_UNAVAILABLE', { cause });
 }
 
+export function tooManyRequests() {
+  return problem('TOO_MANY_REQUESTS');
+}
+
 export function internalServerError(cause) {
   return problem('INTERNAL_SERVER_ERROR', { cause });
 }
 
-export function translatePersistenceError(error) {
-  if (
-    error?.code === '23505'
-    && error.constraint === 'uq_tracked_products_user_source_url'
-  ) {
-    return duplicateTrackedUrl(error);
-  }
+const UNIQUE_CONSTRAINT_PROBLEMS = Object.freeze({
+  uq_tracked_products_user_source_url: 'DUPLICATE_TRACKED_URL',
+  uq_users_email: 'EMAIL_ALREADY_REGISTERED',
+  uq_price_alerts_active_target: 'DUPLICATE_ACTIVE_ALERT',
+});
 
-  return internalServerError(error);
+export function translatePersistenceError(error) {
+  const code = error?.code === '23505'
+    ? UNIQUE_CONSTRAINT_PROBLEMS[error.constraint]
+    : undefined;
+
+  return code ? problem(code, { cause: error }) : internalServerError(error);
 }
 
 function normalizeFieldErrors(errors) {

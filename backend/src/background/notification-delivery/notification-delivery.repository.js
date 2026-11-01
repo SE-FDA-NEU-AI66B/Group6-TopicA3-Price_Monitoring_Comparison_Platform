@@ -71,7 +71,9 @@ export async function findPendingNotification(
        po.currency_code,
        po.observed_at,
        ro.normalized_url AS source_url,
-       p.display_name AS product_name
+       r.name AS retailer_name,
+       p.display_name AS product_name,
+       pv.display_name AS variant_name
      FROM notifications AS n
      JOIN price_alerts AS pa
        ON pa.price_alert_id = n.price_alert_id
@@ -79,6 +81,8 @@ export async function findPendingNotification(
        ON po.price_observation_id = n.price_observation_id
      JOIN retailer_offers AS ro
        ON ro.retailer_offer_id = po.retailer_offer_id
+     JOIN retailers AS r
+       ON r.retailer_id = ro.retailer_id
      JOIN product_variants AS pv
        ON pv.product_variant_id = ro.product_variant_id
      JOIN products AS p
