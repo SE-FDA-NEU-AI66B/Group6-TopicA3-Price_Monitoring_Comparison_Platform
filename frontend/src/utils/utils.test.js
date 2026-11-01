@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
+import { parseRetryAfterSeconds } from '../api/client.js';
 import { formatCurrency, getFreshnessBadge } from './format.js';
 import { getSafeNextPath, parseTargetPrice } from './helpers.js';
 
@@ -33,6 +34,16 @@ test('freshness badges match the watchlist and detail wording', () => {
   assert.deepEqual(getFreshnessBadge('STALE'), { label: 'Stale data', modifier: 'badge--warning' });
   assert.deepEqual(getFreshnessBadge('UNAVAILABLE'), { label: 'Unavailable', modifier: 'badge--neutral' });
   assert.deepEqual(getFreshnessBadge('CURRENT'), { label: 'Current', modifier: '' });
+});
+
+test('a lockout countdown only starts from a usable Retry-After header', () => {
+  assert.equal(parseRetryAfterSeconds('298'), 298);
+  assert.equal(parseRetryAfterSeconds(' 60 '), 60);
+
+  // Missing when CORS hides the header, and an HTTP-date form is not a countdown.
+  for (const value of [null, undefined, '', '0', '-5', '12.5', 'Wed, 21 Oct 2026 07:28:00 GMT']) {
+    assert.equal(parseRetryAfterSeconds(value), null, String(value));
+  }
 });
 
 test('VND amounts are shown without minor units', () => {

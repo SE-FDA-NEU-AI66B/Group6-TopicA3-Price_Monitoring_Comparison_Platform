@@ -12,6 +12,7 @@ export class ApiError extends Error {
     type = null,
     cause,
     isNetworkError = false,
+    retryAfterSeconds = null,
   } = {}) {
     super(message, { cause });
     this.name = 'ApiError';
@@ -21,7 +22,17 @@ export class ApiError extends Error {
     this.title = title;
     this.type = type;
     this.isNetworkError = isNetworkError;
+    this.retryAfterSeconds = retryAfterSeconds;
   }
+}
+
+export function parseRetryAfterSeconds(headerValue) {
+  if (!/^\d+$/.test(String(headerValue ?? '').trim())) {
+    return null;
+  }
+
+  const seconds = Number(headerValue);
+  return seconds > 0 ? seconds : null;
 }
 
 function joinApiPath(path) {
@@ -81,6 +92,7 @@ function createHttpError(response, payload) {
       details: problem.errors ?? problem.details ?? legacyError.details ?? null,
       title: problem.title || legacyError.title || null,
       type: problem.type || legacyError.type || null,
+      retryAfterSeconds: parseRetryAfterSeconds(response.headers.get('retry-after')),
     },
   );
 }

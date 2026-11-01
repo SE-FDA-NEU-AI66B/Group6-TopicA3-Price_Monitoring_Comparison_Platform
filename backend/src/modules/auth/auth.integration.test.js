@@ -96,6 +96,42 @@ test('registration creates an account with a revocable database session', {
   }
 });
 
+test('repeated failures lock one email on one client, not the whole address', {
+  timeout: 90_000,
+}, async () => {
+  const locked = { email: 'lockout.target@pricelens.test', password: 'wrong-password' };
+  const neighbour = { email: 'lockout.other@pricelens.test', password: 'wrong-password' };
+
+  await withTestServer(app, async ({ baseUrl }) => {
+    const attempt = (credentials) => requestJson(baseUrl, '/api/auth/login', {
+      method: 'POST',
+      json: credentials,
+    });
+
+    for (let index = 0; index < 10; index += 1) {
+      assert.equal((await attempt(locked)).status, 401, `attempt ${index + 1}`);
+    }
+
+    const blocked = await attempt(locked);
+    assertProblemCode(blocked, 'TOO_MANY_REQUESTS', {
+      status: 429,
+      detail: 'Too many attempts. Try again in a few minutes.',
+    });
+
+    const retryAfter = Number(blocked.headers.get('retry-after'));
+    assert.ok(retryAfter > 0 && retryAfter <= 300, `retry-after was ${retryAfter}`);
+
+    assert.equal((await attempt(neighbour)).status, 401);
+
+    const registration = await requestJson(baseUrl, '/api/auth/register', {
+      method: 'POST',
+      json: { display_name: 'Locked Out', email: locked.email, password: 'another-pass-1' },
+    });
+    assert.equal(registration.status, 201);
+    await deleteAccount(locked.email);
+  });
+});
+
 test('unknown API routes return the shared problem shape', async () => {
   await withTestServer(app, async ({ baseUrl }) => {
     assertProblemCode(

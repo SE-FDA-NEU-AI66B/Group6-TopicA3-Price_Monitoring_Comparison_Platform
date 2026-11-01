@@ -18,7 +18,11 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: 'same-site' },
   strictTransportSecurity: config.nodeEnv === 'production',
 }));
-app.use(cors({ origin: config.frontendOrigin, credentials: true }));
+app.use(cors({
+  origin: config.frontendOrigin,
+  credentials: true,
+  exposedHeaders: ['Retry-After', 'RateLimit', 'RateLimit-Policy'],
+}));
 app.use(express.json());
 app.use(cookieParser());
 
