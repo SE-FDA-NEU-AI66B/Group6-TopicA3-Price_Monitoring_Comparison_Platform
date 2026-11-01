@@ -4,6 +4,7 @@ import {
   trackedProductNotFound,
 } from '../../shared/problems.js';
 import {
+  deleteOwnedTrackedProduct,
   findOwnedTrackedProduct,
   findSelectableOfferById,
   insertTrackedProduct,
@@ -63,6 +64,15 @@ export async function createTrackedProductForUser(
       created_at: isoTimestamp(trackedProduct.created_at),
     };
   });
+}
+
+export async function deleteTrackedProductForUser(
+  trackedProductId,
+  authenticatedUserId,
+) {
+  if (!await deleteOwnedTrackedProduct(trackedProductId, authenticatedUserId)) {
+    throw trackedProductNotFound();
+  }
 }
 
 function isoTimestamp(value) {

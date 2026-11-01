@@ -59,7 +59,7 @@ Sprint 2 requires minimum authentication for existing users and at least one dem
 
 PriceLens does not process payments, delivery, returns or refunds; guarantee support for every source; control external prices or inventory; or define administrator behaviour not approved in Milestone 1.
 
-The implemented walking skeleton uses a Vite multi-page frontend, a Node.js and Express backend, PostgreSQL persistence and a signed JWT in an `HttpOnly` cookie. The frontend and authentication decisions are recorded in Section 5.
+The implemented walking skeleton uses a Vite multi-page frontend, a Node.js and Express backend, PostgreSQL persistence and a database-backed session whose random token is held in an `HttpOnly` cookie. The frontend and authentication decisions are recorded in Section 5.
 
 Background-job triggering, source-specific acquisition, the email provider and the physical deployment arrangement remain deferred because their components are outside the executed walking-skeleton path. They must be resolved before the corresponding target-architecture capabilities are implemented.
 
@@ -520,8 +520,9 @@ PriceLens uses the cross-platform `npm run db:init` command from `backend/` for 
 |---|---|---|
 | Database creation | `backend/src/database/init-database.js` | Creates the configured PostgreSQL database when absent and reuses it when present. |
 | Schema migration | `backend/src/database/migrations/001-initial-schema.js` | Creates the nine-table schema, constraints, indexes and triggers defined in Sections 2.1–2.3 when the database is empty; rejects a partial schema. |
-| Seed loading | `backend/src/database/seeds/001-demo-data.js` | Inserts the deterministic dataset required by the walking skeleton without duplicating it on rerun. |
-| Validation | `backend/src/database/init-database.js` | Confirms nine tables, four update triggers, the demonstration user and exactly 10 tracked products. |
+| Schema migration | `backend/src/database/migrations/002-sessions-and-alert-uniqueness.js` | Idempotently adds `user_sessions` and the partial unique index `uq_price_alerts_active_target`, deactivating older duplicate active alerts first. Runs on every initialization. |
+| Seed loading | `backend/src/database/seeds/001-demo-data.js` | Inserts the deterministic dataset without duplicating it on rerun. Fixture timestamps are shifted by whole days so the initialization date plays the role of 2026-10-20; the test environment keeps the original dates. |
+| Validation | `backend/src/database/init-database.js` | Confirms ten tables, four update triggers, the demonstration user and exactly 10 tracked products. |
 
 Separate schema and seed transactions prevent a failed operation from being treated as a successful initialization. Commands, configuration and troubleshooting are documented in `docs/SETUP.md`.
 
@@ -607,7 +608,7 @@ PriceLens exposes three authentication operations and six authenticated shopper 
 | Concern | Contract |
 |---|---|
 | Base path | `/api`; resource-oriented paths and standard HTTP methods are used. |
-| Authentication | Login establishes the session. Session inspection and shopper operations require a valid authenticated session. The server derives `user_id`; clients never submit it. |
+| Authentication | Registration or login establishes the session. Session inspection and shopper operations require a valid authenticated session. The server derives `user_id`; clients never submit it. Login and registration allow ten failed attempts per client in 15 minutes before returning `429 TOO_MANY_REQUESTS`. |
 | Ownership | Queries and mutations are restricted through `tracked_products.user_id`. A missing or unowned resource returns the same `404` response. |
 | Success body | JSON responses contain a top-level `data` member and optional `meta`. Empty collections return `200` with `data: []`. Logout returns `204 No Content` without a response body. |
 | Error body | `application/problem+json` with `type`, `title`, `status`, stable `code`, exact `detail` and optional field-level `errors`. |
@@ -617,7 +618,7 @@ PriceLens exposes three authentication operations and six authenticated shopper 
 
 Successful create operations return `201 Created` and a `Location` header for the created resource. Collection pagination and idempotency keys are not required for the current milestone.
 
-Authentication uses the `pricelens_session` cookie. A successful login sets the cookie for one hour with `HttpOnly`, `SameSite=Lax` and `Path=/`; production responses also apply `Secure`. The session token is never returned in the JSON body. Logout clears the cookie using the same attributes.
+Authentication uses the `pricelens_session` cookie. A successful login or registration creates a `user_sessions` row holding the SHA-256 hash of a random 32-byte token and sets the token cookie for 24 hours with `HttpOnly`, `SameSite=Lax` and `Path=/`; production responses also apply `Secure`. The session token is never returned in the JSON body. Logout deletes the session row, so the old cookie stops working immediately, and clears the cookie using the same attributes.
 
 #### 3.2.2 HTTP Endpoint Contracts
 
@@ -625,24 +626,32 @@ Authentication uses the `pricelens_session` cookie. A successful login sets the 
 |---|---|---|---|---|
 | `API-01` | `GET /api/watchlist` | No body. Results are restricted to the authenticated user and ordered by `created_at` descending. | `200` — `data` is an array of `WatchlistItem`; an empty watchlist is `[]`. | `401 AUTHENTICATION_REQUIRED` |
 | `API-02` | `GET /api/tracked-products/{tracked_product_id}/price-history` | `tracked_product_id` must identify an owned record. The server uses its exact variant and a fixed 30-day UTC window. | `200` — `data` is `PriceHistory`, including daily points, summary and an explicit history state. | `401 AUTHENTICATION_REQUIRED`; `404 TRACKED_PRODUCT_NOT_FOUND` |
-| `API-03` | `POST /api/product-sources/resolve` | Body: `{ "url": "string" }`. The URL must be syntactically valid and belong to an active supported source. Tracking parameters are removed before resolution. | `200` — `data` is `ResolvedProduct`. Valid catalogue, variant and offer identities may be inserted or updated, but no user-owned tracking record is created. | `400 INVALID_REQUEST`; `401 AUTHENTICATION_REQUIRED`; `422 INVALID_PRODUCT_URL`; `503 SOURCE_UNAVAILABLE` |
+| `API-03` | `POST /api/product-sources/resolve` | Body: `{ "url": "string" }`. The URL must be syntactically valid and belong to an active supported source. Before resolution the fragment, a leading `www.` and trailing slashes are removed, the host is lower-cased, `utm_*`, `gclid`, `fbclid`, `msclkid`, `mc_cid`, `mc_eid` and `ref` are removed and the remaining parameters are sorted. | `200` — `data` is `ResolvedProduct`. Valid catalogue, variant and offer identities may be inserted or updated, but no user-owned tracking record is created. | `400 INVALID_REQUEST`; `401 AUTHENTICATION_REQUIRED`; `422 INVALID_PRODUCT_URL`; `503 SOURCE_UNAVAILABLE` |
 | `API-04` | `POST /api/tracked-products` | Body: `{ "retailer_offer_id": "string" }`. The server obtains the variant and normalised URL from that offer and inserts the owned record in one transaction. | `201` — `data` is the created `TrackedProduct` with status `TRACKING`. | `400 INVALID_REQUEST`; `401 AUTHENTICATION_REQUIRED`; `404 RETAILER_OFFER_NOT_FOUND`; `409 DUPLICATE_TRACKED_URL` |
 | `API-05` | `POST /api/tracked-products/{tracked_product_id}/alerts` | Body: `{ "target_price": "decimal string" }`. The product must be owned; a current valid price must exist; the target must be positive and lower than that price; the user must have fewer than 20 active alerts. | `201` — `data` is the created `PriceAlert` with status `ACTIVE`, the derived currency and the supporting current-price observation. | `400 INVALID_REQUEST`; `401 AUTHENTICATION_REQUIRED`; `404 TRACKED_PRODUCT_NOT_FOUND`; `409 CURRENT_PRICE_UNAVAILABLE`; `409 ACTIVE_ALERT_LIMIT_REACHED`; `422 TARGET_PRICE_NOT_POSITIVE`; `422 TARGET_PRICE_NOT_BELOW_CURRENT` |
-| `API-06` | `GET /api/tracked-products/{tracked_product_id}/offers` | `tracked_product_id` must identify an owned record. Only latest observations for the exact variant and currency are considered; out-of-stock offers are excluded from lowest-price selection. | `200` — `data` is `OfferComparison`; eligible offers are ordered by amount ascending with a deterministic retailer-name tie-break. | `401 AUTHENTICATION_REQUIRED`; `404 TRACKED_PRODUCT_NOT_FOUND` |
+| `API-06` | `GET /api/tracked-products/{tracked_product_id}/offers` | `tracked_product_id` must identify an owned record. Only latest observations for the exact variant and currency are considered; out-of-stock offers are returned but excluded from lowest-price selection (BR8). | `200` — `data` is `OfferComparison`; in-stock offers come first ordered by amount ascending, then out-of-stock offers, each with a deterministic retailer-name tie-break. | `401 AUTHENTICATION_REQUIRED`; `404 TRACKED_PRODUCT_NOT_FOUND` |
 | `API-07` | `POST /api/auth/login` | Body: `{ "email": "string", "password": "string" }`. Both fields are required. Email matching is case-insensitive. Unknown accounts, incorrect passwords and non-active accounts produce the same response. | `200` — sets the session cookie and returns `data` as `AuthenticatedUser`. | `400 INVALID_REQUEST`; `401 INVALID_CREDENTIALS` |
 | `API-08` | `GET /api/auth/session` | No body. Requires a valid, unexpired session cookie. | `200` — `data` is the current `AuthenticatedUser`. | `401 AUTHENTICATION_REQUIRED` |
-| `API-09` | `POST /api/auth/logout` | No body. Clears the current session cookie. | `204 No Content`. | — |
+| `API-09` | `POST /api/auth/logout` | No body. Deletes the current session and clears its cookie. | `204 No Content`. | — |
+| `API-10` | `POST /api/auth/register` | Body: `{ "display_name": "string", "email": "string", "password": "string" }`. Name is at most 120 characters, email must be valid and is stored lower-case, password is 8–72 characters. | `201` — sets the session cookie and returns `data` as `AuthenticatedUser`. | `400 INVALID_REQUEST`; `409 EMAIL_ALREADY_REGISTERED`; `429 TOO_MANY_REQUESTS` |
+| `API-11` | `GET /api/tracked-products/{tracked_product_id}` | `tracked_product_id` must identify an owned record. | `200` — `data` is one `WatchlistItem`. | `401 AUTHENTICATION_REQUIRED`; `404 TRACKED_PRODUCT_NOT_FOUND` |
+| `API-12` | `DELETE /api/tracked-products/{tracked_product_id}` | `tracked_product_id` must identify an owned record. Its alerts and their notifications are deleted with it (BR7); confirmation happens in the browser. | `204 No Content`. | `401 AUTHENTICATION_REQUIRED`; `404 TRACKED_PRODUCT_NOT_FOUND` |
+| `API-13` | `GET /api/tracked-products/{tracked_product_id}/alerts` | `tracked_product_id` must identify an owned record. | `200` — `data` is an array of `PriceAlertSummary`, active alerts first. | `401 AUTHENTICATION_REQUIRED`; `404 TRACKED_PRODUCT_NOT_FOUND` |
+| `API-14` | `PATCH /api/tracked-products/{tracked_product_id}/alerts/{price_alert_id}` | Body: `{ "status": "ACTIVE" \| "INACTIVE" }`. Reactivation enforces BR1 and re-derives the threshold state from the current price, so it never sends an immediate notification. | `200` — `data` is the updated `PriceAlertSummary`. | `400 INVALID_REQUEST`; `401 AUTHENTICATION_REQUIRED`; `404 TRACKED_PRODUCT_NOT_FOUND`; `404 PRICE_ALERT_NOT_FOUND`; `409 ACTIVE_ALERT_LIMIT_REACHED`; `409 DUPLICATE_ACTIVE_ALERT` |
+
+`API-05` and `API-14` also return `409 DUPLICATE_ACTIVE_ALERT` when the tracked product already has an active alert with the same target price. Unknown `/api` routes return `404 ROUTE_NOT_FOUND` in the same problem format.
 
 #### 3.2.3 Success Representations
 
 | Representation | Required content |
 |---|---|
-| `WatchlistItem` | `tracked_product_id`, `tracking_status`, product and exact-variant labels, source retailer and URL, derived current price or `null`, supporting `observed_at` and `freshness_status` (`CURRENT`, `STALE` or `UNAVAILABLE`). |
+| `WatchlistItem` | `tracked_product_id`, `tracking_status`, product and exact-variant labels, source retailer and URL, derived current price or `null` (with its `observed_at` and the `retailer_name` that supplied it), `freshness_status` (`CURRENT`, `STALE` or `UNAVAILABLE`), `alert_count` and `active_alert_count`. The derived current price is the cheapest latest in-stock offer for the exact variant across all retailers, so it may come from a retailer other than the tracked source. |
 | `PriceHistory` | `tracked_product_id`; `range` with `days: 30`, `from_date`, `to_date` and `timezone: "UTC"`; `status`; daily `points`; and `summary` containing `minimum`, `maximum`, `current` and `currency_code` when data exists. Each daily point is the lowest valid in-stock price for the exact variant and currency on that UTC date. |
-| `ResolvedProduct` | `normalized_url`, retailer identity, product identity and an array of exact variants. Each selectable variant includes its `product_variant_id`, `retailer_offer_id`, display label and attributes. |
+| `ResolvedProduct` | `normalized_url`, `resolved_retailer_offer_id` (the offer the URL identifies), retailer identity, product identity and an array of exact variants. Each selectable variant includes its `product_variant_id`, `retailer_offer_id`, display label, attributes, offer `url`, `is_tracked` and `also_tracked_at` (retailers where the user already tracks the same variant). |
 | `TrackedProduct` | `tracked_product_id`, exact product and variant identity, source retailer and URL, `tracking_status` and `created_at`. |
 | `PriceAlert` | `price_alert_id`, `tracked_product_id`, `target_price`, `currency_code`, `status`, `current_price` and `created_at`. |
-| `OfferComparison` | Exact variant identity, comparison `status`, ordered eligible offers and `lowest_offer`. Each offer includes retailer, amount, currency, availability, observation time, URL and `difference_from_lowest`. |
+| `PriceAlertSummary` | `PriceAlert` without `current_price`. |
+| `OfferComparison` | Exact variant identity, comparison `status` (`AVAILABLE`, `SINGLE_OFFER`, `ALL_OUT_OF_STOCK` or `NO_AVAILABLE_OFFERS`), `message`, ordered offers and `lowest_offer`. Each offer includes retailer, amount, currency, availability, observation time, `freshness_status`, URL and `difference_from_lowest` (`null` for out-of-stock offers). `ALL_OUT_OF_STOCK` carries the message `Currently out of stock across all tracked sources`. |
 | `AuthenticatedUser` | `user_id`, `email` and `display_name`. Password hashes and session tokens are never included. |
 
 History and comparison states remain successful query results rather than transport errors:
@@ -696,8 +705,9 @@ US05 is executed by the Background Price Processor and is not exposed as a brows
 | Trigger | A new valid `price_observation` is committed for an offer. |
 | Evaluation | For the same exact variant and currency, the processor derives the previous and new current prices and locks each affected active alert. |
 | Qualifying crossing | When the price moves from above the target to equal to or below it, the processor changes the threshold state and inserts exactly one `PENDING` notification in the same transaction. |
+| One email per crossing | If several active alerts of the same recipient cross on the same observation, every one moves to `AT_OR_BELOW_TARGET` but only the first (lowest `price_alert_id`) receives the `PENDING` notification, so the shopper gets one email. |
 | Non-qualifying update | A price remaining at or below the target creates no notification. A price above the target resets the state to `ABOVE_TARGET`. |
-| Delivery | The pending notification is submitted to the email adapter with subject `Price Drop Alert: <product name>`. The recorded outcome becomes `SENT` or `FAILED`; qualifying delivery is requested within five minutes. |
+| Delivery | The pending notification is submitted to the email adapter with subject `Price Drop Alert: <product name>`; the body names the exact variant, the formatted observed and target prices, the retailer and its URL. The recorded outcome becomes `SENT` or `FAILED`; qualifying delivery is requested within five minutes. |
 | Duplicate prevention | The persisted threshold state and `UNIQUE (price_alert_id, price_observation_id)` enforce BR4 across retries and concurrent processing. |
 
 Alert creation and background evaluation use database transactions because BR1, BR2 and BR4 depend on multiple rows. Database uniqueness violations are translated to the corresponding API error instead of being exposed as PostgreSQL errors.
@@ -765,8 +775,8 @@ The backend walking skeleton is verified against the contracts in Sections 3.2 a
 
 | Area | Required verification |
 |---|---|
-| Database initialization | Run `npm run db:init`; confirm nine tables, four update triggers, exactly 10 demonstration tracked products, rejection of a partial schema and an idempotent second execution. |
-| Authentication | Reject malformed login input with `400 INVALID_REQUEST`; return the same `401 INVALID_CREDENTIALS` for an unknown email, incorrect password or disabled account; create a one-hour `HttpOnly` session cookie after valid login. |
+| Database initialization | Run `npm run db:init`; confirm ten tables, four update triggers, exactly 10 demonstration tracked products, rejection of a partial schema and an idempotent second execution. |
+| Authentication | Reject malformed login input with `400 INVALID_REQUEST`; return the same `401 INVALID_CREDENTIALS` for an unknown email, incorrect password or disabled account; create a 24-hour `HttpOnly` session cookie backed by a `user_sessions` row after valid login or registration, and reject the same cookie after logout. |
 | Session boundary | Return only the public user representation for a valid session and return `401 AUTHENTICATION_REQUIRED` for a missing, invalid or expired cookie. |
 | Database-backed watchlist | Return only records owned by the authenticated user and prove that a database change is reflected by the next response without changing application code. |
 | Response contract | Return 10 seeded items in deterministic order, string identifiers and money values, ISO 8601 UTC timestamps, uppercase currency codes and an accurate `meta.count`. |
@@ -786,10 +796,10 @@ Static JavaScript checks and the configured `npm test` command completed success
 |---|---|
 | API location | All routes use the `/api` base path; the server origin is supplied by environment-specific configuration. |
 | Browser credentials | Cross-origin requests include credentials. CORS permits the configured frontend origin and credentialed requests rather than using a wildcard origin. |
-| Login | `POST /api/auth/login` accepts `email` and `password`; the browser stores the returned `HttpOnly` cookie and uses the returned `AuthenticatedUser` for display state. |
+| Login and registration | `POST /api/auth/login` accepts `email` and `password`; `POST /api/auth/register` accepts `display_name`, `email` and `password`. The browser stores the returned `HttpOnly` cookie and returns to the page named by a same-site `?next=` path, otherwise `/watchlist`. |
 | Session restoration | `GET /api/auth/session` determines whether an existing browser session is valid; frontend code does not read or store the session token. |
 | Watchlist | `GET /api/watchlist` requires the session cookie and returns `{ "data": WatchlistItem[], "meta": { "count": number } }`. |
-| Logout | `POST /api/auth/logout` clears the session cookie and returns `204 No Content`. |
+| Logout | `POST /api/auth/logout` deletes the session, clears the cookie and returns `204 No Content`. |
 | Errors | Non-success responses use `application/problem+json`; the frontend branches on the stable `code` rather than parsing `detail`. |
 | Data types | Identifiers and money remain strings, timestamps remain ISO 8601 UTC values and unavailable prices remain `null`. |
 
@@ -1008,13 +1018,13 @@ The frontend does not require a client router, UI framework or state-management 
 
 This decision should be reconsidered if PriceLens develops many highly interactive screens, substantial shared client state, complex nested navigation or a component ecosystem whose maintenance cost exceeds the simplicity gained by the current approach.
 
-### 5.2 ADR-02 — Use a Signed JWT in an HttpOnly Cookie
+### 5.2 ADR-02 — Use an Opaque Database Session in an HttpOnly Cookie
 
-**Status:** Accepted
+**Status:** Accepted (replaces the Sprint 2 signed-JWT decision)
 
 #### Context
 
-Protected PriceLens operations require a lightweight authenticated context for an existing demonstration user. Browser code must not receive database credentials, password hashes or a readable session token, and the backend must continue to verify that the referenced account is active before authorising user-owned data access.
+Protected PriceLens operations require an authenticated context for registered users. Sprint 2 used a signed JWT for the single demonstration user; adding self-service registration, login and logout made immediate revocation on logout a requirement. Browser code must not receive database credentials, password hashes or a readable session token, and the backend must continue to verify that the referenced account is active before authorising user-owned data access.
 
 #### Options Considered
 
@@ -1026,15 +1036,15 @@ Protected PriceLens operations require a lightweight authenticated context for a
 
 #### Decision and Rationale
 
-PriceLens uses a one-hour signed JWT stored in the `pricelens_session` cookie. The cookie is `HttpOnly`, uses `SameSite=Lax` and `Path=/`, and uses `Secure` in production. The frontend sends credentialed requests but does not read, decode or persist the token. For each protected request, the backend verifies the token and resolves the referenced active user from PostgreSQL before applying ownership restrictions.
+PriceLens issues a random 32-byte token in the `pricelens_session` cookie and stores only its SHA-256 hash, the user and an expiry 24 hours ahead in `user_sessions`. The cookie is `HttpOnly`, uses `SameSite=Lax` and `Path=/`, and uses `Secure` in production. The frontend sends credentialed requests but does not read, decode or persist the token. For each protected request, the backend looks up the unexpired session and its active user before applying ownership restrictions.
 
-This mechanism provides the minimum secure browser session required by the milestone without introducing a separate session store. Reloading the user record prevents a valid token from keeping a disabled account operational.
+Storing only the hash means a database leak does not expose usable cookies, and no signing secret has to be configured or rotated. Expired sessions for a user are removed when that user next signs in.
 
 #### Consequences and Reconsideration
 
-Logout clears the browser cookie, and normal sessions end after one hour. Credentialed CORS must allow the configured frontend origin rather than a wildcard. The current design does not provide refresh tokens, device management or immediate revocation of an already issued token on another device.
+Logout deletes the session row, so the cookie stops working immediately on every client that holds it. Each protected request costs one indexed lookup. Credentialed CORS must allow the configured frontend origin rather than a wildcard. Login and registration are rate limited to ten failed attempts per client in 15 minutes.
 
-This decision should be reconsidered if PriceLens requires immediate global logout, session inventories, long-lived refresh flows, multiple client types or stronger per-device control. Those requirements would favour opaque server-side sessions or a dedicated access-token and refresh-token design.
+This decision should be reconsidered if PriceLens needs non-browser clients, long-lived refresh flows or per-device session management screens.
 
 ## 6. Changes Since Milestone 1
 
@@ -1051,9 +1061,9 @@ Milestone 1 classified routes as guest or authenticated-user routes and required
 Designing the authenticated walking skeleton showed that protected operations required a server-verifiable user identity. The backend could not trust a `user_id` supplied by the browser, and a token readable by frontend JavaScript would unnecessarily expose authentication data.
 
 **Change made:**  
-PriceLens now uses a signed JWT stored in the `pricelens_session` `HttpOnly` cookie. The cookie uses `SameSite=Lax`, `Path=/`, a one-hour lifetime and `Secure` in production.
+PriceLens now uses an opaque session token stored in the `pricelens_session` `HttpOnly` cookie and backed by a `user_sessions` row. The cookie uses `SameSite=Lax`, `Path=/`, a 24-hour lifetime and `Secure` in production. Shoppers can register, sign in and sign out; signing out revokes the session. Sprint 2 originally used a one-hour signed JWT, replaced when registration was added.
 
-For every protected request, the backend verifies the token, resolves the active user from PostgreSQL and restricts database operations through the authenticated ownership relationship. Frontend code sends credentialed requests but does not read, store or submit the authenticated user's database identifier.
+For every protected request, the backend resolves the session and its active user from PostgreSQL and restricts database operations through the authenticated ownership relationship. Frontend code sends credentialed requests but does not read, store or submit the authenticated user's database identifier.
 
 **Impact:**  
 This change affects the authentication boundary in Section 1, the API conventions and contracts in Section 3, the integrated browser flow in Section 4 and ADR-02 in Section 5. It also ensures that `GET /api/watchlist` returns only records whose `tracked_products.user_id` belongs to the authenticated user.

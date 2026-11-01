@@ -2,11 +2,12 @@ import pg from 'pg';
 
 import { config } from '../config.js';
 import { applyInitialSchema } from './migrations/001-initial-schema.js';
-import { seedDemoData } from './seeds/001-demo-data.js';
+import { applySessionsAndAlertUniqueness } from './migrations/002-sessions-and-alert-uniqueness.js';
+import { FIXTURE_REFERENCE_DATE, seedDemoData } from './seeds/001-demo-data.js';
 
 const { Client } = pg;
 
-const EXPECTED_TABLES = Object.freeze([
+const INITIAL_TABLES = Object.freeze([
   'users',
   'products',
   'retailers',
@@ -17,6 +18,8 @@ const EXPECTED_TABLES = Object.freeze([
   'price_alerts',
   'notifications',
 ]);
+
+const EXPECTED_TABLES = Object.freeze([...INITIAL_TABLES, 'user_sessions']);
 
 const EXPECTED_TRIGGERS = Object.freeze([
   'trg_users_set_updated_at',
@@ -90,22 +93,23 @@ async function listPublicTables(client) {
 
 async function applySchemaWhenNeeded(client) {
   const publicTables = await listPublicTables(client);
-  const expectedPresent = EXPECTED_TABLES.filter((table) => publicTables.includes(table));
+  const initialPresent = INITIAL_TABLES.filter((table) => publicTables.includes(table));
 
   if (publicTables.length === 0) {
     await runTransaction(client, 'Initial schema migration', applyInitialSchema);
-    return;
+  } else if (initialPresent.length !== INITIAL_TABLES.length) {
+    const missing = INITIAL_TABLES.filter((table) => !publicTables.includes(table));
+    const present = initialPresent.length ? initialPresent.join(', ') : 'none';
+
+    throw new Error(
+      `Database schema is partially initialized. Present expected tables: ${present}. Missing: ${missing.join(', ')}.`,
+    );
   }
 
-  if (expectedPresent.length === EXPECTED_TABLES.length) {
-    return;
-  }
-
-  const missing = EXPECTED_TABLES.filter((table) => !publicTables.includes(table));
-  const present = expectedPresent.length ? expectedPresent.join(', ') : 'none';
-
-  throw new Error(
-    `Database schema is partially initialized. Present expected tables: ${present}. Missing: ${missing.join(', ')}.`,
+  await runTransaction(
+    client,
+    'Session and alert uniqueness migration',
+    applySessionsAndAlertUniqueness,
   );
 }
 
@@ -155,11 +159,15 @@ async function validateInitialization(client) {
   const trackedProductCount = demoUser?.tracked_product_count ?? 0;
 
   if (tableCount !== EXPECTED_TABLES.length) {
-    throw new Error(`Validation failed: expected 9 application tables, found ${tableCount}.`);
+    throw new Error(
+      `Validation failed: expected ${EXPECTED_TABLES.length} application tables, found ${tableCount}.`,
+    );
   }
 
   if (triggerCount !== EXPECTED_TRIGGERS.length) {
-    throw new Error(`Validation failed: expected 4 update triggers, found ${triggerCount}.`);
+    throw new Error(
+      `Validation failed: expected ${EXPECTED_TRIGGERS.length} update triggers, found ${triggerCount}.`,
+    );
   }
 
   if (!demoUser) {
@@ -184,7 +192,9 @@ async function initializeDatabase() {
   try {
     await targetClient.connect();
     await applySchemaWhenNeeded(targetClient);
-    await runTransaction(targetClient, 'Demo seed', seedDemoData);
+    await runTransaction(targetClient, 'Demo seed', (client) => seedDemoData(client, {
+      referenceDate: config.nodeEnv === 'test' ? FIXTURE_REFERENCE_DATE : new Date(),
+    }));
 
     const result = await validateInitialization(targetClient);
 

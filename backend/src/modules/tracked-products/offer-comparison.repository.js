@@ -22,7 +22,7 @@ export async function findOfferComparisonContext(
   return result.rows[0] ?? null;
 }
 
-export async function findEligibleComparisonOffers(
+export async function findComparisonOffers(
   { productVariantId, currencyCode },
   executeQuery = query,
 ) {
@@ -49,13 +49,13 @@ export async function findEligibleComparisonOffers(
          po.observed_at DESC,
          po.price_observation_id DESC
      ),
-     eligible AS (
+     matching AS (
        SELECT
          latest_by_offer.*,
-         MIN(price_amount) OVER () AS lowest_amount
+         MIN(price_amount) FILTER (WHERE availability_status = 'IN_STOCK')
+           OVER () AS lowest_amount
        FROM latest_by_offer
        WHERE currency_code = $2
-         AND availability_status = 'IN_STOCK'
      )
      SELECT
        retailer_offer_id,
@@ -67,9 +67,15 @@ export async function findEligibleComparisonOffers(
        currency_code,
        availability_status,
        observed_at,
-       (price_amount - lowest_amount)::TEXT AS difference_from_lowest
-     FROM eligible
-     ORDER BY price_amount ASC, retailer_name ASC`,
+       CASE
+         WHEN availability_status = 'IN_STOCK'
+           THEN (price_amount - lowest_amount)::TEXT
+       END AS difference_from_lowest
+     FROM matching
+     ORDER BY
+       availability_status = 'IN_STOCK' DESC,
+       price_amount ASC,
+       retailer_name ASC`,
     [productVariantId, currencyCode],
   );
 

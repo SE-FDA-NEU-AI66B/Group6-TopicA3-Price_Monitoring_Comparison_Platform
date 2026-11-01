@@ -389,3 +389,113 @@ async function deleteLatestActiveAlert(email) {
 
   return result.rowCount;
 }
+
+test('alerts are listed, deduplicated, toggled under BR1 and removed with their product (BR7)', {
+  timeout: 90_000,
+}, async () => {
+  await prepareSeededDatabase({ confirmedDatabaseName: config.database.name });
+
+  const dellTracked = await trackedProductByOwnerAndUrl({
+    email: TEST_USERS.demo.email,
+    normalizedUrl: P0_FIXTURE_KEYS.us03.currentPriceUrl,
+  });
+  const boundaryTracked = await trackedProductByOwnerAndUrl({
+    email: TEST_USERS.alertBoundary.email,
+    normalizedUrl: P0_FIXTURE_KEYS.us03.boundaryUrl,
+  });
+  const dellPath = `/api/tracked-products/${dellTracked.tracked_product_id}`;
+  const boundaryPath = `/api/tracked-products/${boundaryTracked.tracked_product_id}`;
+
+  await withTestServer(app, async ({ baseUrl }) => {
+    const demo = await loginAs(baseUrl, TEST_USERS.demo);
+    const create = (targetPrice) => authenticatedRequest(demo, `${dellPath}/alerts`, {
+      method: 'POST',
+      json: { target_price: targetPrice },
+    });
+
+    const first = await create('33000000.00');
+    assert.equal(first.status, 201);
+    assertProblemCode(await create('33000000'), 'DUPLICATE_ACTIVE_ALERT', {
+      status: 409,
+      detail: 'An active alert with this target price already exists',
+    });
+
+    const listed = await authenticatedRequest(demo, `${dellPath}/alerts`);
+    assert.equal(listed.status, 200);
+    assert.deepEqual(
+      listed.body.data.map(({ price_alert_id: id, status }) => ({ id, status })),
+      [{ id: first.body.data.price_alert_id, status: 'ACTIVE' }],
+    );
+
+    const alertPath = `${dellPath}/alerts/${first.body.data.price_alert_id}`;
+    const deactivated = await authenticatedRequest(demo, alertPath, {
+      method: 'PATCH',
+      json: { status: 'INACTIVE' },
+    });
+    assert.equal(deactivated.status, 200);
+    assert.equal(deactivated.body.data.status, 'INACTIVE');
+    assert.equal(deactivated.body.data.target_price, '33000000.00');
+
+    assert.equal((await create('33000000.00')).status, 201);
+    assertProblemCode(
+      await authenticatedRequest(demo, alertPath, {
+        method: 'PATCH',
+        json: { status: 'ACTIVE' },
+      }),
+      'DUPLICATE_ACTIVE_ALERT',
+      { status: 409 },
+    );
+    assertProblemCode(
+      await authenticatedRequest(demo, `${boundaryPath}/alerts`),
+      'TRACKED_PRODUCT_NOT_FOUND',
+      { status: 404 },
+    );
+
+    const boundary = await loginAs(baseUrl, TEST_USERS.alertBoundary);
+    const boundaryAlerts = await authenticatedRequest(boundary, `${boundaryPath}/alerts`);
+    assert.equal(boundaryAlerts.body.data.length, 20);
+
+    const releasedPath = `${boundaryPath}/alerts/${boundaryAlerts.body.data[0].price_alert_id}`;
+    const released = await authenticatedRequest(boundary, releasedPath, {
+      method: 'PATCH',
+      json: { status: 'INACTIVE' },
+    });
+    assert.equal(released.status, 200);
+    assert.equal((await authenticatedRequest(boundary, `${boundaryPath}/alerts`, {
+      method: 'POST',
+      json: { target_price: '21000000.00' },
+    })).status, 201);
+    assertProblemCode(
+      await authenticatedRequest(boundary, releasedPath, {
+        method: 'PATCH',
+        json: { status: 'ACTIVE' },
+      }),
+      'ACTIVE_ALERT_LIMIT_REACHED',
+      { status: 409, detail: 'Maximum 20 active alerts reached' },
+    );
+
+    const item = await authenticatedRequest(demo, dellPath);
+    assert.equal(item.status, 200);
+    assert.equal(item.body.data.alert_count, 2);
+    assert.equal(item.body.data.active_alert_count, 1);
+
+    const removed = await authenticatedRequest(demo, dellPath, { method: 'DELETE' });
+    assert.equal(removed.status, 204);
+    assertProblemCode(await authenticatedRequest(demo, dellPath), 'TRACKED_PRODUCT_NOT_FOUND', {
+      status: 404,
+    });
+    assertProblemCode(
+      await authenticatedRequest(demo, boundaryPath, { method: 'DELETE' }),
+      'TRACKED_PRODUCT_NOT_FOUND',
+      { status: 404 },
+    );
+
+    const remaining = await query(
+      'SELECT COUNT(*)::INTEGER AS count FROM price_alerts WHERE tracked_product_id = $1',
+      [dellTracked.tracked_product_id],
+    );
+    assert.equal(remaining.rows[0].count, 0);
+  });
+
+  await prepareSeededDatabase({ confirmedDatabaseName: config.database.name });
+});

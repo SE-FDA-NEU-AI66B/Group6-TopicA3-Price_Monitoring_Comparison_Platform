@@ -1,26 +1,62 @@
 import { initializePageShell } from '../components/common.js';
 import {
   getCurrentSession,
-  isAuthenticationRequiredError,
+  register,
   signIn,
 } from '../auth/session.js';
 import { toErrorState } from '../utils/errors.js';
+import { getSafeNextPath } from '../utils/helpers.js';
 
 initializePageShell();
 
-const dialog = document.querySelector('#signin-dialog');
-const openButton = document.querySelector('#open-signin');
-const closeButton = document.querySelector('#close-signin');
-const signInForm = document.querySelector('#signin-form');
-const emailInput = document.querySelector('#email');
-const passwordInput = document.querySelector('#password');
-const emailFeedback = document.querySelector('#email-feedback');
-const passwordFeedback = document.querySelector('#password-feedback');
-const signInStatus = document.querySelector('#signin-status');
-const submitButton = document.querySelector('#signin-submit');
-let isSubmitting = false;
+const MIN_PASSWORD_LENGTH = 8;
+const SERVER_MESSAGE_CODES = new Set([
+  'INVALID_REQUEST',
+  'EMAIL_ALREADY_REGISTERED',
+  'TOO_MANY_REQUESTS',
+]);
+const nextPath = getSafeNextPath(window.location.search);
+const openSignInButton = document.querySelector('#open-signin');
+const openRegisterButton = document.querySelector('#open-register');
 
-function setFieldError(input, feedback, message = '') {
+function field(inputId) {
+  return {
+    input: document.querySelector(`#${inputId}`),
+    feedback: document.querySelector(`#${inputId}-feedback`),
+  };
+}
+
+const signInView = {
+  dialog: document.querySelector('#signin-dialog'),
+  form: document.querySelector('#signin-form'),
+  status: document.querySelector('#signin-status'),
+  submitButton: document.querySelector('#signin-submit'),
+  idleLabel: 'Sign in',
+  pendingLabel: 'Signing in…',
+  fields: {
+    email: field('email'),
+    password: field('password'),
+  },
+};
+
+const registerView = {
+  dialog: document.querySelector('#register-dialog'),
+  form: document.querySelector('#register-form'),
+  status: document.querySelector('#register-status'),
+  submitButton: document.querySelector('#register-submit'),
+  idleLabel: 'Create account',
+  pendingLabel: 'Creating account…',
+  fields: {
+    displayName: field('register-name'),
+    email: field('register-email'),
+    password: field('register-password'),
+  },
+};
+
+let isSubmitting = false;
+let returnFocusTo = openSignInButton;
+
+function setFieldError({ input, feedback }, message = '') {
   if (!input || !feedback) {
     return;
   }
@@ -29,147 +65,188 @@ function setFieldError(input, feedback, message = '') {
   feedback.textContent = message;
 }
 
-function resetFeedback() {
-  setFieldError(emailInput, emailFeedback);
-  setFieldError(passwordInput, passwordFeedback);
-
-  if (signInStatus) {
-    signInStatus.className = 'status';
-    signInStatus.textContent = '';
-  }
+function setStatus(view, message = '', kind = '') {
+  view.status.className = `status${kind ? ` status--${kind}` : ''}`;
+  view.status.textContent = message;
 }
 
-function validateCredentials() {
-  const email = emailInput?.value.trim() ?? '';
-  const password = passwordInput?.value ?? '';
+function resetFeedback(view) {
+  Object.values(view.fields).forEach((entry) => setFieldError(entry));
+  setStatus(view);
+}
+
+function collectErrors(view, checks) {
   let firstInvalidField = null;
 
-  resetFeedback();
+  resetFeedback(view);
+  checks.forEach(([entry, message]) => {
+    if (message) {
+      setFieldError(entry, message);
+      firstInvalidField ??= entry.input;
+    }
+  });
+  firstInvalidField?.focus();
 
-  if (!email) {
-    setFieldError(emailInput, emailFeedback, 'Enter your email address.');
-    firstInvalidField = emailInput;
-  } else if (emailInput?.validity.typeMismatch) {
-    setFieldError(emailInput, emailFeedback, 'Enter a valid email address.');
-    firstInvalidField = emailInput;
-  }
-
-  if (!password) {
-    setFieldError(passwordInput, passwordFeedback, 'Enter your password.');
-    firstInvalidField ??= passwordInput;
-  }
-
-  if (firstInvalidField) {
-    firstInvalidField.focus();
-    return null;
-  }
-
-  return { email, password };
+  return firstInvalidField === null;
 }
 
-function setSubmitting(isPending) {
+function emailError({ input }) {
+  if (!input.value.trim()) {
+    return 'Enter your email address.';
+  }
+
+  return input.validity.typeMismatch ? 'Enter a valid email address.' : '';
+}
+
+function validateSignIn() {
+  const { email, password } = signInView.fields;
+  const isValid = collectErrors(signInView, [
+    [email, emailError(email)],
+    [password, password.input.value ? '' : 'Enter your password.'],
+  ]);
+
+  return isValid
+    ? { email: email.input.value.trim(), password: password.input.value }
+    : null;
+}
+
+function validateRegistration() {
+  const { displayName, email, password } = registerView.fields;
+  const isValid = collectErrors(registerView, [
+    [displayName, displayName.input.value.trim() ? '' : 'Enter your name.'],
+    [email, emailError(email)],
+    [
+      password,
+      password.input.value.length >= MIN_PASSWORD_LENGTH
+        ? ''
+        : `Use at least ${MIN_PASSWORD_LENGTH} characters.`,
+    ],
+  ]);
+
+  return isValid
+    ? {
+        display_name: displayName.input.value.trim(),
+        email: email.input.value.trim(),
+        password: password.input.value,
+      }
+    : null;
+}
+
+function setSubmitting(view, isPending) {
   isSubmitting = isPending;
-  signInForm?.setAttribute('aria-busy', String(isPending));
-
-  if (submitButton) {
-    submitButton.disabled = isPending;
-    submitButton.textContent = isPending ? 'Signing in…' : 'Sign in';
-  }
+  view.form.setAttribute('aria-busy', String(isPending));
+  view.submitButton.disabled = isPending;
+  view.submitButton.textContent = isPending ? view.pendingLabel : view.idleLabel;
 }
 
-function getLoginErrorMessage(error) {
+function getAuthErrorMessage(error) {
   const errorState = toErrorState(error);
 
   if (errorState.code === 'INVALID_CREDENTIALS') {
     return 'Invalid email or password.';
   }
 
-  if (errorState.code === 'INVALID_REQUEST') {
+  if (SERVER_MESSAGE_CODES.has(errorState.code)) {
     return errorState.message;
   }
 
   if (errorState.isNetworkError) {
-    return 'PriceLens could not reach the sign-in service. Please try again.';
+    return 'PriceLens could not reach the account service. Please try again.';
   }
 
-  return 'PriceLens could not sign you in. Please try again.';
+  return 'PriceLens could not complete the request. Please try again.';
 }
 
-async function restoreExistingSession() {
-  try {
-    const user = await getCurrentSession();
+function openView(view, trigger) {
+  [signInView, registerView]
+    .filter((other) => other !== view && other.dialog.open)
+    .forEach((other) => other.dialog.close());
 
-    if (user) {
-      window.location.assign('/watchlist');
-    }
-  } catch (error) {
-    if (!isAuthenticationRequiredError(error)) {
-      // A restoration failure must not prevent a guest from using the sign-in form.
-    }
-  }
+  returnFocusTo = trigger ?? returnFocusTo;
+  resetFeedback(view);
+  view.dialog.showModal();
+  Object.values(view.fields)[0].input.focus();
 }
 
-openButton?.addEventListener('click', () => {
-  resetFeedback();
-  dialog?.showModal();
-  emailInput?.focus();
-});
-
-closeButton?.addEventListener('click', () => dialog?.close());
-
-dialog?.addEventListener('click', (event) => {
-  if (event.target === dialog) {
-    dialog.close();
-  }
-});
-
-dialog?.addEventListener('close', () => {
-  if (passwordInput) {
-    passwordInput.value = '';
-  }
-
-  openButton?.focus();
-});
-
-signInForm?.addEventListener('submit', async (event) => {
-  event.preventDefault();
-
+async function handleSubmit(view, validate, submitRequest) {
   if (isSubmitting) {
     return;
   }
 
-  const credentials = validateCredentials();
+  const details = validate();
 
-  if (!credentials) {
+  if (!details) {
     return;
   }
 
   let didAuthenticate = false;
-  setSubmitting(true);
-
-  if (signInStatus) {
-    signInStatus.textContent = 'Signing in…';
-  }
+  setSubmitting(view, true);
+  setStatus(view, view.pendingLabel);
 
   try {
-    await signIn(credentials);
+    await submitRequest(details);
     didAuthenticate = true;
-
-    if (passwordInput) {
-      passwordInput.value = '';
-    }
-
-    window.location.assign('/watchlist');
+    window.location.assign(nextPath);
   } catch (error) {
-    if (signInStatus) {
-      signInStatus.className = 'status status--error';
-      signInStatus.textContent = getLoginErrorMessage(error);
+    if (view === signInView) {
+      view.fields.password.input.value = '';
     }
+
+    setStatus(view, getAuthErrorMessage(error), 'error');
   } finally {
     if (!didAuthenticate) {
-      setSubmitting(false);
+      setSubmitting(view, false);
     }
   }
+}
+
+async function restoreExistingSession() {
+  try {
+    if (await getCurrentSession()) {
+      window.location.assign(nextPath);
+      return;
+    }
+  } catch {
+    // A restoration failure must not prevent a guest from using the sign-in form.
+  }
+
+  if (new URLSearchParams(window.location.search).has('next')) {
+    openView(signInView, openSignInButton);
+    setStatus(signInView, 'Sign in to continue.');
+  }
+}
+
+[signInView, registerView].forEach((view) => {
+  view.dialog.addEventListener('click', (event) => {
+    if (event.target === view.dialog) {
+      view.dialog.close();
+    }
+  });
+
+  view.dialog.addEventListener('close', () => {
+    view.fields.password.input.value = '';
+
+    if (![signInView, registerView].some((other) => other.dialog.open)) {
+      returnFocusTo?.focus();
+    }
+  });
+});
+
+openSignInButton?.addEventListener('click', () => openView(signInView, openSignInButton));
+openRegisterButton?.addEventListener('click', () => openView(registerView, openRegisterButton));
+document.querySelector('#switch-to-register')?.addEventListener('click', () => openView(registerView));
+document.querySelector('#switch-to-signin')?.addEventListener('click', () => openView(signInView));
+document.querySelector('#close-signin')?.addEventListener('click', () => signInView.dialog.close());
+document.querySelector('#close-register')?.addEventListener('click', () => registerView.dialog.close());
+
+signInView.form.addEventListener('submit', (event) => {
+  event.preventDefault();
+  void handleSubmit(signInView, validateSignIn, signIn);
+});
+
+registerView.form.addEventListener('submit', (event) => {
+  event.preventDefault();
+  void handleSubmit(registerView, validateRegistration, register);
 });
 
 void restoreExistingSession();

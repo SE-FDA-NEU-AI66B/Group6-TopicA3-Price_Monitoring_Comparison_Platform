@@ -2,25 +2,74 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
+  ALL_OUT_OF_STOCK_MESSAGE,
   assembleOfferComparison,
   comparisonState,
   NO_MULTI_SOURCE_MESSAGE,
 } from './offer-comparison.service.js';
 
+const IN_STOCK = { availability_status: 'IN_STOCK' };
+const OUT_OF_STOCK = { availability_status: 'OUT_OF_STOCK' };
+
 test('comparison states preserve the documented successful outcomes', () => {
-  assert.deepEqual(comparisonState(0), {
+  assert.deepEqual(comparisonState([]), {
     status: 'NO_AVAILABLE_OFFERS',
     message: null,
   });
-  assert.deepEqual(comparisonState(1), {
+  assert.deepEqual(comparisonState([OUT_OF_STOCK, OUT_OF_STOCK]), {
+    status: 'ALL_OUT_OF_STOCK',
+    message: ALL_OUT_OF_STOCK_MESSAGE,
+  });
+  assert.deepEqual(comparisonState([IN_STOCK, OUT_OF_STOCK]), {
     status: 'SINGLE_OFFER',
     message: NO_MULTI_SOURCE_MESSAGE,
   });
-  assert.deepEqual(comparisonState(2), {
+  assert.deepEqual(comparisonState([IN_STOCK, IN_STOCK]), {
     status: 'AVAILABLE',
     message: null,
   });
-  assert.throws(() => comparisonState(-1), /non-negative integer/);
+});
+
+test('an out-of-stock offer is listed but never selected as the lowest offer (BR8)', () => {
+  const result = assembleOfferComparison({
+    trackedProductId: '1',
+    context: {
+      product_id: '1',
+      brand: 'Apple',
+      model: 'iPhone 15',
+      product_display_name: 'Apple iPhone 15',
+      product_variant_id: '1',
+      variant_display_name: 'iPhone 15 256GB Black',
+      variant_attributes: {},
+    },
+    rows: [
+      comparisonRow({
+        retailerOfferId: '2',
+        retailerId: '2',
+        sourceCode: 'SOURCE_B',
+        retailerName: 'Source B',
+        amount: '18500000.00',
+        difference: '0.00',
+      }),
+      {
+        ...comparisonRow({
+          retailerOfferId: '1',
+          retailerId: '1',
+          sourceCode: 'SOURCE_A',
+          retailerName: 'Source A',
+          amount: '18200000.00',
+          difference: null,
+        }),
+        availability_status: 'OUT_OF_STOCK',
+      },
+    ],
+  });
+
+  assert.equal(result.status, 'SINGLE_OFFER');
+  assert.equal(result.offers.length, 2);
+  assert.equal(result.lowest_offer.retailer.name, 'Source B');
+  assert.equal(result.offers[1].availability_status, 'OUT_OF_STOCK');
+  assert.equal(result.offers[1].difference_from_lowest, null);
 });
 
 test('offer comparison assembly keeps identifiers and exact money strings', () => {

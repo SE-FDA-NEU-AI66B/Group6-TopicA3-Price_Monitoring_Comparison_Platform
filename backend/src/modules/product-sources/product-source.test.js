@@ -2,10 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { HttpError } from '../../shared/problems.js';
-import {
-  APPROVED_TRACKING_PARAMETERS,
-  normalizeProductUrl,
-} from './product-source.service.js';
+import { normalizeProductUrl } from './product-source.service.js';
 
 const CANONICAL_URL = 'https://techmart.example/apple-iphone-15-128gb-black';
 
@@ -13,15 +10,22 @@ test('canonical supported URL remains unchanged', () => {
   assert.equal(normalizeProductUrl(CANONICAL_URL), CANONICAL_URL);
 });
 
-test('only the documented utm_source parameter is removed deterministically', () => {
-  assert.deepEqual(APPROVED_TRACKING_PARAMETERS, ['utm_source']);
+test('tracking parameters, fragments and cosmetic URL differences are normalized', () => {
+  for (const variant of [
+    `${CANONICAL_URL}?utm_source=email`,
+    `${CANONICAL_URL}?utm_medium=email&utm_campaign=sale`,
+    `${CANONICAL_URL}?gclid=abc123&fbclid=def456`,
+    `${CANONICAL_URL}#reviews`,
+    `${CANONICAL_URL}/`,
+    'https://www.techmart.example/apple-iphone-15-128gb-black',
+    'HTTPS://TechMart.example:443/apple-iphone-15-128gb-black',
+  ]) {
+    assert.equal(normalizeProductUrl(variant), CANONICAL_URL, variant);
+  }
+
   assert.equal(
-    normalizeProductUrl(`${CANONICAL_URL}?utm_source=email`),
-    CANONICAL_URL,
-  );
-  assert.equal(
-    normalizeProductUrl(`${CANONICAL_URL}?variant=128gb-black&utm_source=email`),
-    `${CANONICAL_URL}?variant=128gb-black`,
+    normalizeProductUrl(`${CANONICAL_URL}?variant=128gb-black&utm_source=email&color=black`),
+    `${CANONICAL_URL}?color=black&variant=128gb-black`,
   );
 });
 

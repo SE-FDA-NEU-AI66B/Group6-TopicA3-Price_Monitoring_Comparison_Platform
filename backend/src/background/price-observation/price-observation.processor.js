@@ -115,6 +115,7 @@ export async function processPriceObservation(acquisitionResult) {
       previousCurrentPrice: previousCurrentPrice?.price_amount ?? null,
       newCurrentPrice: newCurrentPrice?.price_amount ?? null,
     }, executeQuery);
+    const notifiedRecipients = new Set();
     let notificationCount = 0;
 
     for (const alert of alerts) {
@@ -135,7 +136,8 @@ export async function processPriceObservation(acquisitionResult) {
         evaluatedAt: parsed.observedAt,
       }, executeQuery);
 
-      if (isCrossing) {
+      if (isCrossing && !notifiedRecipients.has(alert.recipient_email)) {
+        notifiedRecipients.add(alert.recipient_email);
         const notification = await insertPendingNotification({
           priceAlertId: alert.price_alert_id,
           priceObservationId: persistence.observation.price_observation_id,

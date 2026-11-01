@@ -9,7 +9,7 @@ const router = Router();
 router.post('/resolve', authenticate, async (request, response, next) => {
   try {
     const { url } = parseResolveProductSourceBody(request.body);
-    const data = await resolveProductSource(url);
+    const data = await resolveProductSource(url, request.user.user_id);
     response.status(200).json({ data });
   } catch (error) {
     next(error);
