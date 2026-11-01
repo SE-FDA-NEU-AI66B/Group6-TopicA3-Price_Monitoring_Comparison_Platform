@@ -17,14 +17,25 @@ import {
 
 const router = Router();
 
-const credentialAttemptLimit = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 10,
-  skipSuccessfulRequests: true,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-  handler: (request, response, next) => next(tooManyRequests()),
-});
+// Each client address and email gets its own 5-minute window, so a shared
+// network address or a failing registration never blocks another shopper.
+function createCredentialAttemptLimit() {
+  return rateLimit({
+    windowMs: 5 * 60 * 1000,
+    limit: 10,
+    skipSuccessfulRequests: true,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    keyGenerator: (request) => {
+      const email = typeof request.body?.email === 'string'
+        ? request.body.email.trim().toLowerCase()
+        : '';
+
+      return `${request.ip}|${email}`;
+    },
+    handler: (request, response, next) => next(tooManyRequests()),
+  });
+}
 
 function cookieOptions() {
   return {
@@ -53,7 +64,7 @@ function sendSession(response, status, { user, token }) {
     .json({ data: publicUser(user) });
 }
 
-router.post('/login', credentialAttemptLimit, async (request, response, next) => {
+router.post('/login', createCredentialAttemptLimit(), async (request, response, next) => {
   try {
     sendSession(response, 200, await login(parseLoginBody(request.body)));
   } catch (error) {
@@ -61,7 +72,7 @@ router.post('/login', credentialAttemptLimit, async (request, response, next) =>
   }
 });
 
-router.post('/register', credentialAttemptLimit, async (request, response, next) => {
+router.post('/register', createCredentialAttemptLimit(), async (request, response, next) => {
   try {
     sendSession(response, 201, await register(parseRegisterBody(request.body)));
   } catch (error) {

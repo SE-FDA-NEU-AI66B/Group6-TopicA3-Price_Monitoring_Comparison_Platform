@@ -608,7 +608,7 @@ PriceLens exposes three authentication operations and six authenticated shopper 
 | Concern | Contract |
 |---|---|
 | Base path | `/api`; resource-oriented paths and standard HTTP methods are used. |
-| Authentication | Registration or login establishes the session. Session inspection and shopper operations require a valid authenticated session. The server derives `user_id`; clients never submit it. Login and registration allow ten failed attempts per client in 15 minutes before returning `429 TOO_MANY_REQUESTS`. |
+| Authentication | Registration or login establishes the session. Session inspection and shopper operations require a valid authenticated session. The server derives `user_id`; clients never submit it. Login and registration each allow ten failed attempts per client address and email in 5 minutes before returning `429 TOO_MANY_REQUESTS`; the window starts at the first failure and does not extend. Successful attempts are not counted. `Retry-After` is exposed to the browser so the sign-in form can show the remaining time. |
 | Ownership | Queries and mutations are restricted through `tracked_products.user_id`. A missing or unowned resource returns the same `404` response. |
 | Success body | JSON responses contain a top-level `data` member and optional `meta`. Empty collections return `200` with `data: []`. Logout returns `204 No Content` without a response body. |
 | Error body | `application/problem+json` with `type`, `title`, `status`, stable `code`, exact `detail` and optional field-level `errors`. |
@@ -1042,7 +1042,7 @@ Storing only the hash means a database leak does not expose usable cookies, and 
 
 #### Consequences and Reconsideration
 
-Logout deletes the session row, so the cookie stops working immediately on every client that holds it. Each protected request costs one indexed lookup. Credentialed CORS must allow the configured frontend origin rather than a wildcard. Login and registration are rate limited to ten failed attempts per client in 15 minutes.
+Logout deletes the session row, so the cookie stops working immediately on every client that holds it. Each protected request costs one indexed lookup. Credentialed CORS must allow the configured frontend origin rather than a wildcard. Login and registration are rate limited separately to ten failed attempts per client address and email in 5 minutes.
 
 This decision should be reconsidered if PriceLens needs non-browser clients, long-lived refresh flows or per-device session management screens.
 

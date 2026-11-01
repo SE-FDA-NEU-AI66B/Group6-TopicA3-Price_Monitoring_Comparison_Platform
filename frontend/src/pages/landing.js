@@ -33,6 +33,8 @@ const signInView = {
   submitButton: document.querySelector('#signin-submit'),
   idleLabel: 'Sign in',
   pendingLabel: 'Signing in…',
+  lockedSeconds: 0,
+  lockoutTimer: null,
   fields: {
     email: field('email'),
     password: field('password'),
@@ -46,6 +48,8 @@ const registerView = {
   submitButton: document.querySelector('#register-submit'),
   idleLabel: 'Create account',
   pendingLabel: 'Creating account…',
+  lockedSeconds: 0,
+  lockoutTimer: null,
   fields: {
     displayName: field('register-name'),
     email: field('register-email'),
@@ -135,8 +139,40 @@ function validateRegistration() {
 function setSubmitting(view, isPending) {
   isSubmitting = isPending;
   view.form.setAttribute('aria-busy', String(isPending));
-  view.submitButton.disabled = isPending;
+  view.submitButton.disabled = isPending || view.lockedSeconds > 0;
   view.submitButton.textContent = isPending ? view.pendingLabel : view.idleLabel;
+}
+
+function formatCountdown(totalSeconds) {
+  return `${Math.floor(totalSeconds / 60)}:${String(totalSeconds % 60).padStart(2, '0')}`;
+}
+
+// The server rejects every attempt until its window closes, so hold the form
+// shut for the same period instead of inviting another refused submission.
+function startLockout(view, seconds) {
+  clearInterval(view.lockoutTimer);
+  view.lockedSeconds = seconds;
+
+  const tick = () => {
+    if (view.lockedSeconds <= 0) {
+      clearInterval(view.lockoutTimer);
+      view.lockoutTimer = null;
+      setStatus(view, 'You can try again now.');
+      setSubmitting(view, false);
+      return;
+    }
+
+    setStatus(
+      view,
+      `Too many attempts. Try again in ${formatCountdown(view.lockedSeconds)}.`,
+      'error',
+    );
+    view.lockedSeconds -= 1;
+  };
+
+  tick();
+  view.lockoutTimer = setInterval(tick, 1000);
+  setSubmitting(view, false);
 }
 
 function getAuthErrorMessage(error) {
@@ -169,7 +205,7 @@ function openView(view, trigger) {
 }
 
 async function handleSubmit(view, validate, submitRequest) {
-  if (isSubmitting) {
+  if (isSubmitting || view.lockedSeconds > 0) {
     return;
   }
 
@@ -188,11 +224,17 @@ async function handleSubmit(view, validate, submitRequest) {
     didAuthenticate = true;
     window.location.assign(nextPath);
   } catch (error) {
+    const errorState = toErrorState(error);
+
     if (view === signInView) {
       view.fields.password.input.value = '';
     }
 
-    setStatus(view, getAuthErrorMessage(error), 'error');
+    if (errorState.code === 'TOO_MANY_REQUESTS' && errorState.retryAfterSeconds) {
+      startLockout(view, errorState.retryAfterSeconds);
+    } else {
+      setStatus(view, getAuthErrorMessage(error), 'error');
+    }
   } finally {
     if (!didAuthenticate) {
       setSubmitting(view, false);
