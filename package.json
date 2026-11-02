@@ -7,6 +7,6 @@
     "node": ">=22"
   },
   "scripts": {
-    "test": "cd tests && node --import ../backend/src/test-support/environment.js --test --test-reporter=spec"
+    "test": "cd tests && node --import ./helpers/environment.js --test --test-reporter=spec"
   }
 }

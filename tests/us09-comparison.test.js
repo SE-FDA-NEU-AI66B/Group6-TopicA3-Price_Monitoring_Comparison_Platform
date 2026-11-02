@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { pool } from '../backend/src/db/pool.js';
 import { getOfferComparisonForUser } from '../backend/src/modules/tracked-products/offer-comparison.service.js';
+import { createFakeDatabaseClient, useFakeDatabase } from './helpers/fake-database.js';
 
 const USER_ID = '11';
 const IPHONE_128GB_VARIANT_ID = '31';
@@ -69,10 +69,8 @@ const DELL_TRACKED = Object.freeze({ tracked_product_id: '52', product_variant_i
 // Answers the queries behind the comparison page. The comparison query only
 // returns offers whose variant and currency match its parameters, as the SQL
 // WHERE clause does; `offers` must already be in the query's sort order.
-function createFakeDatabaseClient({ tracked, offers }) {
-  const statements = [];
-
-  const answer = (text, parameters) => {
+function createComparisonDatabase({ tracked, offers }) {
+  return createFakeDatabaseClient((text, parameters) => {
     if (/FROM tracked_products AS tp/.test(text)) {
       return parameters[0] === tracked.tracked_product_id && parameters[1] === USER_ID
         ? [{ ...tracked, user_id: USER_ID, tracking_status: 'TRACKING' }]
@@ -91,24 +89,12 @@ function createFakeDatabaseClient({ tracked, offers }) {
         .filter((row) => row.product_variant_id === variantId && row.currency_code === currencyCode)
         .map(({ product_variant_id, ...row }) => row);
     }
-    throw new Error(`Unexpected SQL in fake database client: ${text}`);
-  };
-
-  return {
-    statements,
-    async query(text, parameters = []) {
-      const sql = text.trim();
-      statements.push({ sql, parameters });
-      return { rows: answer(sql, parameters) };
-    },
-  };
+    return undefined;
+  });
 }
 
-// getOfferComparisonForUser reads through pool.query; it is replaced for one test.
 function useComparisonDatabase(t, { tracked = IPHONE_TRACKED, offers = IPHONE_SEED_OFFERS } = {}) {
-  const client = createFakeDatabaseClient({ tracked, offers });
-  t.mock.method(pool, 'query', (text, parameters) => client.query(text, parameters));
-  return client;
+  return useFakeDatabase(t, createComparisonDatabase({ tracked, offers }));
 }
 
 function summarize(offers) {
