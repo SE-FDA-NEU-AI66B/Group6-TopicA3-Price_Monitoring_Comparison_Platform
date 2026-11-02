@@ -38,6 +38,12 @@ _TBD: two or three sentences on which parts we tested most, and why those._
   checked here; it is verified in `docs/p0-acceptance.md`. The fake database
   evaluates the same threshold comparisons the processor sends to
   PostgreSQL.
+- **US09:** choosing each retailer's latest price, sorting offers (in stock
+  first, then by price) and computing the difference from the lowest run in
+  SQL (`offer-comparison.repository.js`). The fake database returns rows in
+  that order and filters them by the variant and currency the service sends,
+  so BR5 and the BR8 status rules are checked, but the SQL sorting and
+  arithmetic are not.
 
 ## 2. Test cases for every P0 story
 
@@ -110,8 +116,20 @@ cases use an active alert on the Dell XPS 13 9340 with a target of
 
 ### US09 — Compare prices across retailers
 
+BR5 compares only offers for the tracked variant; BR8 never picks an
+out-of-stock offer as the lowest available offer. The numeric limit is the
+number of in-stock offers: two or more form a multi-source comparison, exactly
+one shows "No multi-source comparison is currently available". Cases use the
+iPhone 15 128GB Black fixture unless stated otherwise.
+
 | ID | Story | Input | Expected | Kind |
 |---|---|---|---|---|
+| TC-US09-01 | US09 Compare offers | TechMart 19,900,000 VND and Digital Hub 20,200,000 VND, both in stock (AC1) | `AVAILABLE`; TechMart listed first as the lowest offer; Digital Hub 300,000 VND above the lowest | normal |
+| TC-US09-02 | US09 Compare offers | Fixture also has an in-stock iPhone 15 256GB Black offer at 18,500,000 VND (AC2) | Offers are looked up for the 128GB variant only; the 18,500,000 VND offer is not shown (BR5) | error |
+| TC-US09-03 | US09 Compare offers | Gadget World 18,200,000 VND out of stock, Digital Hub 18,500,000 VND in stock | Digital Hub is the lowest available offer; Gadget World shown as `OUT_OF_STOCK` with no difference (BR8) | error |
+| TC-US09-04 | US09 Compare offers | Gadget World 18,200,000 VND and Digital Hub 18,500,000 VND, both out of stock | `ALL_OUT_OF_STOCK`; "Currently out of stock across all tracked sources"; no lowest offer (BR8) | error |
+| TC-US09-05 | US09 Compare offers | Dell XPS 13 9340 with one in-stock offer, TechMart 34,990,000 VND (AC3) | `SINGLE_OFFER`; "No multi-source comparison is currently available" | boundary, just below |
+| TC-US09-06 | US09 Compare offers | Two in-stock offers and one out-of-stock offer | `AVAILABLE`; no message | boundary, on the limit |
 
 ## 3. Automated tests
 
@@ -130,7 +148,7 @@ No running server and no real database are needed. See
 | US03 | `tests/us03-price-alert.test.js` | TC-US03-01 – TC-US03-06 |
 | US04 | `tests/us04-add-product.test.js` | TC-US04-01 – TC-US04-06 |
 | US05 | `tests/us05-notification.test.js` | TC-US05-01 – TC-US05-06 |
-| US09 | `tests/us09-comparison.test.js` | _TBD_ |
+| US09 | `tests/us09-comparison.test.js` | TC-US09-01 – TC-US09-06 |
 
 ### Latest run
 
