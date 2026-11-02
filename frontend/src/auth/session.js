@@ -10,8 +10,18 @@ export async function signIn(credentials) {
   return response?.data ?? null;
 }
 
+export async function register(details) {
+  const response = await apiClient.post('/auth/register', details);
+  return response?.data ?? null;
+}
+
 export async function signOut() {
   return apiClient.post('/auth/logout');
+}
+
+export function redirectToSignIn() {
+  const next = `${window.location.pathname}${window.location.search}`;
+  window.location.assign(`/?next=${encodeURIComponent(next)}`);
 }
 
 export function isAuthenticationError(error) {

@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">Final PriceLens P0 screen and notification flow</title>
+  <desc id="desc">Login leads to Watchlist, Add Product and Product Details. Product Details creates alerts and opens Compare. Active alerts are processed by BG-01 and BG-02, delivered by BG-03 and result in email.</desc>
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#27323a"/></marker></defs>
+  <style>
+    text{font-family:"Segoe UI",Arial,sans-serif;fill:#26323a}.title{font-size:30px;font-weight:700}.h{font-size:18px;font-weight:700}.body{font-size:14px}.small{font-size:12px;fill:#5a646b}.node{fill:#fff;stroke:#27323a;stroke-width:1.8}.system{fill:#f4ead2;stroke:#b17d19;stroke-width:1.8}.email{fill:#eef5ea;stroke:#65795a;stroke-width:1.8}.line{fill:none;stroke:#27323a;stroke-width:2;marker-end:url(#arrow)}.return{fill:none;stroke:#6f7a80;stroke-width:1.8;stroke-dasharray:7 6;marker-end:url(#arrow)}
+  </style>
+  <rect width="1200" height="760" fill="#ece8df"/><text x="50" y="48" class="title">PriceLens — final P0 flow</text>
+  <rect class="node" x="452" y="76" width="296" height="78" rx="12"/><text x="600" y="106" text-anchor="middle" class="h">Login</text><text x="600" y="132" text-anchor="middle" class="body">/ · sign in</text>
+  <path class="line" d="M600 154 V196"/><text x="614" y="181" class="small">authenticated</text>
+  <rect class="node" x="452" y="198" width="296" height="86" rx="12"/><text x="600" y="230" text-anchor="middle" class="h">Watchlist</text><text x="600" y="256" text-anchor="middle" class="body">/watchlist · P0 starting point</text>
+  <path class="line" d="M452 242 H270 V330"/><text x="292" y="229" class="small">Add product</text>
+  <rect class="node" x="92" y="330" width="356" height="116" rx="12"/><text x="270" y="360" text-anchor="middle" class="h">Add Product</text><text x="270" y="386" text-anchor="middle" class="body">/products/add</text><text x="270" y="412" text-anchor="middle" class="small">Resolve URL → Select variant → Success</text>
+  <path class="line" d="M448 388 H520"/><text x="454" y="374" class="small">View details</text>
+  <path class="line" d="M600 284 V330"/><text x="614" y="314" class="small">Existing tracked product</text>
+  <rect class="node" x="520" y="330" width="360" height="116" rx="12"/><text x="700" y="360" text-anchor="middle" class="h">Product Details</text><text x="700" y="386" text-anchor="middle" class="body">/products/:trackedProductId</text><text x="700" y="412" text-anchor="middle" class="small">History · Current price · Create alert · Compare</text>
+  <path class="return" d="M520 430 C430 488 404 288 452 266"/><text x="392" y="468" class="small">Back to watchlist</text>
+  <path class="line" d="M880 388 H954 V330"/><text x="906" y="376" class="small">Compare</text>
+  <rect class="node" x="902" y="246" width="256" height="84" rx="12"/><text x="1030" y="278" text-anchor="middle" class="h">Compare</text><text x="1030" y="304" text-anchor="middle" class="body">/products/:trackedProductId/compare</text>
+  <path class="return" d="M902 288 H850 V330"/><text x="824" y="276" class="small">Back</text>
+  <path class="line" d="M700 446 V508"/><text x="714" y="482" class="small">Create ACTIVE alert</text>
+  <rect class="system" x="502" y="510" width="396" height="68" rx="12"/><text x="700" y="538" text-anchor="middle" class="h">BG-01 / BG-02</text><text x="700" y="562" text-anchor="middle" class="body">Persist observation and evaluate BR4 crossing</text>
+  <path class="line" d="M700 578 V620"/>
+  <rect class="system" x="502" y="622" width="396" height="62" rx="12"/><text x="700" y="650" text-anchor="middle" class="h">BG-03</text><text x="700" y="674" text-anchor="middle" class="body">Deliver pending notification and persist outcome</text>
+  <path class="line" d="M898 653 H976"/>
+  <rect class="email" x="978" y="612" width="180" height="82" rx="12"/><text x="1068" y="644" text-anchor="middle" class="h">Email outcome</text><text x="1068" y="670" text-anchor="middle" class="small">No browser screen</text>
+  <rect x="50" y="708" width="1108" height="32" rx="8" fill="#fff" stroke="#a0a7ab"/><text x="604" y="729" text-anchor="middle" class="small">US05 is represented by Product Details alert creation plus background processing and email delivery; no /alerts P0 screen exists.</text>
+</svg>

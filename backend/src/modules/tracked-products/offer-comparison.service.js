@@ -1,22 +1,31 @@
+import { freshnessStatus } from '../../shared/freshness.js';
 import { findPriceHistoryCurrency } from './price-history.repository.js';
 import {
-  findEligibleComparisonOffers,
+  findComparisonOffers,
   findOfferComparisonContext,
 } from './offer-comparison.repository.js';
 import { requireOwnedTrackedProduct } from './tracked-product.service.js';
 
 export const NO_MULTI_SOURCE_MESSAGE = 'No multi-source comparison is currently available';
+export const ALL_OUT_OF_STOCK_MESSAGE = 'Currently out of stock across all tracked sources';
 
-export function comparisonState(offerCount) {
-  if (!Number.isInteger(offerCount) || offerCount < 0) {
-    throw new TypeError('offerCount must be a non-negative integer.');
-  }
+export function comparisonState(offers) {
+  const inStockCount = offers.filter(
+    (offer) => offer.availability_status === 'IN_STOCK',
+  ).length;
 
-  if (offerCount === 0) {
+  if (offers.length === 0) {
     return Object.freeze({ status: 'NO_AVAILABLE_OFFERS', message: null });
   }
 
-  if (offerCount === 1) {
+  if (inStockCount === 0) {
+    return Object.freeze({
+      status: 'ALL_OUT_OF_STOCK',
+      message: ALL_OUT_OF_STOCK_MESSAGE,
+    });
+  }
+
+  if (inStockCount === 1) {
     return Object.freeze({
       status: 'SINGLE_OFFER',
       message: NO_MULTI_SOURCE_MESSAGE,
@@ -40,7 +49,7 @@ export async function getOfferComparisonForUser(
   ]);
   const rows = currencyCode === null
     ? []
-    : await findEligibleComparisonOffers({
+    : await findComparisonOffers({
         productVariantId: trackedProduct.product_variant_id,
         currencyCode,
       });
@@ -58,7 +67,7 @@ export function assembleOfferComparison({ trackedProductId, context, rows }) {
   }
 
   const offers = rows.map(mapOffer);
-  const { status, message } = comparisonState(offers.length);
+  const { status, message } = comparisonState(offers);
 
   return {
     tracked_product_id: String(trackedProductId),
@@ -76,7 +85,7 @@ export function assembleOfferComparison({ trackedProductId, context, rows }) {
     status,
     message,
     offers,
-    lowest_offer: offers[0] ?? null,
+    lowest_offer: offers.find((offer) => offer.availability_status === 'IN_STOCK') ?? null,
   };
 }
 
@@ -92,8 +101,11 @@ function mapOffer(row) {
     currency_code: row.currency_code,
     availability_status: row.availability_status,
     observed_at: isoTimestamp(row.observed_at),
+    freshness_status: freshnessStatus(row.observed_at),
     url: row.normalized_url,
-    difference_from_lowest: moneyString(row.difference_from_lowest),
+    difference_from_lowest: row.difference_from_lowest == null
+      ? null
+      : moneyString(row.difference_from_lowest),
   };
 }
 

@@ -31,16 +31,34 @@ export async function findSupportedOfferByNormalizedUrl(
 }
 
 export async function findSelectableOffersByProductAndRetailer(
-  productId,
-  retailerId,
+  { productId, retailerId, authenticatedUserId },
   executeQuery = query,
 ) {
   const result = await executeQuery(
     `SELECT
        pv.product_variant_id,
        ro.retailer_offer_id,
+       ro.normalized_url,
        pv.display_name,
-       pv.attributes
+       pv.attributes,
+       EXISTS (
+         SELECT 1
+         FROM tracked_products AS tp
+         WHERE tp.user_id = $3
+           AND tp.retailer_offer_id = ro.retailer_offer_id
+       ) AS is_tracked,
+       ARRAY(
+         SELECT other_retailer.name
+         FROM tracked_products AS tp
+         JOIN retailer_offers AS other_offer
+           ON other_offer.retailer_offer_id = tp.retailer_offer_id
+         JOIN retailers AS other_retailer
+           ON other_retailer.retailer_id = other_offer.retailer_id
+         WHERE tp.user_id = $3
+           AND tp.product_variant_id = pv.product_variant_id
+           AND tp.retailer_offer_id <> ro.retailer_offer_id
+         ORDER BY other_retailer.name
+       ) AS also_tracked_at
      FROM product_variants AS pv
      JOIN retailer_offers AS ro
        ON ro.product_variant_id = pv.product_variant_id
@@ -49,7 +67,7 @@ export async function findSelectableOffersByProductAndRetailer(
        AND ro.retailer_id = $2
        AND r.is_active = TRUE
      ORDER BY pv.variant_key, ro.retailer_offer_id`,
-    [productId, retailerId],
+    [productId, retailerId, authenticatedUserId],
   );
 
   return result.rows;

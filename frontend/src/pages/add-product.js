@@ -3,6 +3,7 @@ import { apiClient } from '../api/client.js';
 import {
   getCurrentSession,
   isAuthenticationRequiredError,
+  redirectToSignIn,
   signOut,
 } from '../auth/session.js';
 import { toErrorState } from '../utils/errors.js';
@@ -71,7 +72,11 @@ function isResolvedVariant(value) {
     && isIdentifier(value.product_variant_id)
     && isIdentifier(value.retailer_offer_id)
     && isNonEmptyString(value.display_name)
-    && isObject(value.attributes);
+    && isObject(value.attributes)
+    && isNonEmptyString(value.url)
+    && typeof value.is_tracked === 'boolean'
+    && Array.isArray(value.also_tracked_at)
+    && value.also_tracked_at.every(isNonEmptyString);
 }
 
 function getResolvedProduct(response) {
@@ -80,6 +85,7 @@ function getResolvedProduct(response) {
   if (
     !isObject(data)
     || !isNonEmptyString(data.normalized_url)
+    || !isIdentifier(data.resolved_retailer_offer_id)
     || !isObject(data.retailer)
     || !isIdentifier(data.retailer.retailer_id)
     || !isNonEmptyString(data.retailer.name)
@@ -214,6 +220,16 @@ function resetResolvedProduct() {
   }
 }
 
+function getVariantNote(variant) {
+  if (variant.is_tracked) {
+    return 'Already in your watchlist';
+  }
+
+  return variant.also_tracked_at.length
+    ? `Also tracked at ${variant.also_tracked_at.join(', ')}`
+    : '';
+}
+
 function renderVariant(variant) {
   const fragment = variantTemplate.content.cloneNode(true);
   const input = fragment.querySelector('input');
@@ -222,14 +238,30 @@ function renderVariant(variant) {
 
   input.value = variant.retailer_offer_id;
   input.dataset.productVariantId = variant.product_variant_id;
+  input.disabled = variant.is_tracked;
   label.textContent = variant.display_name;
   attributes.textContent = formatAttributes(variant.attributes);
+  fragment.querySelector('[data-field="variant-note"]').textContent = getVariantNote(variant);
 
   return fragment;
 }
 
+function selectVariant(offerId) {
+  const variant = pageState.resolvedProduct.variants.find(
+    (candidate) => candidate.retailer_offer_id === offerId,
+  );
+
+  pageState.selectedOfferId = offerId;
+  resolvedUrl.textContent = variant.url;
+  confirmButton.disabled = false;
+  setStatus(submissionFeedback, `${variant.display_name} selected.`);
+}
+
 function renderResolvedProduct(product, submittedUrl) {
   const fragment = document.createDocumentFragment();
+  const resolvedVariant = product.variants.find((variant) => (
+    variant.retailer_offer_id === product.resolved_retailer_offer_id
+  ));
 
   resolvedName.textContent = product.product.display_name;
   resolvedDescription.textContent = `${product.product.brand} · ${product.retailer.name}`;
@@ -243,6 +275,12 @@ function renderResolvedProduct(product, submittedUrl) {
   pageState.resolvedInputUrl = submittedUrl;
   pageState.selectedOfferId = null;
   confirmButton.disabled = true;
+
+  if (resolvedVariant && !resolvedVariant.is_tracked) {
+    variantOptions.querySelector(`input[value="${resolvedVariant.retailer_offer_id}"]`).checked = true;
+    selectVariant(resolvedVariant.retailer_offer_id);
+  }
+
   successSection.hidden = true;
   resolvedSection.hidden = false;
   resolvedSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -313,7 +351,7 @@ async function restoreSession() {
     urlInput?.focus();
   } catch (error) {
     if (isAuthenticationRequiredError(error)) {
-      redirectToLanding();
+      redirectToSignIn();
       return;
     }
 
@@ -358,14 +396,14 @@ async function handleResolve(event) {
 
     const product = getResolvedProduct(response);
     renderResolvedProduct(product, submittedUrl);
-    setStatus(urlFeedback, 'Product resolved. Choose the exact variant to continue.', 'success');
+    setStatus(urlFeedback, 'Product resolved. Confirm the exact variant to continue.', 'success');
   } catch (error) {
     if (attempt !== pageState.resolveAttempt) {
       return;
     }
 
     if (isAuthenticationRequiredError(error)) {
-      redirectToLanding();
+      redirectToSignIn();
       return;
     }
 
@@ -412,7 +450,7 @@ async function handleTrack() {
     successSection.focus();
   } catch (error) {
     if (isAuthenticationRequiredError(error)) {
-      redirectToLanding();
+      redirectToSignIn();
       return;
     }
 
@@ -483,9 +521,7 @@ variantOptions?.addEventListener('change', (event) => {
     return;
   }
 
-  pageState.selectedOfferId = input.value;
-  confirmButton.disabled = false;
-  setStatus(submissionFeedback, `${input.nextElementSibling?.querySelector('strong')?.textContent ?? 'Variant'} selected.`);
+  selectVariant(input.value);
 });
 
 confirmButton?.addEventListener('click', () => void handleTrack());

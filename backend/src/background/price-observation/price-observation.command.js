@@ -1,10 +1,13 @@
 import { closePool } from '../../db/pool.js';
+import { normalizeProductUrl } from '../../modules/product-sources/product-source.service.js';
 import { processPriceObservation } from './price-observation.processor.js';
 import { findOfferByNormalizedUrl } from './price-observation.repository.js';
 
 async function main() {
   const options = parseArguments(process.argv.slice(2));
-  const offer = await findOfferByNormalizedUrl(options.normalizedUrl);
+  const offer = await findOfferByNormalizedUrl(
+    normalizeProductUrl(options.normalizedUrl),
+  );
 
   if (!offer) {
     throw new Error('Exactly one retailer offer must match --url.');

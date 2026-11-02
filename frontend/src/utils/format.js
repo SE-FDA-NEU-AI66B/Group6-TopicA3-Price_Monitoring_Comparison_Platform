@@ -98,6 +98,24 @@ export function formatDateTime(value, locale, fallback = 'Time unavailable') {
   }
 }
 
+export function formatCompactNumber(value, locale) {
+  return new Intl.NumberFormat(locale, {
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }).format(value);
+}
+
+export function getFreshnessBadge(freshnessStatus) {
+  if (freshnessStatus === 'STALE') {
+    return { label: 'Stale data', modifier: 'badge--warning' };
+  }
+
+  return {
+    label: formatStatusLabel(freshnessStatus),
+    modifier: freshnessStatus === 'UNAVAILABLE' ? 'badge--neutral' : '',
+  };
+}
+
 export function formatStatusLabel(value, fallback = 'Unknown') {
   if (typeof value !== 'string' || !value.trim()) {
     return fallback;

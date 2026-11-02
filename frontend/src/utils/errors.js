@@ -33,5 +33,6 @@ export function toErrorState(error, fallback = DEFAULT_ERROR_MESSAGE) {
     status: isApiError(error) ? error.status : null,
     details: isApiError(error) ? error.details : null,
     isNetworkError: isApiError(error) && error.isNetworkError,
+    retryAfterSeconds: isApiError(error) ? error.retryAfterSeconds : null,
   };
 }

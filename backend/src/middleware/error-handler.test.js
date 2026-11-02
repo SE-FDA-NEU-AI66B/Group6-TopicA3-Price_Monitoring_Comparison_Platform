@@ -72,6 +72,17 @@ test('representative shared problems preserve status, code and safe response sha
       detail: 'This product URL is already being tracked',
     });
     assert.doesNotMatch(JSON.stringify(result.body), /PostgreSQL|constraint/i);
+
+    for (const [constraint, code] of [
+      ['uq_users_email', 'EMAIL_ALREADY_REGISTERED'],
+      ['uq_price_alerts_active_target', 'DUPLICATE_ACTIVE_ALERT'],
+    ]) {
+      const translated = await requestProblem(translatePersistenceError({
+        code: '23505',
+        constraint,
+      }));
+      assertProblemResponse(translated, { status: 409, code });
+    }
   });
 
   await context.test('422 semantic validation includes field details', async () => {

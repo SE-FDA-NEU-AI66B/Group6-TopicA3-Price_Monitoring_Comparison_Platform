@@ -28,6 +28,22 @@ export async function findOwnedTrackedProduct(
   return result.rows[0] ?? null;
 }
 
+export async function deleteOwnedTrackedProduct(
+  trackedProductId,
+  authenticatedUserId,
+  executeQuery = query,
+) {
+  const result = await executeQuery(
+    `DELETE FROM tracked_products
+     WHERE tracked_product_id = $1
+       AND user_id = $2
+     RETURNING tracked_product_id::TEXT AS tracked_product_id`,
+    [trackedProductId, authenticatedUserId],
+  );
+
+  return result.rows[0] ?? null;
+}
+
 export async function findSelectableOfferById(
   retailerOfferId,
   executeQuery = query,

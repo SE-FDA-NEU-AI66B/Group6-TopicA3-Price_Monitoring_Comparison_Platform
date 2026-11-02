@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">PriceLens Login wireframe</title>
+  <desc id="desc">The landing page with PriceLens navigation, the product decision-support introduction, three entry actions and the open sign-in dialog.</desc>
+  <style>
+    text{font-family:"Segoe UI",Arial,sans-serif;fill:#26323a}.h1{font-size:38px;font-weight:700}.h2{font-size:24px;font-weight:700}.body{font-size:17px}.small{font-size:14px;fill:#58636b}.label{font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase}.frame{fill:#faf8f2;stroke:#27323a;stroke-width:2}.panel{fill:#fff;stroke:#7d878d;stroke-width:1.5}.button{fill:#27323a;stroke:#27323a;stroke-width:1.5}.buttonText{fill:#fff;font-size:16px;font-weight:650}.lightButton{fill:#fff;stroke:#27323a;stroke-width:1.5}.accent{fill:#d5a43b}.muted{fill:#e7e3d9;stroke:#a3aaae;stroke-width:1.2}
+  </style>
+  <rect width="1200" height="760" fill="#ece8df"/>
+  <rect class="frame" x="24" y="24" width="1152" height="712" rx="16"/>
+  <rect x="24" y="24" width="1152" height="72" rx="16" fill="#fff" stroke="#27323a" stroke-width="2"/>
+  <rect x="52" y="45" width="32" height="32" rx="6" fill="#d5a43b"/>
+  <text x="96" y="69" class="h2">PriceLens</text>
+  <rect class="lightButton" x="994" y="44" width="150" height="36" rx="8"/>
+  <text x="1069" y="67" text-anchor="middle" class="body">Open watchlist</text>
+
+  <rect class="muted" x="70" y="132" width="310" height="34" rx="17"/>
+  <circle cx="90" cy="149" r="6" class="accent"/>
+  <text x="105" y="155" class="small">Calm decision-support, not a marketplace</text>
+  <text x="70" y="224" class="h1">Decide calmly.</text>
+  <text x="70" y="270" class="h1">Buy at the right price.</text>
+  <text x="70" y="314" class="body">Track an exact product variant, understand recent prices,</text>
+  <text x="70" y="340" class="body">compare matching retailers and choose a useful target.</text>
+  <rect class="button" x="70" y="376" width="150" height="46" rx="8"/>
+  <text x="145" y="405" text-anchor="middle" class="buttonText">Track a product</text>
+  <rect class="lightButton" x="234" y="376" width="150" height="46" rx="8"/>
+  <text x="309" y="405" text-anchor="middle" class="body">View watchlist</text>
+  <rect class="lightButton" x="398" y="376" width="110" height="46" rx="8"/>
+  <text x="453" y="405" text-anchor="middle" class="body">Sign in</text>
+
+  <rect class="panel" x="70" y="486" width="438" height="184" rx="12"/>
+  <text x="94" y="520" class="label">Four questions, answered clearly</text>
+  <line x1="94" y1="544" x2="484" y2="544" stroke="#b1b7ba"/>
+  <text x="94" y="575" class="body">What am I tracking?</text>
+  <text x="294" y="575" class="body">Can I trust this price?</text>
+  <text x="94" y="615" class="body">Is this a good time to buy?</text>
+  <text x="294" y="615" class="body">Where is it cheaper?</text>
+  <text x="94" y="651" class="small">Supporting content remains behind the sign-in entry.</text>
+
+  <rect x="560" y="122" width="548" height="532" rx="16" fill="#27323a" opacity="0.12"/>
+  <rect class="panel" x="614" y="154" width="440" height="468" rx="16"/>
+  <text x="646" y="200" class="h2">Sign in to PriceLens</text>
+  <rect class="lightButton" x="1000" y="170" width="28" height="28" rx="6"/>
+  <text x="1014" y="191" text-anchor="middle" class="body">×</text>
+  <text x="646" y="246" class="label">Email address</text>
+  <rect class="panel" x="646" y="260" width="376" height="48" rx="7"/>
+  <text x="662" y="290" class="small">demo@pricelens.local</text>
+  <text x="646" y="344" class="label">Password</text>
+  <rect class="panel" x="646" y="358" width="376" height="48" rx="7"/>
+  <text x="662" y="388" class="small">••••••••••••••••</text>
+  <rect class="button" x="646" y="438" width="376" height="52" rx="8"/>
+  <text x="834" y="471" text-anchor="middle" class="buttonText">Sign in</text>
+  <rect class="muted" x="646" y="516" width="376" height="70" rx="8"/>
+  <text x="664" y="545" class="small">Validation and authentication feedback</text>
+  <text x="664" y="569" class="small">appears here without exposing raw API detail.</text>
+</svg>

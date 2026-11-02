@@ -112,10 +112,18 @@ export async function deliverPendingNotifications({
   });
 }
 
+function formatAmount(amount, currencyCode) {
+  const formatted = new Intl.NumberFormat('en-US', {
+    maximumFractionDigits: 2,
+  }).format(Number(amount));
+
+  return `${formatted} ${currencyCode}`;
+}
+
 function createDeliveryText(notification) {
   return [
-    `${notification.product_name} reached ${notification.price_amount} ${notification.currency_code}.`,
-    `Target price: ${notification.target_price} ${notification.currency_code}.`,
+    `${notification.product_name} (${notification.variant_name}) reached ${formatAmount(notification.price_amount, notification.currency_code)} at ${notification.retailer_name}.`,
+    `Target price: ${formatAmount(notification.target_price, notification.currency_code)}.`,
     `Source: ${notification.source_url}`,
   ].join('\n');
 }

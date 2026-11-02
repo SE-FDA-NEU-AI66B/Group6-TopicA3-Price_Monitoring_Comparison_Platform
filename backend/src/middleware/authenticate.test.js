@@ -4,14 +4,11 @@ import { test } from 'node:test';
 
 import cookieParser from 'cookie-parser';
 import express from 'express';
-import { SignJWT } from 'jose';
 
-import { config } from '../config.js';
 import { errorHandler } from './error-handler.js';
 import {
   createAuthenticate,
   SESSION_COOKIE_NAME,
-  verifySessionToken,
 } from './authenticate.js';
 
 async function requestThrough(authentication, options = {}) {
@@ -62,9 +59,6 @@ function assertAuthenticationRequired(result) {
 
 test('protected requests require a valid session cookie', async (context) => {
   const authentication = createAuthenticate({
-    verifyToken: async () => {
-      throw new Error('verification must not run without a cookie');
-    },
     findUser: async () => {
       throw new Error('lookup must not run without a cookie');
     },
@@ -72,26 +66,22 @@ test('protected requests require a valid session cookie', async (context) => {
 
   assertAuthenticationRequired(await requestThrough(authentication));
 
-  for (const token of ['invalid', 'expired', 'malformed']) {
+  for (const token of ['unknown', 'expired', 'revoked']) {
     await context.test(`${token} session`, async () => {
       const result = await requestThrough(createAuthenticate({
-        verifyToken: async () => {
-          throw new Error(`private ${token} token detail`);
-        },
+        findUser: async () => null,
       }), { token });
 
       assertAuthenticationRequired(result);
-      assert.doesNotMatch(JSON.stringify(result.body), /private|token detail/i);
     });
   }
 });
 
 test('valid authentication exposes only trusted public user context', async () => {
-  const resolvedIds = [];
+  const resolvedTokens = [];
   const authentication = createAuthenticate({
-    verifyToken: async () => '42',
-    findUser: async (userId) => {
-      resolvedIds.push(userId);
+    findUser: async (token) => {
+      resolvedTokens.push(token);
       return {
         user_id: '42',
         email: 'owner@example.test',
@@ -108,7 +98,7 @@ test('valid authentication exposes only trusted public user context', async () =
   });
 
   assert.equal(result.response.status, 200);
-  assert.deepEqual(resolvedIds, ['42']);
+  assert.deepEqual(resolvedTokens, ['valid']);
   assert.deepEqual(result.body.data, {
     user_id: '42',
     email: 'owner@example.test',
@@ -118,45 +108,20 @@ test('valid authentication exposes only trusted public user context', async () =
   assert.notEqual(result.body.data.user_id, result.body.submitted_user_id);
 });
 
-test('missing or inactive database users remain unauthenticated', async () => {
-  const result = await requestThrough(createAuthenticate({
-    verifyToken: async () => '42',
-    findUser: async () => null,
-  }), { token: 'validly-signed' });
+test('session lookup failures surface as safe server errors', async () => {
+  const originalConsoleError = console.error;
+  console.error = () => {};
 
-  assertAuthenticationRequired(result);
-});
+  try {
+    const result = await requestThrough(createAuthenticate({
+      findUser: async () => {
+        throw new Error('private database detail');
+      },
+    }), { token: 'valid' });
 
-test('session verification enforces signature, issuer, audience and expiry', async () => {
-  const now = Math.floor(Date.now() / 1000);
-  const secret = new TextEncoder().encode(config.jwtSecret);
-  const validToken = await new SignJWT({})
-    .setProtectedHeader({ alg: 'HS256' })
-    .setSubject('123')
-    .setIssuer('pricelens')
-    .setAudience('pricelens-web')
-    .setIssuedAt(now)
-    .setExpirationTime(now + 60)
-    .sign(secret);
-  const expiredToken = await new SignJWT({})
-    .setProtectedHeader({ alg: 'HS256' })
-    .setSubject('123')
-    .setIssuer('pricelens')
-    .setAudience('pricelens-web')
-    .setIssuedAt(now - 120)
-    .setExpirationTime(now - 60)
-    .sign(secret);
-  const wrongSecretToken = await new SignJWT({})
-    .setProtectedHeader({ alg: 'HS256' })
-    .setSubject('123')
-    .setIssuer('pricelens')
-    .setAudience('pricelens-web')
-    .setIssuedAt(now)
-    .setExpirationTime(now + 60)
-    .sign(new TextEncoder().encode('not-the-pricelens-secret'));
-
-  assert.equal(await verifySessionToken(validToken), '123');
-  await assert.rejects(() => verifySessionToken(wrongSecretToken));
-  await assert.rejects(() => verifySessionToken(expiredToken));
-  await assert.rejects(() => verifySessionToken('not-a-jwt'));
+    assert.equal(result.response.status, 500);
+    assert.doesNotMatch(JSON.stringify(result.body), /private database detail/);
+  } finally {
+    console.error = originalConsoleError;
+  }
 });

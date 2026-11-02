@@ -19,7 +19,10 @@ const WATCHLIST_QUERY = `
     current_price.price_amount AS current_price_amount,
     current_price.currency_code AS current_price_currency_code,
     current_price.availability_status AS current_price_availability_status,
-    current_price.observed_at AS current_price_observed_at
+    current_price.observed_at AS current_price_observed_at,
+    current_price.retailer_name AS current_price_retailer_name,
+    alert_counts.alert_count,
+    alert_counts.active_alert_count
   FROM tracked_products AS tp
   JOIN product_variants AS pv
     ON pv.product_variant_id = tp.product_variant_id
@@ -42,8 +45,11 @@ const WATCHLIST_QUERY = `
       latest.price_amount,
       latest.currency_code,
       latest.availability_status,
-      latest.observed_at
+      latest.observed_at,
+      matching_retailer.name AS retailer_name
     FROM retailer_offers AS matching_offer
+    JOIN retailers AS matching_retailer
+      ON matching_retailer.retailer_id = matching_offer.retailer_id
     JOIN LATERAL (
       SELECT
         po.price_amount,
@@ -64,11 +70,24 @@ const WATCHLIST_QUERY = `
       matching_offer.retailer_offer_id ASC
     LIMIT 1
   ) AS current_price ON TRUE
+  CROSS JOIN LATERAL (
+    SELECT
+      COUNT(*)::INTEGER AS alert_count,
+      (COUNT(*) FILTER (WHERE pa.status = 'ACTIVE'))::INTEGER AS active_alert_count
+    FROM price_alerts AS pa
+    WHERE pa.tracked_product_id = tp.tracked_product_id
+  ) AS alert_counts
   WHERE tp.user_id = $1
+    AND ($2::BIGINT IS NULL OR tp.tracked_product_id = $2::BIGINT)
   ORDER BY tp.created_at DESC, tp.tracked_product_id DESC
 `;
 
 export async function findWatchlistByUserId(userId) {
-  const result = await query(WATCHLIST_QUERY, [userId]);
+  const result = await query(WATCHLIST_QUERY, [userId, null]);
   return result.rows;
+}
+
+export async function findWatchlistItem(userId, trackedProductId) {
+  const result = await query(WATCHLIST_QUERY, [userId, trackedProductId]);
+  return result.rows[0] ?? null;
 }

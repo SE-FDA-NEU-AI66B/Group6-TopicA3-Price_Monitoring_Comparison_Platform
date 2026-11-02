@@ -117,9 +117,10 @@ SELECT
     pv.product_variant_id,
     so.normalized_url,
     so.external_offer_id,
-    '2026-10-10T12:00:00Z'::TIMESTAMPTZ,
+    '2026-10-10T12:00:00Z'::TIMESTAMPTZ + clock.shift,
     'SUCCEEDED'
 FROM seed_offers AS so
+CROSS JOIN seed_clock AS clock
 JOIN retailers AS r
     ON r.source_code = so.source_code
 JOIN products AS p
@@ -134,6 +135,32 @@ SET external_offer_id = EXCLUDED.external_offer_id,
     last_refresh_error = NULL;
 
 -- Preserve the 10-item M2 Watchlist and add one isolated boundary-user item.
+DELETE FROM tracked_products AS tp
+USING users AS u
+WHERE tp.user_id = u.user_id
+  AND (
+      (
+          u.email = 'demo@pricelens.local'
+          AND tp.normalized_source_url NOT IN (
+              'https://techmart.example/apple-iphone-15-128gb-black',
+              'https://digital-hub.example/samsung-galaxy-s24-256gb-gray',
+              'https://gadget-world.example/macbook-air-m2-8-256-midnight',
+              'https://techmart.example/dell-xps-13-9340-16-512-silver',
+              'https://digital-hub.example/sony-wh-1000xm5-black',
+              'https://gadget-world.example/nintendo-switch-oled-white',
+              'https://techmart.example/canon-eos-r50-18-45-black',
+              'https://digital-hub.example/kindle-paperwhite-16gb-black',
+              'https://gadget-world.example/xiaomi-robot-vacuum-s10-white',
+              'https://techmart.example/logitech-mx-master-3s-graphite'
+          )
+      )
+      OR (
+          u.email = 'alert-boundary@pricelens.local'
+          AND tp.normalized_source_url <>
+              'https://techmart.example/apple-iphone-15-512gb-black'
+      )
+  );
+
 WITH seed_tracking (email, normalized_url, created_at) AS (
     VALUES
         ('demo@pricelens.local', 'https://techmart.example/apple-iphone-15-128gb-black', '2026-09-01T09:00:00Z'::TIMESTAMPTZ),
@@ -161,9 +188,10 @@ SELECT
     ro.product_variant_id,
     ro.retailer_offer_id,
     st.normalized_url,
-    st.created_at,
-    st.created_at
+    st.created_at + clock.shift,
+    st.created_at + clock.shift
 FROM seed_tracking AS st
+CROSS JOIN seed_clock AS clock
 JOIN users AS u
     ON u.email = st.email
 JOIN retailer_offers AS ro
@@ -241,11 +269,14 @@ INSERT INTO seed_price_fixtures VALUES
     ('https://gadget-world.example/xiaomi-robot-vacuum-s10-white', 6190000.00, 'OUT_OF_STOCK', '2026-10-10T08:00:00Z', 'US09-E'),
     ('https://techmart.example/logitech-mx-master-3s-graphite', 2490000.00, 'IN_STOCK', '2026-10-10T08:00:00Z', 'M2');
 
--- Remove prior M2/runtime observations only for the managed fixture offers.
-DELETE FROM price_observations AS po
-USING retailer_offers AS ro
-WHERE po.retailer_offer_id = ro.retailer_offer_id
-  AND ro.normalized_url IN (
+-- Remove prior M2/runtime observations only for the managed fixture offers,
+-- together with any alerts or notifications that still reference them.
+CREATE TEMP TABLE seed_managed_observations ON COMMIT DROP AS
+SELECT po.price_observation_id
+FROM price_observations AS po
+JOIN retailer_offers AS ro
+    ON ro.retailer_offer_id = po.retailer_offer_id
+WHERE ro.normalized_url IN (
       'https://techmart.example/apple-iphone-15-128gb-black',
       'https://digital-hub.example/apple-iphone-15-128gb-black',
       'https://gadget-world.example/apple-iphone-15-128gb-black',
@@ -262,6 +293,15 @@ WHERE po.retailer_offer_id = ro.retailer_offer_id
       'https://techmart.example/logitech-mx-master-3s-graphite'
   );
 
+DELETE FROM notifications
+WHERE price_observation_id IN (SELECT price_observation_id FROM seed_managed_observations);
+
+DELETE FROM price_alerts
+WHERE price_observation_id IN (SELECT price_observation_id FROM seed_managed_observations);
+
+DELETE FROM price_observations
+WHERE price_observation_id IN (SELECT price_observation_id FROM seed_managed_observations);
+
 INSERT INTO price_observations (
     retailer_offer_id,
     price_amount,
@@ -274,23 +314,25 @@ SELECT
     sp.price_amount,
     'VND',
     sp.availability_status,
-    sp.observed_at
+    sp.observed_at + clock.shift
 FROM seed_price_fixtures AS sp
+CROSS JOIN seed_clock AS clock
 JOIN retailer_offers AS ro
     ON ro.normalized_url = sp.normalized_url
 ORDER BY sp.observed_at, sp.normalized_url;
 
 -- US05: alert state after the second legitimate threshold crossing.
 WITH fixture AS (
-    SELECT tp.tracked_product_id, po.price_observation_id
+    SELECT tp.tracked_product_id, po.price_observation_id, clock.shift
     FROM tracked_products AS tp
+    CROSS JOIN seed_clock AS clock
     JOIN users AS u
         ON u.user_id = tp.user_id
     JOIN retailer_offers AS ro
         ON ro.retailer_offer_id = tp.retailer_offer_id
     JOIN price_observations AS po
         ON po.retailer_offer_id = ro.retailer_offer_id
-       AND po.observed_at = '2026-10-05T08:00:00Z'::TIMESTAMPTZ
+       AND po.observed_at = '2026-10-05T08:00:00Z'::TIMESTAMPTZ + clock.shift
     WHERE u.email = 'demo@pricelens.local'
       AND tp.normalized_source_url = 'https://gadget-world.example/nintendo-switch-oled-white'
 )
@@ -312,22 +354,23 @@ SELECT
     'ACTIVE',
     'AT_OR_BELOW_TARGET',
     price_observation_id,
-    '2026-10-05T08:00:00Z',
-    '2026-10-01T07:00:00Z',
-    '2026-10-05T08:00:00Z'
+    '2026-10-05T08:00:00Z'::TIMESTAMPTZ + shift,
+    '2026-10-01T07:00:00Z'::TIMESTAMPTZ + shift,
+    '2026-10-05T08:00:00Z'::TIMESTAMPTZ + shift
 FROM fixture;
 
 -- US03-C/BR1: exactly 20 active alerts for an isolated user.
 WITH fixture AS (
-    SELECT tp.tracked_product_id, po.price_observation_id
+    SELECT tp.tracked_product_id, po.price_observation_id, clock.shift
     FROM tracked_products AS tp
+    CROSS JOIN seed_clock AS clock
     JOIN users AS u
         ON u.user_id = tp.user_id
     JOIN retailer_offers AS ro
         ON ro.retailer_offer_id = tp.retailer_offer_id
     JOIN price_observations AS po
         ON po.retailer_offer_id = ro.retailer_offer_id
-       AND po.observed_at = '2026-10-10T08:00:00Z'::TIMESTAMPTZ
+       AND po.observed_at = '2026-10-10T08:00:00Z'::TIMESTAMPTZ + clock.shift
     WHERE u.email = 'alert-boundary@pricelens.local'
       AND tp.normalized_source_url = 'https://techmart.example/apple-iphone-15-512gb-black'
 )
@@ -349,9 +392,9 @@ SELECT
     'ACTIVE',
     'ABOVE_TARGET',
     fixture.price_observation_id,
-    '2026-10-10T08:00:00Z',
-    '2026-10-10T07:00:00Z'::TIMESTAMPTZ + series.alert_number * INTERVAL '1 minute',
-    '2026-10-10T08:00:00Z'
+    '2026-10-10T08:00:00Z'::TIMESTAMPTZ + fixture.shift,
+    '2026-10-10T07:00:00Z'::TIMESTAMPTZ + fixture.shift + series.alert_number * INTERVAL '1 minute',
+    '2026-10-10T08:00:00Z'::TIMESTAMPTZ + fixture.shift
 FROM fixture
 CROSS JOIN generate_series(1, 20) AS series(alert_number);
 
@@ -389,17 +432,18 @@ SELECT
     'demo@pricelens.local',
     'Price Drop Alert: Nintendo Switch OLED',
     'SENT',
-    c.observed_at,
-    c.sent_at,
+    c.observed_at + clock.shift,
+    c.sent_at + clock.shift,
     c.provider_message_id,
-    c.observed_at
+    c.observed_at + clock.shift
 FROM us05_alert AS ua
 CROSS JOIN crossings AS c
+CROSS JOIN seed_clock AS clock
 JOIN retailer_offers AS ro
     ON ro.normalized_url = 'https://gadget-world.example/nintendo-switch-oled-white'
 JOIN price_observations AS po
     ON po.retailer_offer_id = ro.retailer_offer_id
-   AND po.observed_at = c.observed_at;
+   AND po.observed_at = c.observed_at + clock.shift;
 
 -- Lightweight drift checks for all P0 fixtures.
 DO $seed_validation$
@@ -554,6 +598,20 @@ END
 $seed_validation$;
 `;
 
-export async function seedDemoData(client) {
+export const FIXTURE_REFERENCE_DATE = '2026-10-20T00:00:00Z';
+
+export async function seedDemoData(
+  client,
+  { referenceDate = FIXTURE_REFERENCE_DATE } = {},
+) {
+  await client.query('CREATE TEMP TABLE seed_clock (shift INTERVAL NOT NULL) ON COMMIT DROP');
+  await client.query(
+    `INSERT INTO seed_clock
+     VALUES ((
+       ($1::TIMESTAMPTZ AT TIME ZONE 'UTC')::DATE
+       - ($2::TIMESTAMPTZ AT TIME ZONE 'UTC')::DATE
+     ) * INTERVAL '1 day')`,
+    [referenceDate, FIXTURE_REFERENCE_DATE],
+  );
   await client.query(demoSeedSql);
 }

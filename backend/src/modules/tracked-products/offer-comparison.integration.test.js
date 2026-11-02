@@ -21,7 +21,7 @@ import {
   requestJson,
 } from '../../test-support/request.js';
 import { withTestServer } from '../../test-support/server.js';
-import { findEligibleComparisonOffers } from './offer-comparison.repository.js';
+import { findComparisonOffers } from './offer-comparison.repository.js';
 
 after(() => closePool());
 
@@ -100,6 +100,10 @@ test('API-06 returns exact-variant comparison states and protects ownership', {
       eligibleDatabaseOffers[0].latest_price_amount,
     );
 
+    const outOfStockDatabaseOffers = exactOffers.filter(
+      (offer) => offer.latest_availability_status === 'OUT_OF_STOCK',
+    );
+
     assert.deepEqual(
       available.body.data.offers.map((offer) => ({
         retailer_offer_id: offer.retailer_offer_id,
@@ -108,33 +112,37 @@ test('API-06 returns exact-variant comparison states and protects ownership', {
         availability_status: offer.availability_status,
         difference_from_lowest: offer.difference_from_lowest,
       })),
-      eligibleDatabaseOffers.map((offer) => ({
-        retailer_offer_id: offer.retailer_offer_id,
-        source_code: offer.source_code,
-        amount: offer.latest_price_amount,
-        availability_status: 'IN_STOCK',
-        difference_from_lowest: minorUnitsString(
-          decimalMinorUnits(offer.latest_price_amount) - lowestMinorUnits,
-        ),
-      })),
+      [
+        ...eligibleDatabaseOffers.map((offer) => ({
+          retailer_offer_id: offer.retailer_offer_id,
+          source_code: offer.source_code,
+          amount: offer.latest_price_amount,
+          availability_status: 'IN_STOCK',
+          difference_from_lowest: minorUnitsString(
+            decimalMinorUnits(offer.latest_price_amount) - lowestMinorUnits,
+          ),
+        })),
+        ...outOfStockDatabaseOffers.map((offer) => ({
+          retailer_offer_id: offer.retailer_offer_id,
+          source_code: offer.source_code,
+          amount: offer.latest_price_amount,
+          availability_status: 'OUT_OF_STOCK',
+          difference_from_lowest: null,
+        })),
+      ],
     );
     assert.deepEqual(
       available.body.data.lowest_offer,
       available.body.data.offers[0],
     );
 
-    const excludedIds = new Set([
-      ...exactOffers
-        .filter((offer) => offer.latest_availability_status === 'OUT_OF_STOCK')
-        .map((offer) => offer.retailer_offer_id),
-      ...mismatchedOffers.map((offer) => offer.retailer_offer_id),
-    ]);
+    const excludedIds = new Set(
+      mismatchedOffers.map((offer) => offer.retailer_offer_id),
+    );
     assert.ok(available.body.data.offers.every(
       (offer) => !excludedIds.has(offer.retailer_offer_id),
     ));
-    assert.ok(available.body.data.offers.every(
-      (offer) => offer.availability_status === 'IN_STOCK',
-    ));
+    assert.equal(available.body.data.lowest_offer.availability_status, 'IN_STOCK');
 
     const ignoredVariantOverride = await authenticatedRequest(
       session,
@@ -164,9 +172,15 @@ test('API-06 returns exact-variant comparison states and protects ownership', {
     );
     assert.equal(none.status, 200);
     assertCompleteComparisonContract(none.body.data, zeroTracked.tracked_product_id);
-    assert.equal(none.body.data.status, 'NO_AVAILABLE_OFFERS');
-    assert.equal(none.body.data.message, null);
-    assert.deepEqual(none.body.data.offers, []);
+    assert.equal(none.body.data.status, 'ALL_OUT_OF_STOCK');
+    assert.equal(
+      none.body.data.message,
+      'Currently out of stock across all tracked sources',
+    );
+    assert.deepEqual(
+      none.body.data.offers.map((offer) => offer.availability_status),
+      ['OUT_OF_STOCK'],
+    );
     assert.equal(none.body.data.lowest_offer, null);
 
     for (const id of [unowned.tracked_product_id, missingId]) {
@@ -228,7 +242,7 @@ test('comparison SQL uses latest-per-offer state, exact decimals and retailer-na
       ],
     );
 
-    const currentRows = await findEligibleComparisonOffers({
+    const currentRows = await findComparisonOffers({
       productVariantId: variant.product_variant_id,
       currencyCode: 'VND',
     }, executeQuery);
@@ -242,9 +256,9 @@ test('comparison SQL uses latest-per-offer state, exact decimals and retailer-na
       [
         { source_code: 'DIGITAL_HUB', amount: '18500000.00', difference: '0.00' },
         { source_code: 'TECHMART', amount: '18900000.00', difference: '400000.00' },
+        { source_code: 'GADGET_WORLD', amount: '16000000.00', difference: null },
       ],
     );
-    assert.ok(currentRows.every((row) => row.source_code !== 'GADGET_WORLD'));
 
     await client.query(
       `INSERT INTO price_observations (
@@ -262,15 +276,18 @@ test('comparison SQL uses latest-per-offer state, exact decimals and retailer-na
         bySource.DIGITAL_HUB.retailer_offer_id,
       ],
     );
-    const tiedRows = await findEligibleComparisonOffers({
+    const tiedRows = await findComparisonOffers({
       productVariantId: variant.product_variant_id,
       currencyCode: 'VND',
     }, executeQuery);
     assert.deepEqual(
       tiedRows.map((row) => row.retailer_name),
-      ['Digital Hub', 'TechMart'],
+      ['Digital Hub', 'TechMart', 'Gadget World'],
     );
-    assert.ok(tiedRows.every((row) => row.difference_from_lowest === '0.00'));
+    assert.deepEqual(
+      tiedRows.map((row) => row.difference_from_lowest),
+      ['0.00', '0.00', null],
+    );
 
     await client.query(
       `INSERT INTO price_observations (
@@ -283,13 +300,13 @@ test('comparison SQL uses latest-per-offer state, exact decimals and retailer-na
        VALUES ($1, '1.00', 'USD', 'IN_STOCK', '2026-10-14T08:00:00Z')`,
       [bySource.DIGITAL_HUB.retailer_offer_id],
     );
-    const sameCurrencyRows = await findEligibleComparisonOffers({
+    const sameCurrencyRows = await findComparisonOffers({
       productVariantId: variant.product_variant_id,
       currencyCode: 'VND',
     }, executeQuery);
     assert.deepEqual(
       sameCurrencyRows.map((row) => row.source_code),
-      ['TECHMART'],
+      ['TECHMART', 'GADGET_WORLD'],
     );
   } finally {
     await client.query('ROLLBACK');
@@ -316,6 +333,7 @@ function assertCompleteComparisonContract(data, trackedProductId) {
       'availability_status',
       'currency_code',
       'difference_from_lowest',
+      'freshness_status',
       'observed_at',
       'retailer',
       'retailer_offer_id',
@@ -323,9 +341,16 @@ function assertCompleteComparisonContract(data, trackedProductId) {
     ]);
     assert.equal(typeof offer.retailer_offer_id, 'string');
     assert.match(offer.amount, /^\d+\.\d{2}$/);
-    assert.match(offer.difference_from_lowest, /^\d+\.\d{2}$/);
     assert.equal(offer.currency_code, 'VND');
-    assert.equal(offer.availability_status, 'IN_STOCK');
+    assert.ok(['IN_STOCK', 'OUT_OF_STOCK'].includes(offer.availability_status));
+    assert.ok(['CURRENT', 'STALE'].includes(offer.freshness_status));
+
+    if (offer.availability_status === 'IN_STOCK') {
+      assert.match(offer.difference_from_lowest, /^\d+\.\d{2}$/);
+    } else {
+      assert.equal(offer.difference_from_lowest, null);
+    }
+
     assert.match(offer.observed_at, /Z$/);
     assert.match(offer.url, /^https:\/\//);
   }

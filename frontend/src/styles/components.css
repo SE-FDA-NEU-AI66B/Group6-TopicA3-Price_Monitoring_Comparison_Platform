@@ -117,6 +117,15 @@
   background: transparent;
 }
 
+.btn--danger {
+  color: var(--color-on-primary);
+  background: var(--color-error);
+}
+
+.btn--danger:hover:not(:disabled) {
+  background: #872a23;
+}
+
 .btn--ghost:hover:not(:disabled) {
   background: #0000000d;
 }
@@ -399,6 +408,7 @@
 /* Navigation and action links */
 .back {
   display: inline-flex;
+  min-height: 1.75rem;
   align-items: center;
   gap: 0.35rem;
   margin-bottom: 2.2rem;
@@ -425,6 +435,16 @@
   font-weight: 700;
   white-space: nowrap;
   transition: color 0.15s;
+}
+
+button.text-link {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.text-link--danger {
+  color: var(--color-error);
 }
 
 /* State containers */
@@ -535,6 +555,19 @@
 
 .dialog__heading h2 {
   font-size: 1.8rem;
+}
+
+.dialog__switch {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
 }
 
 /* Responsive component adjustments */

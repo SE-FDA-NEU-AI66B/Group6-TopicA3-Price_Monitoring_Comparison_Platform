@@ -2,6 +2,7 @@ import { apiClient } from '../api/client.js';
 import {
   getCurrentSession,
   isAuthenticationRequiredError,
+  redirectToSignIn,
   signOut,
 } from '../auth/session.js';
 import { initializePageShell } from '../components/common.js';
@@ -17,9 +18,13 @@ const SOURCE_CODE = /^[A-Z][A-Z0-9_]*$/;
 const COMPARISON_STATUSES = new Set([
   'AVAILABLE',
   'SINGLE_OFFER',
+  'ALL_OUT_OF_STOCK',
   'NO_AVAILABLE_OFFERS',
 ]);
+const AVAILABILITY_STATUSES = new Set(['IN_STOCK', 'OUT_OF_STOCK']);
+const FRESHNESS_STATES = new Set(['CURRENT', 'STALE']);
 const SINGLE_OFFER_MESSAGE = 'No multi-source comparison is currently available';
+const ALL_OUT_OF_STOCK_MESSAGE = 'Currently out of stock across all tracked sources';
 
 const trackedProductId = getProductIdFromPathname(window.location.pathname);
 const pageStateRegion = document.querySelector('#comparison-page-state');
@@ -109,16 +114,23 @@ function isRetailer(value) {
     && isNonEmptyString(value.name);
 }
 
+function isInStock(offer) {
+  return offer.availability_status === 'IN_STOCK';
+}
+
 function isOffer(value) {
   return isObject(value)
     && isIdentifier(value.retailer_offer_id)
     && isRetailer(value.retailer)
     && isDecimalAmount(value.amount)
     && /^[A-Z]{3}$/.test(value.currency_code)
-    && value.availability_status === 'IN_STOCK'
+    && AVAILABILITY_STATUSES.has(value.availability_status)
+    && FRESHNESS_STATES.has(value.freshness_status)
     && isIsoUtcTimestamp(value.observed_at)
     && isHttpUrl(value.url)
-    && isDecimalAmount(value.difference_from_lowest);
+    && (isInStock(value)
+      ? isDecimalAmount(value.difference_from_lowest)
+      : value.difference_from_lowest === null);
 }
 
 function sameOffer(left, right) {
@@ -130,6 +142,7 @@ function sameOffer(left, right) {
     && left.currency_code === right.currency_code
     && left.availability_status === right.availability_status
     && left.observed_at === right.observed_at
+    && left.freshness_status === right.freshness_status
     && left.url === right.url
     && left.difference_from_lowest === right.difference_from_lowest;
 }
@@ -158,30 +171,30 @@ function getComparison(response, routeId) {
     throw new Error('The retailer-comparison response mixes currencies.');
   }
 
-  const hasLowestOffer = isOffer(data.lowest_offer);
-  const matchingLowest = hasLowestOffer
-    ? data.offers.find((offer) => (
-        offer.retailer_offer_id === data.lowest_offer.retailer_offer_id
-      ))
-    : null;
-  const lowestIsConsistent = hasLowestOffer
-    && matchingLowest
-    && sameOffer(matchingLowest, data.lowest_offer)
+  const inStockCount = data.offers.filter(isInStock).length;
+  const lowestIsConsistent = isOffer(data.lowest_offer)
+    && isInStock(data.lowest_offer)
+    && sameOffer(data.offers[0], data.lowest_offer)
     && data.lowest_offer.difference_from_lowest === '0.00';
   const available = data.status === 'AVAILABLE'
     && data.message === null
-    && data.offers.length >= 2
+    && inStockCount >= 2
     && lowestIsConsistent;
   const singleOffer = data.status === 'SINGLE_OFFER'
     && data.message === SINGLE_OFFER_MESSAGE
-    && data.offers.length === 1
+    && inStockCount === 1
     && lowestIsConsistent;
+  const allOutOfStock = data.status === 'ALL_OUT_OF_STOCK'
+    && data.message === ALL_OUT_OF_STOCK_MESSAGE
+    && data.offers.length > 0
+    && inStockCount === 0
+    && data.lowest_offer === null;
   const noAvailableOffers = data.status === 'NO_AVAILABLE_OFFERS'
     && data.message === null
     && data.offers.length === 0
     && data.lowest_offer === null;
 
-  if (!available && !singleOffer && !noAvailableOffers) {
+  if (!available && !singleOffer && !allOutOfStock && !noAvailableOffers) {
     throw new Error('The retailer-comparison state is internally inconsistent.');
   }
 
@@ -218,33 +231,35 @@ function renderProductContext(comparison) {
 function renderOffer(offer, lowestOfferId) {
   const fragment = offerTemplate.content.cloneNode(true);
   const item = fragment.querySelector('.offer');
+  const availability = fragment.querySelector('[data-field="availability"]');
   const isLowest = offer.retailer_offer_id === lowestOfferId;
+  const inStock = isInStock(offer);
 
   item.dataset.retailerOfferId = offer.retailer_offer_id;
   item.classList.toggle('offer--lowest', isLowest);
   item.setAttribute(
     'aria-label',
-    `${offer.retailer.name}${isLowest ? ', lowest price' : ''}`,
+    `${offer.retailer.name}${isLowest ? ', lowest available offer' : ''}${inStock ? '' : ', out of stock'}`,
   );
   fragment.querySelector('[data-field="retailer-initial"]').textContent = offer.retailer.name.charAt(0);
   fragment.querySelector('[data-field="retailer-name"]').textContent = offer.retailer.name;
+  item.classList.toggle('offer--unavailable', !inStock);
   fragment.querySelector('[data-field="offer-label"]').textContent = isLowest
-    ? 'Lowest price'
-    : 'Eligible offer';
+    ? 'Lowest available offer'
+    : inStock ? 'Eligible offer' : 'Not available to buy';
   fragment.querySelector('[data-field="offer-price"]').textContent = formatCurrency(
     offer.amount,
     offer.currency_code,
   );
-  fragment.querySelector('[data-field="difference"]').textContent = `Difference from lowest: ${formatCurrency(
-    offer.difference_from_lowest,
-    offer.currency_code,
-  )}`;
-  fragment.querySelector('[data-field="availability"]').textContent = formatStatusLabel(
-    offer.availability_status,
-  );
-  fragment.querySelector('[data-field="observed-at"]').textContent = `Observed ${formatDateTime(
-    offer.observed_at,
-  )}`;
+  fragment.querySelector('[data-field="difference"]').textContent = inStock
+    ? `Difference from lowest: ${formatCurrency(offer.difference_from_lowest, offer.currency_code)}`
+    : '';
+  availability.textContent = formatStatusLabel(offer.availability_status);
+  availability.classList.toggle('badge--warning', !inStock);
+  fragment.querySelector('[data-field="observed-at"]').textContent = [
+    `Observed ${formatDateTime(offer.observed_at)}`,
+    offer.freshness_status === 'STALE' ? 'Stale data' : '',
+  ].filter(Boolean).join(' · ');
   fragment.querySelector('[data-field="retailer-link"]').href = offer.url;
 
   return fragment;
@@ -270,7 +285,7 @@ function renderComparison(comparison) {
     return;
   }
 
-  if (comparison.status === 'SINGLE_OFFER') {
+  if (comparison.message) {
     comparisonMessage.textContent = comparison.message;
     comparisonMessage.hidden = false;
   }
@@ -280,12 +295,16 @@ function renderComparison(comparison) {
   comparison.offers.forEach((offer) => {
     fragment.append(renderOffer(
       offer,
-      comparison.lowest_offer.retailer_offer_id,
+      comparison.lowest_offer?.retailer_offer_id,
     ));
   });
   offerList.append(fragment);
-  renderLowestOffer(comparison.lowest_offer);
-  bestOfferSummary.hidden = false;
+  bestOfferSummary.hidden = comparison.lowest_offer === null;
+
+  if (comparison.lowest_offer) {
+    renderLowestOffer(comparison.lowest_offer);
+  }
+
   comparisonData.hidden = false;
 }
 
@@ -353,7 +372,7 @@ async function loadComparison() {
     }
 
     if (isAuthenticationRequiredError(error)) {
-      redirectToLanding();
+      redirectToSignIn();
       return;
     }
 
