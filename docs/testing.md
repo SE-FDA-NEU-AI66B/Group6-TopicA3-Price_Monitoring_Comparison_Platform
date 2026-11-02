@@ -32,6 +32,12 @@ _TBD: two or three sentences on which parts we tested most, and why those._
   PostgreSQL, not by application code. The tests simulate the database's
   duplicate-key error and check that it becomes the "already being tracked"
   response; the constraint itself is not exercised.
+- **US05:** the tests cover how a new price creates a pending notification
+  (BR4 and the subject line). Sending the email within 5 minutes depends on
+  the delivery job, the real clock and PostgreSQL locks, so it is not
+  checked here; it is verified in `docs/p0-acceptance.md`. The fake database
+  evaluates the same threshold comparisons the processor sends to
+  PostgreSQL.
 
 ## 2. Test cases for every P0 story
 
@@ -87,8 +93,20 @@ has no numeric limit, so US04 has no boundary cases. All cases use the iPhone
 
 ### US05 — Receive a price-drop notification
 
+BR4 sends exactly one notification when a valid price moves from above the
+target to at or below it, sends nothing while the price stays at or below the
+target, and re-arms only after the price rises above the target again. All
+cases use an active alert on the Dell XPS 13 9340 with a target of
+14,000,000 VND.
+
 | ID | Story | Input | Expected | Kind |
 |---|---|---|---|---|
+| TC-US05-01 | US05 Receive a notification | Previous price 15,000,000 VND, new price 13,900,000 VND (AC1) | Exactly 1 pending notification for `demo@pricelens.local`; alert marked at or below target (BR4) | normal |
+| TC-US05-02 | US05 Receive a notification | Same price drop as TC-US05-01 (AC3) | Subject is exactly "Price Drop Alert: Dell XPS 13 9340" | normal |
+| TC-US05-03 | US05 Receive a notification | After a notification at 13,900,000 VND, new price 13,800,000 VND (AC2) | No further notification; alert stays at or below target (BR4) | error |
+| TC-US05-04 | US05 Receive a notification | Price rises from 13,800,000 to 14,200,000 VND (AC4) | No notification; alert re-armed as above target (BR4) | normal |
+| TC-US05-05 | US05 Receive a notification | Re-armed alert, price falls from 14,200,000 to 14,000,000 VND (AC4) | Exactly 1 new notification (BR4) | boundary, on the limit |
+| TC-US05-06 | US05 Receive a notification | Re-armed alert, price falls from 14,200,000 to 14,000,001 VND | No notification; alert stays above target (BR4) | boundary, just above |
 
 ### US09 — Compare prices across retailers
 
@@ -111,7 +129,7 @@ No running server and no real database are needed. See
 | US02 | `tests/us02-price-history.test.js` | TC-US02-01 – TC-US02-06 |
 | US03 | `tests/us03-price-alert.test.js` | TC-US03-01 – TC-US03-06 |
 | US04 | `tests/us04-add-product.test.js` | TC-US04-01 – TC-US04-06 |
-| US05 | `tests/us05-notification.test.js` | _TBD_ |
+| US05 | `tests/us05-notification.test.js` | TC-US05-01 – TC-US05-06 |
 | US09 | `tests/us09-comparison.test.js` | _TBD_ |
 
 ### Latest run
