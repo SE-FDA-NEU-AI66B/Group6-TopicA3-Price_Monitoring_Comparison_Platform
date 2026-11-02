@@ -28,6 +28,10 @@ _TBD: two or three sentences on which parts we tested most, and why those._
   are written as PostgreSQL `NUMERIC` expressions; the fake evaluates the
   same comparison operator the service sends, so a change from `<` to `<=`
   is caught, but PostgreSQL's own decimal arithmetic is not exercised.
+- **US04:** duplicate URLs (BR6) are rejected by a unique constraint in
+  PostgreSQL, not by application code. The tests simulate the database's
+  duplicate-key error and check that it becomes the "already being tracked"
+  response; the constraint itself is not exercised.
 
 ## 2. Test cases for every P0 story
 
@@ -67,8 +71,19 @@ and strictly below the current price. All cases use a current price of
 
 ### US04 — Add a product using its URL
 
+BR6 allows one watchlist record per normalized product URL; tracking
+parameters such as `utm_source` are removed before the duplicate check. BR6
+has no numeric limit, so US04 has no boundary cases. All cases use the iPhone
+15 128GB Black offers from the demo data.
+
 | ID | Story | Input | Expected | Kind |
 |---|---|---|---|---|
+| TC-US04-01 | US04 Add a product | `https://digital-hub.example/apple-iphone-15-128gb-black` (AC1) | Resolved to Digital Hub, Apple iPhone 15, with variant iPhone 15 128GB Black to select | normal |
+| TC-US04-02 | US04 Add a product | Selected Digital Hub offer for iPhone 15 128GB Black (AC1) | One record saved with status `TRACKING` and the normalized URL | normal |
+| TC-US04-03 | US04 Add a product | `https://techmart.example/apple-iphone-15-128gb-black?utm_source=qa` | Looked up as `https://techmart.example/apple-iphone-15-128gb-black` (BR6) | normal |
+| TC-US04-04 | US04 Add a product | Offer whose normalized URL is already in the user's watchlist (AC2) | Refused: 409 "This product URL is already being tracked"; nothing saved (BR6) | error |
+| TC-US04-05 | US04 Add a product | `not-a-url` (AC3) | Refused: 422 "Unsupported or invalid product URL"; no lookup made | error |
+| TC-US04-06 | US04 Add a product | `https://unsupported.example/product` (AC3) | Refused: 422 "Unsupported or invalid product URL" | error |
 
 ### US05 — Receive a price-drop notification
 
@@ -95,7 +110,7 @@ No running server and no real database are needed. See
 |---|---|---|
 | US02 | `tests/us02-price-history.test.js` | TC-US02-01 – TC-US02-06 |
 | US03 | `tests/us03-price-alert.test.js` | TC-US03-01 – TC-US03-06 |
-| US04 | `tests/us04-add-product.test.js` | _TBD_ |
+| US04 | `tests/us04-add-product.test.js` | TC-US04-01 – TC-US04-06 |
 | US05 | `tests/us05-notification.test.js` | _TBD_ |
 | US09 | `tests/us09-comparison.test.js` | _TBD_ |
 
