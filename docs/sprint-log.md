@@ -372,3 +372,120 @@ The P0 Story Issues [#37](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Pri
 | @Tienachilles | Not recorded | Not recorded | Not recorded |
 | @helian16 | Not recorded | Not recorded | Not recorded |
 | @minh7322 | Not recorded | Not recorded | Not recorded |
+
+## Sprint 4 - 12 October 2026 to 25 October 2026
+
+### Sprint goal
+
+Prove that PriceLens keeps working when it changes: every P0 User Story is checked by automated tests that run with one command, without a server or a real database, and a new machine can install, run and test the application by following `docs/SETUP.md`.
+
+### Sprint roles
+
+| Role | Member |
+| --- | --- |
+| Product Owner | @davvph |
+| Scrum Master | @minh7322 |
+
+The Sprint 4 Scrum Master differs from the Sprint 1 Scrum Master, @adcc17, the Sprint 2 Scrum Master, @helian16, and the Sprint 3 Scrum Master, @Tienachilles.
+
+### Required chore
+
+| Issue | Owner | Close |
+| --- | --- | --- |
+| [#193 — Refine backlog for Sprint 4](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/issues/193) | @davvph (PO) | Yes |
+| [#194 — Sprint 4 wrap-up](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/issues/194) | @minh7322 (SM) | Yes |
+
+### Workstream summary
+
+| Parent | Workstream | Result |
+| --- | --- | --- |
+| [#185](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/issues/185) | Automated Regression Tests for P0 User Stories | All 7 committed Sub-Issues completed; Parent closes after the final submission PR is merged |
+
+Parent Issues and unestimated administrative Chores organise the work but are not included in committed points or velocity. The Sprint 4 dates follow the two-week cadence of Sprints 1–3. GitHub records show that the Sprint 4 Issues and PRs were completed after that window, so the result below records the verified state at wrap-up rather than claiming that those closures occurred by 25 October.
+
+### Committed
+
+| Issue | Story | Points | Owner |
+| --- | --- | ---: | --- |
+| [#186](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/issues/186) | Design and automate US02 test cases; shared testing guidelines | 3 | @davvph |
+| [#187](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/issues/187) | Design and automate US03 test cases | 3 | @Tienachilles |
+| [#188](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/issues/188) | Design and automate US04 test cases | 3 | @helian16 |
+| [#189](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/issues/189) | Design and automate US05 test cases | 3 | @minh7322 |
+| [#190](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/issues/190) | Design and automate US09 test cases | 3 | @adcc17 |
+| [#191](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/issues/191) | Integrate and configure the automated test suite | 3 | @adcc17 |
+| [#192](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/issues/192) | Complete the testing documentation and M4 submission | 3 | @helian16 |
+
+**Total committed: 21 points**
+
+### Result
+
+| Issue | Points | Status | If not done, why |
+| --- | ---: | --- | --- |
+| #186 | 3 | Done | — |
+| #187 | 3 | Done | — |
+| #188 | 3 | Done | — |
+| #189 | 3 | Done | — |
+| #190 | 3 | Done | — |
+| #191 | 3 | Done | — |
+| #192 | 3 | Done | — |
+
+**Completed: 21 points. Velocity this sprint: 21 points.**
+
+### Sprint Review
+
+- **What we demonstrated:** `npm test` runs 30 automated tests, six for each P0 story (US02, US03, US04, US05 and US09), and all of them pass on a clean clone without a server, a database or a `.env` file.
+- **Verified result:** Every P0 story has at least one normal and one error case, and every numeric Business Rule is tested on both sides of its limit. Each rule was broken on purpose before its tests were merged, and the matching test turned red; one example is recorded in Section 4 of `docs/testing.md`.
+- **Feedback received:** Reviewers found `docs/SETUP.md` hard to follow for a new team member. It was rewritten as four steps with a setup script that installs Node.js and PostgreSQL, creates the database and builds the website.
+- **Backlog changes as a result:** No new feature scope was added. Shared test helpers were added so that the five story test files use one fake database client.
+- **Remaining release work:** None in the repository. The `Team06_M4.pdf` submission and its screenshots are prepared outside the repository.
+
+#### Repository evidence
+
+All 7 Sprint 4 PRs from #196 through #202, and the final submission PR, have at least one submitted review from a member other than the author.
+
+| PR | Title | Author | Other-member approval | Merge status |
+| --- | --- | --- | --- | --- |
+| [#196](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/pull/196) | US02 tests and shared testing guidelines | @davvph | @adcc17 | Merged |
+| [#197](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/pull/197) | US03 tests | @Tienachilles | @helian16 | Merged |
+| [#198](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/pull/198) | US04 tests | @helian16 | @minh7322 | Merged |
+| [#199](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/pull/199) | US05 tests | @minh7322 | @davvph | Merged |
+| [#200](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/pull/200) | US09 tests | @adcc17 | @helian16 | Merged |
+| [#201](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/pull/201) | Remove local files from the repository | @adcc17 | @minh7322 | Merged |
+| [#202](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/pull/202) | Integrate the automated test suite | @adcc17 | @Tienachilles, @helian16 | Merged |
+
+| Member | Merged PR | Review given | Closed Issue | Test in `tests/` | Requirement met |
+| --- | --- | --- | --- | --- | --- |
+| @adcc17 | #200, #202 | Approved #196 | #190, #191 | US09 | Yes |
+| @davvph | #196 | Approved #199 | #186 | US02 | Yes |
+| @Tienachilles | #197 | Approved #202 | #187 | US03 | Yes |
+| @helian16 | #198 | Approved #197 | #188 | US04 | Yes |
+| @minh7322 | #199 | Approved #198 | #189 | US05 | Yes |
+
+#### Submission checklist
+
+| Area | Check | Status |
+| --- | --- | --- |
+| Repository | `docs/testing.md` with all four sections in order, updated `docs/SETUP.md`, README Sprint 4 roles and this Sprint 4 log | Complete |
+| Tests | `npm test` on a clean clone: 30 tests, 30 passed, every test case ID in `docs/testing.md` has a matching test | Complete |
+| GitHub | At least 4 merged PRs reviewed by another member, at least 5 closed Issues and per-member contributions | Complete |
+| Project Board | Sprint 4 Issues inspected; Points recorded for every committed Issue | Complete |
+| Board evidence | Planning and submission-day screenshots | Not stored in this repository; included in `Team06_M4.pdf` |
+| PDF | `Team06_M4.pdf` with cover block, two board screenshots and the full `npm test` output | Prepared outside the repository |
+
+### Retrospective
+
+| Keep doing | Stop doing | Start doing |
+| --- | --- | --- |
+| Break each rule on purpose and watch its test turn red before the test is merged. | Opening PRs that carry local editor or machine files. | Run `docs/SETUP.md` and `npm test` from a clean clone before every submission. |
+
+**One concrete action for the next sprint (with an owner):** @minh7322 will run `docs/SETUP.md` and `npm test` on a machine that has never seen the project before the next submission.
+
+### Attendance
+
+| Member | Planning | Review | Retro |
+| --- | --- | --- | --- |
+| @adcc17 | Not recorded | Not recorded | Not recorded |
+| @davvph | Not recorded | Not recorded | Not recorded |
+| @Tienachilles | Not recorded | Not recorded | Not recorded |
+| @helian16 | Not recorded | Not recorded | Not recorded |
+| @minh7322 | Not recorded | Not recorded | Not recorded |

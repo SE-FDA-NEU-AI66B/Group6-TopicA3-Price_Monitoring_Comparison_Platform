@@ -8,14 +8,20 @@ writing tests and editing this document are in
 
 | Layer | Where | How we test it | Why |
 |---|---|---|---|
-| Services | `backend/src/modules/**/*.service.js`, `backend/src/background/**` | Unit tests that call exported functions directly with plain arguments | _TBD_ |
-| Repository | `backend/src/modules/**/*.repository.js` | Run through the service tests against a fake database client that answers each query; no PostgreSQL | _TBD_ |
-| Routes | `backend/src/modules/**/*.routes.js` | Not tested in this suite | _TBD_ |
-| Interface | `frontend/src/**` | Not tested in this suite | _TBD_ |
+| Services | `backend/src/modules/**/*.service.js`, `backend/src/background/**` | Unit tests that call exported functions directly with plain arguments | Every business rule (BR1, BR2, BR4, BR5, BR6, BR8) is decided here, so a mistake in this layer gives users a wrong price, alert or notification |
+| Repository | `backend/src/modules/**/*.repository.js` | Run through the service tests against a fake database client that answers each query; no PostgreSQL | Checks the values each rule sends to the database (variant, currency, comparison operator) and how rows are mapped, without needing a database on the test machine |
+| Routes | `backend/src/modules/**/*.routes.js` | Not tested in this suite | Routes only read the request and turn a service result or error into an HTTP response; they hold no business rule |
+| Interface | `frontend/src/**` | Not tested in this suite | Checked by hand against every P0 acceptance criterion in the browser; the screens still change often, so automated UI tests would break on layout changes rather than on rule changes |
 
 ### Where the risk is
 
-_TBD: two or three sentences on which parts we tested most, and why those._
+We tested the alert and notification rules most (US03 and US05): they
+contain the only numeric limits that decide whether a user is refused or
+sent an email, so an off-by-one mistake (`<` instead of `<=`, 20 instead of
+19) goes unnoticed in a demo but misleads users. Every numeric rule is
+therefore tested on both sides of its limit, and the comparison operators
+written in SQL are read and evaluated by the fake database so that changing
+them turns a test red.
 
 ### Known gaps
 
@@ -153,11 +159,57 @@ prerequisite is the backend dependency install described in
 
 ### Latest run
 
-_TBD: date, commit, pass/fail totals and a screenshot of the full `npm test`
-output with every test name visible._
+- **Date:** 2026-11-02
+- **Commit:** `39e8722` (`main`)
+- **Result:** 30 tests, 30 passed, 0 failed, in under one second
+
+![Full npm test output](images/testing/npm-test-output.png)
 
 ## 4. What the tests found
 
-_TBD: one real bug found by a test (issue, fix and the test that now guards
-it), or, if none was found, one deliberate rule violation showing the
-failing test, followed by the restored code and the passing run._
+The tests found no real bug in the P0 code, so we broke a rule on purpose to
+show that the tests catch it.
+
+**Rule broken:** BR1, "a user may have at most 20 active alerts". In
+`backend/src/modules/tracked-products/price-alert.service.js` we changed the
+limit check
+
+```js
+if (activeAlertCount >= MAX_ACTIVE_ALERTS) {
+```
+
+to
+
+```js
+if (activeAlertCount > MAX_ACTIVE_ALERTS) {
+```
+
+which lets a user with 20 active alerts create a 21st.
+
+**Result:** exactly one test turned red, the boundary case just above the
+limit:
+
+```text
+✖ TC-US03-05 [boundary, just above] user with 20 active alerts cannot create a 21st
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+    actual: undefined,
+    expected: { status: 409, code: 'ACTIVE_ALERT_LIMIT_REACHED', detail: 'Maximum 20 active alerts reached' },
+
+ℹ tests 30
+ℹ pass 29
+ℹ fail 1
+```
+
+TC-US03-04 (19 active alerts, creation allowed) stayed green, which shows the
+pair of boundary tests pins the limit to exactly 20. We restored `>=` and the
+full suite passed again (30 of 30).
+
+Every other rule was checked the same way before its tests were merged:
+
+| Rule broken on purpose | Test that turned red |
+|---|---|
+| US02: chart threshold `pointCount === 1` changed to `<= 2` | TC-US02-06 |
+| US03 BR2: `target < current` changed to `<=` | TC-US03-06 |
+| US04 BR6: `utm_` parameters no longer removed | TC-US04-03 |
+| US05 BR4: `price <= target` changed to `<` | TC-US05-05 |
+| US09 BR8: out-of-stock offers counted as available | TC-US09-03, TC-US09-04 |
