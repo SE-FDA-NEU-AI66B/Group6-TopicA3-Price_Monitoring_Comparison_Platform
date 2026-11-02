@@ -23,6 +23,11 @@ _TBD: two or three sentences on which parts we tested most, and why those._
   (`price-history.repository.js`). Because the suite runs without a
   database, it checks that the 30-day UTC window is computed correctly and
   how rows are assembled, but not the SQL query itself.
+- **US03:** alert creation runs inside a database transaction, so the tests
+  replace the database connection with a fake client. BR2 price comparisons
+  are written as PostgreSQL `NUMERIC` expressions; the fake evaluates the
+  same comparison operator the service sends, so a change from `<` to `<=`
+  is caught, but PostgreSQL's own decimal arithmetic is not exercised.
 
 ## 2. Test cases for every P0 story
 
@@ -47,8 +52,18 @@ threshold: a chart needs at least 2 valid daily prices.
 
 ### US03 — Create a price alert
 
+BR1 limits a user to 20 active alerts. BR2 requires a target price above 0
+and strictly below the current price. All cases use a current price of
+15,000,000 VND.
+
 | ID | Story | Input | Expected | Kind |
 |---|---|---|---|---|
+| TC-US03-01 | US03 Create a price alert | Target 14,000,000 VND (AC1) | Alert saved as `ACTIVE` with target 14,000,000 and current 15,000,000 VND | normal |
+| TC-US03-02 | US03 Create a price alert | Target 16,000,000 VND (AC2) | Refused: 422 "Target price must be lower than the current price"; nothing saved (BR2) | error |
+| TC-US03-03 | US03 Create a price alert | Target 0 VND (AC3) | Refused: 422 "Target price must be greater than 0"; nothing saved (BR2) | error |
+| TC-US03-04 | US03 Create a price alert | User already has 19 active alerts | 20th alert saved as `ACTIVE` (BR1) | boundary, on the limit |
+| TC-US03-05 | US03 Create a price alert | User already has 20 active alerts (AC4) | Refused: 409 "Maximum 20 active alerts reached"; nothing saved (BR1) | boundary, just above |
+| TC-US03-06 | US03 Create a price alert | Target 15,000,000 VND, equal to the current price | Refused: 422 "Target price must be lower than the current price"; nothing saved (BR2) | boundary, on the limit |
 
 ### US04 — Add a product using its URL
 
@@ -79,7 +94,7 @@ No running server and no real database are needed. See
 | Story | Test file | Test case IDs |
 |---|---|---|
 | US02 | `tests/us02-price-history.test.js` | TC-US02-01 – TC-US02-06 |
-| US03 | `tests/us03-price-alert.test.js` | _TBD_ |
+| US03 | `tests/us03-price-alert.test.js` | TC-US03-01 – TC-US03-06 |
 | US04 | `tests/us04-add-product.test.js` | _TBD_ |
 | US05 | `tests/us05-notification.test.js` | _TBD_ |
 | US09 | `tests/us09-comparison.test.js` | _TBD_ |
