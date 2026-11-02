@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { pool } from '../backend/src/db/pool.js';
 import { processPriceObservation } from '../backend/src/background/price-observation/price-observation.processor.js';
+import { COMPARISONS, createFakeDatabaseClient, useFakeDatabase } from './helpers/fake-database.js';
 
 const OFFER_ID = '41';
 const VARIANT_ID = '31';
@@ -11,13 +11,6 @@ const RECIPIENT = 'demo@pricelens.local';
 const PRODUCT_NAME = 'Dell XPS 13 9340';
 const TARGET_PRICE = '14000000.00';
 const OBSERVED_AT = '2026-10-20T12:00:00.000Z';
-
-const COMPARISONS = {
-  '<': (left, right) => left < right,
-  '<=': (left, right) => left <= right,
-  '>': (left, right) => left > right,
-  '>=': (left, right) => left >= right,
-};
 
 // Evaluates a threshold column exactly as written in the SQL the processor
 // sends, e.g. `$4::NUMERIC <= pa.target_price`, so changing the operator is caught.
@@ -32,12 +25,10 @@ function evaluateThreshold(text, column, values) {
 
 // `previousPrice` is the current price before the new observation, `newPrice`
 // the observation being processed, and `lastState` the alert's stored state.
-function createFakeDatabaseClient({ previousPrice, newPrice, lastState }) {
-  const statements = [];
+function createObservationDatabase({ previousPrice, newPrice, lastState }) {
   let currentPriceReads = 0;
 
-  const answer = (text, parameters) => {
-    if (/^(BEGIN|COMMIT|ROLLBACK)$/.test(text)) return [];
+  return createFakeDatabaseClient((text, parameters) => {
     if (/FOR UPDATE OF pv/.test(text)) {
       return [{ retailer_offer_id: OFFER_ID, product_variant_id: VARIANT_ID, product_name: PRODUCT_NAME }];
     }
@@ -73,24 +64,12 @@ function createFakeDatabaseClient({ previousPrice, newPrice, lastState }) {
     }
     if (/^UPDATE price_alerts/.test(text)) return [{ price_alert_id: parameters[0] }];
     if (/^INSERT INTO notifications/.test(text)) return [{ notification_id: '81' }];
-    throw new Error(`Unexpected SQL in fake database client: ${text}`);
-  };
-
-  return {
-    statements,
-    async query(text, parameters = []) {
-      const sql = text.trim();
-      statements.push({ sql, parameters });
-      return { rows: answer(sql, parameters) };
-    },
-    release() {},
-  };
+    return undefined;
+  });
 }
 
-function useFakeDatabase(t, scenario) {
-  const client = createFakeDatabaseClient(scenario);
-  t.mock.method(pool, 'connect', async () => client);
-  return client;
+function useObservationDatabase(t, scenario) {
+  return useFakeDatabase(t, createObservationDatabase(scenario));
 }
 
 function observation(priceAmount) {
@@ -113,7 +92,7 @@ function savedThresholdState(client) {
 }
 
 test('TC-US05-01 [normal] price falling from above to below the target creates one notification', async (t) => {
-  const client = useFakeDatabase(t, { previousPrice: '15000000.00', newPrice: '13900000.00', lastState: 'ABOVE_TARGET' });
+  const client = useObservationDatabase(t, { previousPrice: '15000000.00', newPrice: '13900000.00', lastState: 'ABOVE_TARGET' });
 
   const result = await processPriceObservation(observation('13900000.00'));
 
@@ -125,7 +104,7 @@ test('TC-US05-01 [normal] price falling from above to below the target creates o
 });
 
 test('TC-US05-02 [normal] notification subject names the product exactly', async (t) => {
-  const client = useFakeDatabase(t, { previousPrice: '15000000.00', newPrice: '13900000.00', lastState: 'ABOVE_TARGET' });
+  const client = useObservationDatabase(t, { previousPrice: '15000000.00', newPrice: '13900000.00', lastState: 'ABOVE_TARGET' });
 
   await processPriceObservation(observation('13900000.00'));
 
@@ -133,7 +112,7 @@ test('TC-US05-02 [normal] notification subject names the product exactly', async
 });
 
 test('TC-US05-03 [error] price staying below the target sends no further notification', async (t) => {
-  const client = useFakeDatabase(t, { previousPrice: '13900000.00', newPrice: '13800000.00', lastState: 'AT_OR_BELOW_TARGET' });
+  const client = useObservationDatabase(t, { previousPrice: '13900000.00', newPrice: '13800000.00', lastState: 'AT_OR_BELOW_TARGET' });
 
   const result = await processPriceObservation(observation('13800000.00'));
 
@@ -143,7 +122,7 @@ test('TC-US05-03 [error] price staying below the target sends no further notific
 });
 
 test('TC-US05-04 [normal] price rising above the target re-arms the alert without a notification', async (t) => {
-  const client = useFakeDatabase(t, { previousPrice: '13800000.00', newPrice: '14200000.00', lastState: 'AT_OR_BELOW_TARGET' });
+  const client = useObservationDatabase(t, { previousPrice: '13800000.00', newPrice: '14200000.00', lastState: 'AT_OR_BELOW_TARGET' });
 
   const result = await processPriceObservation(observation('14200000.00'));
 
@@ -152,7 +131,7 @@ test('TC-US05-04 [normal] price rising above the target re-arms the alert withou
 });
 
 test('TC-US05-05 [boundary, on the limit] price falling to exactly the target creates one new notification', async (t) => {
-  const client = useFakeDatabase(t, { previousPrice: '14200000.00', newPrice: '14000000.00', lastState: 'ABOVE_TARGET' });
+  const client = useObservationDatabase(t, { previousPrice: '14200000.00', newPrice: '14000000.00', lastState: 'ABOVE_TARGET' });
 
   const result = await processPriceObservation(observation('14000000.00'));
 
@@ -162,7 +141,7 @@ test('TC-US05-05 [boundary, on the limit] price falling to exactly the target cr
 });
 
 test('TC-US05-06 [boundary, just above] price falling to 1 VND above the target creates no notification', async (t) => {
-  const client = useFakeDatabase(t, { previousPrice: '14200000.00', newPrice: '14000001.00', lastState: 'ABOVE_TARGET' });
+  const client = useObservationDatabase(t, { previousPrice: '14200000.00', newPrice: '14000001.00', lastState: 'ABOVE_TARGET' });
 
   const result = await processPriceObservation(observation('14000001.00'));
 

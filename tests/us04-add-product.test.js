@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { pool } from '../backend/src/db/pool.js';
 import { resolveProductSource } from '../backend/src/modules/product-sources/product-source.service.js';
 import { createTrackedProductForUser } from '../backend/src/modules/tracked-products/tracked-product.service.js';
+import { createFakeDatabaseClient, useFakeDatabase } from './helpers/fake-database.js';
 
 const USER_ID = '11';
 const PRODUCT_ID = '21';
@@ -28,11 +28,8 @@ const IPHONE_15 = Object.freeze({
 
 // Answers the queries behind the Add Product flow; `onInsert` decides what the
 // INSERT into tracked_products returns, so a test can simulate a duplicate.
-function createFakeDatabaseClient({ onInsert }) {
-  const statements = [];
-
-  const answer = (text, parameters) => {
-    if (/^(BEGIN|COMMIT|ROLLBACK)$/.test(text)) return [];
+function createCatalogDatabase({ onInsert }) {
+  return createFakeDatabaseClient((text, parameters) => {
     if (/WHERE ro\.normalized_url = \$1/.test(text)) {
       const offer = OFFERS_BY_URL[parameters[0]];
       return offer ? [{ ...IPHONE_15, ...offer, normalized_url: parameters[0] }] : [];
@@ -69,27 +66,14 @@ function createFakeDatabaseClient({ onInsert }) {
         created_at: new Date('2026-10-20T12:00:00Z'),
       }];
     }
-    throw new Error(`Unexpected SQL in fake database client: ${text}`);
-  };
-
-  return {
-    statements,
-    async query(text, parameters = []) {
-      const sql = text.trim();
-      statements.push({ sql, parameters });
-      return { rows: answer(sql, parameters) };
-    },
-    release() {},
-  };
+    return undefined;
+  });
 }
 
 // resolveProductSource reads through pool.query; createTrackedProductForUser
 // opens a transaction through pool.connect. Both are replaced for one test.
 function useCatalogDatabase(t, { onInsert } = {}) {
-  const client = createFakeDatabaseClient({ onInsert });
-  t.mock.method(pool, 'connect', async () => client);
-  t.mock.method(pool, 'query', (text, parameters) => client.query(text, parameters));
-  return client;
+  return useFakeDatabase(t, createCatalogDatabase({ onInsert }));
 }
 
 function findStatement(client, prefix) {

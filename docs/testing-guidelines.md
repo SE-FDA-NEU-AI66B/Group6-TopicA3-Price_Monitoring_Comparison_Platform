@@ -23,15 +23,15 @@ From the repository root:
 npm test
 ```
 
-That single command runs every file in `tests/`. It needs:
+That single command runs every file in `tests/`. Its only prerequisite is
+`npm --prefix backend ci` (see `docs/SETUP.md`).
 
-- `npm --prefix backend install` already done (Section 3 of `docs/SETUP.md`);
-- a `.env` file with `DB_NAME` and `TEST_DB_NAME` set to different values
-  (Section 4 of `docs/SETUP.md`). The suite loads this configuration but
-  **never connects to PostgreSQL**.
-
-It does **not** need a running backend, a running frontend, a PostgreSQL
-server, network access or a seeded database.
+It does **not** need a `.env` file, a running backend, a running frontend, a
+PostgreSQL server, network access or a seeded database. Before any test file
+loads, `tests/helpers/environment.js` sets every configuration value the
+backend requires, ignoring any local `.env`. Its database host is
+unresolvable on purpose, so a query that escapes the fake database fails
+instead of reaching a real server.
 
 Useful variations:
 
@@ -54,7 +54,9 @@ output.
 ```
 package.json                    # root scripts only, no dependencies
 tests/
-  helpers/                      # shared test utilities, created when needed
+  helpers/
+    environment.js              # test configuration, loaded before every test file
+    fake-database.js            # shared fake database client (Section 7)
   us02-price-history.test.js
   us03-price-alert.test.js
   us04-add-product.test.js
@@ -68,7 +70,8 @@ Rules:
 - Import production code by relative path, for example
   `../backend/src/modules/tracked-products/price-history.service.js`.
 - A helper goes into `tests/helpers/` only if at least two story files use
-  it. Otherwise, keep it local to your file. Helper file names must not end
+  it. Otherwise, keep it local to your file. The answers a fake database
+  gives are specific to one story, so they stay in that story's file. Helper file names must not end
   in `.test.js`, or the runner will treat them as test files.
 - Do not create fixtures on disk (JSON, SQL). Build test data inline so the
   reader sees the input next to the assertion.
@@ -119,9 +122,10 @@ Numeric limits we already know about:
 | US03 | BR2: target strictly below current price | current − 1 VND → accepted | target = current → rejected |
 | US03 | BR2: target above 0 | smallest positive amount → accepted | `0` → `Target price must be greater than 0` |
 | US05 | BR4: notify when price reaches the target | price = target → one notification | price = target + 1 VND → no notification |
+| US09 | A multi-source comparison needs at least 2 in-stock offers | 2 in-stock offers → `AVAILABLE` | 1 in-stock offer → `No multi-source comparison is currently available` |
 
-US04 (BR6) and US09 (BR5, BR8) have no numeric limit in their acceptance
-criteria, so boundary cases are optional for them.
+US04 (BR6) has no numeric limit in its acceptance criteria, so boundary
+cases are optional for it.
 
 Use the exact user-facing messages from `docs/requirements.md` and
 `docs/p0-acceptance.md`. Import the message constant from the service when
@@ -136,44 +140,57 @@ business rules.
 | Layer | Where | How we test it in this suite |
 |---|---|---|
 | Services | `backend/src/modules/**/*.service.js`, `backend/src/background/**` | **Primary target.** Call the exported function directly with plain arguments. Assert on the returned object or the thrown `HttpError` (`status`, `code`, `detail`), for example with `await assert.rejects(promise, { status: 409, code: 'ACTIVE_ALERT_LIMIT_REACHED' })`. |
-| Repository | `backend/src/modules/**/*.repository.js` | Pass a fake `executeQuery` as the last argument. Assert on the SQL parameters sent and on how returned rows are mapped. Do not assert on full SQL text. Assert only on the filter that enforces the rule (for example `IN_STOCK` or the variant id). |
+| Repository | `backend/src/modules/**/*.repository.js` | Exercised through the service under test, with the fake database client from Section 7 answering each query. Assert on the parameters sent and on how returned rows are mapped. Do not assert on full SQL text; assert only on the value that enforces the rule (for example the variant id). |
 | Routes | `backend/src/modules/**/*.routes.js` | Not covered in this suite: routes hold no business rules and only map service results to HTTP responses. |
 | Interface | `frontend/src/**` | Not covered in this suite: verified by hand in `docs/p0-acceptance.md`. |
 
 Prefer **pure functions** first (for example `historyStatus`,
-`assemblePriceHistory`, `createUtcHistoryRange`). Then test functions that
-accept `executeQuery`. A function that imports the repository directly and
-offers no injection point cannot be tested without a database. **Do not
-change production code just to make it testable** in a test PR.
-Instead, record the gap in the "What we test, and why" section of
-`docs/testing.md`.
+`assemblePriceHistory`, `createUtcHistoryRange`). Then call the real service
+function with the fake database client from Section 7. **Do not change
+production code just to make it testable** in a test PR. If a behaviour
+only happens inside PostgreSQL (SQL sorting, constraints, `NUMERIC`
+arithmetic), record it under "Known gaps" in `docs/testing.md`.
 
-## 7. The fake `executeQuery`
+## 7. The fake database client
 
-Every repository function takes `executeQuery = query` as its last
-parameter, so a test can pass a fake instead of the PostgreSQL pool. The
-first story that needs one adds it as `tests/helpers/fake-query.js`, with
-this interface, and later stories reuse it:
+Services reach PostgreSQL through the shared pool, either with `pool.query`
+or inside a transaction opened with `pool.connect`. `tests/helpers/fake-database.js`
+replaces both for one test:
 
 ```js
-import { createFakeQuery } from './helpers/fake-query.js';
+import { createFakeDatabaseClient, useFakeDatabase } from './helpers/fake-database.js';
 
-const fakeQuery = createFakeQuery([
-  { rows: [{ currency_code: 'VND' }] },   // answer to the 1st call
-  { rows: [] },                           // answer to the 2nd call
-]);
+function createComparisonDatabase() {
+  return createFakeDatabaseClient((sql, parameters) => {
+    if (/SELECT po\.currency_code/.test(sql)) return [{ currency_code: 'VND' }];
+    return undefined;   // any other statement fails the test
+  });
+}
 
-await findPriceHistoryCurrency('42', fakeQuery);
+test('TC-US09-02 ...', async (t) => {
+  const client = useFakeDatabase(t, createComparisonDatabase());
 
-assert.equal(fakeQuery.calls.length, 1);
-assert.deepEqual(fakeQuery.calls[0].parameters, ['42']);
+  // call the real service function, then assert on its result
+  // and on client.statements
+});
 ```
 
-- Responses are returned in order, one per call. An unexpected extra call
-  throws, so a test fails loudly if the code queries more than expected.
-- `fakeQuery.calls` records `{ text, parameters }` for every call.
+- The answer function receives the trimmed SQL and its parameters and
+  returns the rows. Recognise a statement by a short, distinctive fragment
+  (a table alias or column name), not by its full text.
+- `BEGIN`, `COMMIT` and `ROLLBACK` are answered by the helper. Any statement
+  the answer function does not recognise throws, so a test fails loudly when
+  the code sends a query the test did not expect.
+- `client.statements` records `{ sql, parameters }` for every statement, for
+  example to check that nothing was inserted or that a transaction ended in
+  `ROLLBACK`.
+- `useFakeDatabase(t, client)` mocks the pool through `t.mock`, so the
+  original pool is restored automatically after each test.
+- When a rule is a comparison written in SQL, read the operator from the SQL
+  text and evaluate it with `COMPARISONS`, so changing `<` to `<=` in the
+  query turns a test red.
 - Return values exactly as PostgreSQL would return them through our queries:
-  ids and money as **strings** (`'20890000.00'`), dates as `'YYYY-MM-DD'`.
+  ids and money as **strings** (`'20890000.00'`).
 
 ## 8. Isolation rules
 

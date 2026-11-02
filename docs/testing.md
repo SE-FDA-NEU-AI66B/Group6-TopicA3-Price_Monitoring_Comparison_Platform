@@ -9,7 +9,7 @@ writing tests and editing this document are in
 | Layer | Where | How we test it | Why |
 |---|---|---|---|
 | Services | `backend/src/modules/**/*.service.js`, `backend/src/background/**` | Unit tests that call exported functions directly with plain arguments | _TBD_ |
-| Repository | `backend/src/modules/**/*.repository.js` | Unit tests with a fake `executeQuery`; no PostgreSQL | _TBD_ |
+| Repository | `backend/src/modules/**/*.repository.js` | Run through the service tests against a fake database client that answers each query; no PostgreSQL | _TBD_ |
 | Routes | `backend/src/modules/**/*.routes.js` | Not tested in this suite | _TBD_ |
 | Interface | `frontend/src/**` | Not tested in this suite | _TBD_ |
 
@@ -139,8 +139,9 @@ Run the whole suite from the repository root:
 npm test
 ```
 
-No running server and no real database are needed. See
-[SETUP.md](SETUP.md) for the one-time install and `.env` configuration.
+No running server, no real database and no `.env` file are needed; the only
+prerequisite is the backend dependency install described in
+[SETUP.md](SETUP.md).
 
 | Story | Test file | Test case IDs |
 |---|---|---|
