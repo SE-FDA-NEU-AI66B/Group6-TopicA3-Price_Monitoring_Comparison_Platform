@@ -9,13 +9,12 @@ npm-debug.log*
 *.sqlite
 *.sqlite3
 *.dump
-frontend/node_modules/
-frontend/dist/
-frontend/node_modules/
+dist/
+.local/
 
 # Local development and documentation
 .github/
 .claude/
+.vscode/
 docs/milestone4-decisions.md
-docs/us05-demo.md
-docs/frontend-1-file.md
+docs/frontend-1-file-inventory.md
