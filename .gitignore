@@ -11,3 +11,10 @@ npm-debug.log*
 *.dump
 frontend/dist/
 frontend/node_modules/
+
+# Local development and documentation
+.github/
+.claude/
+docs/milestone4-decisions.md
+docs/us05-demo.md
+docs/frontend-1-file.md
