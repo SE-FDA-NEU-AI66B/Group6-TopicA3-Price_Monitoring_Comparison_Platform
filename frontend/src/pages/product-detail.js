@@ -11,11 +11,17 @@ import {
   formatCompactNumber,
   formatCurrency,
   formatDate,
-  formatDateTime,
+  formatUpdatedAgo,
   formatStatusLabel,
   getFreshnessBadge,
 } from '../utils/format.js';
-import { getProductIdFromPathname, parseTargetPrice } from '../utils/helpers.js';
+import {
+  getPriceAxisTicks,
+  getProductIdFromPathname,
+  getTargetPriceExample,
+  NO_EXPORT_DATA_MESSAGE,
+  parseTargetPrice,
+} from '../utils/helpers.js';
 
 initializePageShell();
 
@@ -52,8 +58,7 @@ const sourceLink = document.querySelector('#source-retailer-link');
 const chartRegion = document.querySelector('#price-history-state');
 const summaryRegion = document.querySelector('#history-summary');
 const alertRegion = document.querySelector('#price-alert-region');
-const alertCurrentPrice = document.querySelector('#alert-current-price');
-const alertPriceNote = document.querySelector('#alert-price-note');
+const targetPriceHint = document.querySelector('#target-price-hint');
 const alertForm = document.querySelector('#price-alert-form');
 const targetPriceInput = document.querySelector('#target-price');
 const alertSubmitButton = document.querySelector('#price-alert-submit');
@@ -283,10 +288,9 @@ function renderProductContext(context) {
   document.querySelector('[data-field="product-brand"]').textContent = context.product.brand;
   document.querySelector('[data-field="product-name"]').textContent = context.product.display_name;
   document.querySelector('[data-field="product-variant"]').textContent = context.product.variant.display_name;
-  document.querySelector('[data-product-id]').textContent = context.tracked_product_id;
   badges.replaceChildren(
-    createBadge(freshness.label, freshness.modifier),
-    createBadge(formatStatusLabel(context.tracking_status)),
+    ...(context.freshness_status === 'UNAVAILABLE' ? [] : [createBadge(freshness.label, freshness.modifier)]),
+    ...(context.tracking_status === 'TRACKING' ? [] : [createBadge(formatStatusLabel(context.tracking_status))]),
     createBadge(context.source.retailer_name, 'badge--retailer'),
   );
 
@@ -297,12 +301,14 @@ function renderProductContext(context) {
 }
 
 function describeObservation(currentPrice) {
-  return `Updated ${formatDateTime(currentPrice.observed_at)} at ${currentPrice.retailer_name}`;
+  return `${formatUpdatedAgo(currentPrice.observed_at)} at ${currentPrice.retailer_name}`;
 }
 
 function renderCurrentPrice(context) {
   const currentPrice = document.querySelector('[data-field="current-price"]');
   const observedAt = document.querySelector('[data-field="price-observed-at"]');
+
+  document.querySelector('[data-field="stale-note"]').hidden = context.freshness_status !== 'STALE';
 
   if (context.current_price) {
     currentPrice.textContent = formatCurrency(
@@ -334,7 +340,13 @@ function clearAlertFeedback() {
   targetPriceInput.removeAttribute('aria-invalid');
 }
 
-function showAlertFeedback({ kind = 'error', message, guidance, focus = true }) {
+function showAlertFeedback({
+  kind = 'error',
+  message,
+  guidance,
+  focus = true,
+  invalidInput = false,
+}) {
   const messageElement = document.createElement('p');
   const guidanceElement = document.createElement('p');
 
@@ -346,7 +358,7 @@ function showAlertFeedback({ kind = 'error', message, guidance, focus = true }) 
   alertFeedback.setAttribute('role', kind === 'error' ? 'alert' : 'status');
   alertFeedback.replaceChildren(messageElement, guidanceElement);
 
-  if (kind === 'error') {
+  if (invalidInput) {
     targetPriceInput.setAttribute('aria-invalid', 'true');
   } else {
     targetPriceInput.removeAttribute('aria-invalid');
@@ -363,22 +375,11 @@ function renderAlertRegion(context) {
   isAlertCreationBlocked = currentPrice === null;
   isSubmittingAlert = false;
   clearAlertFeedback();
-  alertPriceNote.hidden = context.freshness_status !== 'STALE';
 
   if (currentPrice) {
-    alertCurrentPrice.textContent = formatCurrency(
-      currentPrice.amount,
-      currentPrice.currency_code,
-    );
-    alertPriceNote.textContent = `Stale data. Last updated ${formatDateTime(currentPrice.observed_at)}; check the retailer before relying on this price.`;
+    targetPriceHint.textContent = `Current price: ${formatCurrency(currentPrice.amount, currentPrice.currency_code)}. Enter a lower target, for example ${getTargetPriceExample(currentPrice.amount)}.`;
   } else {
-    alertCurrentPrice.textContent = 'Price unavailable';
-    showAlertFeedback({
-      kind: 'warning',
-      message: 'A current price is unavailable.',
-      guidance: 'Try again later when a valid in-stock current price is available.',
-      focus: false,
-    });
+    targetPriceHint.textContent = 'You can create an alert once a current in-stock price is available.';
   }
 
   setAlertControlsState();
@@ -442,10 +443,6 @@ function renderHistory(history) {
       history.summary.maximum,
       currencyCode,
     );
-    document.querySelector('[data-field="history-current"]').textContent = formatCurrency(
-      history.summary.current,
-      currencyCode,
-    );
   }
 }
 
@@ -468,8 +465,9 @@ function createHistoryChart({ points, range, summary }) {
   const numericAmounts = points.map((point) => Number(point.amount));
   const firstDay = utcDay(range.from_date);
   const daySpan = utcDay(range.to_date) - firstDay;
-  const minimum = Math.min(...numericAmounts);
-  const maximum = Math.max(...numericAmounts);
+  const ticks = getPriceAxisTicks(Math.min(...numericAmounts), Math.max(...numericAmounts));
+  const minimum = ticks[0];
+  const maximum = ticks.at(-1);
   const priceRange = maximum - minimum;
   const plotWidth = width - leftPadding - rightPadding;
   const plotHeight = height - verticalPadding * 2;
@@ -482,9 +480,9 @@ function createHistoryChart({ points, range, summary }) {
   }));
   const gridValues = priceRange === 0
     ? [{ y: height / 2, value: minimum }]
-    : [0, 1, 2, 3].map((index) => ({
-        y: verticalPadding + (index / 3) * plotHeight,
-        value: maximum - (index / 3) * priceRange,
+    : ticks.map((value) => ({
+        y: verticalPadding + ((maximum - value) / priceRange) * plotHeight,
+        value,
       }));
 
   wrapper.className = 'history-chart';
@@ -602,16 +600,18 @@ function getRequestErrorMessage(error) {
   return 'The tracked product could not be loaded. Please try again.';
 }
 
-function handleAlertRequestError(error) {
+function handleAlertRequestError(error, { fromToggle = false } = {}) {
   const state = toErrorState(error);
   const knownErrors = {
     TARGET_PRICE_NOT_BELOW_CURRENT: {
       message: TARGET_NOT_BELOW_MESSAGE,
       guidance: 'Enter a lower target price and submit again.',
+      invalidInput: true,
     },
     TARGET_PRICE_NOT_POSITIVE: {
       message: TARGET_NOT_POSITIVE_MESSAGE,
       guidance: 'Enter a target price greater than zero and submit again.',
+      invalidInput: true,
     },
     ACTIVE_ALERT_LIMIT_REACHED: {
       message: ACTIVE_ALERT_LIMIT_MESSAGE,
@@ -620,6 +620,7 @@ function handleAlertRequestError(error) {
     DUPLICATE_ACTIVE_ALERT: {
       message: DUPLICATE_ALERT_MESSAGE,
       guidance: 'Choose a different target price or keep the existing alert below.',
+      invalidInput: true,
     },
   };
 
@@ -630,7 +631,7 @@ function handleAlertRequestError(error) {
 
   if (state.code === 'CURRENT_PRICE_UNAVAILABLE') {
     isAlertCreationBlocked = true;
-    alertCurrentPrice.textContent = 'Price unavailable';
+    targetPriceHint.textContent = 'You can create an alert once a current in-stock price is available.';
     setAlertControlsState();
     showAlertFeedback({
       kind: 'warning',
@@ -647,7 +648,7 @@ function handleAlertRequestError(error) {
       }
     : {
         message: 'PriceLens could not update your price alerts.',
-        guidance: 'Review the target price and try again.',
+        guidance: fromToggle ? 'Please try again in a moment.' : 'Review the target price and try again.',
       });
 }
 
@@ -667,6 +668,7 @@ async function handleCreateAlert(event) {
         : 'Enter a target price.',
       guidance: 'Use digits, for example 14000000 or 14,000,000.',
       focus: false,
+      invalidInput: true,
     });
     targetPriceInput.focus();
     return;
@@ -727,7 +729,7 @@ async function handleToggleAlert(button) {
     }
 
     button.disabled = false;
-    handleAlertRequestError(error);
+    handleAlertRequestError(error, { fromToggle: true });
   }
 }
 
@@ -794,6 +796,7 @@ async function loadProductDetails() {
     }
 
     errorMessage.textContent = getRequestErrorMessage(error);
+    retryButton.hidden = toErrorState(error).code === 'TRACKED_PRODUCT_NOT_FOUND';
     showPageState('error');
   } finally {
     if (attempt === activeAttempt) {
@@ -826,6 +829,73 @@ async function handleSignOut() {
   }
 }
 
+const exportButton = document.querySelector('#history-export');
+const exportStatus = document.querySelector('#history-export-status');
+let isExporting = false;
+
+function setExportStatus(message = '', kind = '') {
+  exportStatus.className = `status${kind ? ` status--${kind}` : ''}`;
+  exportStatus.textContent = message;
+}
+
+function downloadCsv(csv, filename) {
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  const link = document.createElement('a');
+
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+async function handleExportHistory() {
+  if (isExporting || !trackedProductId) {
+    return;
+  }
+
+  isExporting = true;
+  exportButton.disabled = true;
+  setExportStatus('Preparing the CSV file…');
+
+  try {
+    const csv = await apiClient.get(
+      `/tracked-products/${encodeURIComponent(trackedProductId)}/price-history/export`,
+      { headers: { Accept: 'text/csv, application/problem+json' } },
+    );
+
+    if (typeof csv !== 'string') {
+      throw new Error('The export response is not a CSV file.');
+    }
+
+    downloadCsv(csv, `pricelens-price-history-${trackedProductId}.csv`);
+    setExportStatus('Price history exported.', 'success');
+  } catch (error) {
+    if (isAuthenticationRequiredError(error)) {
+      redirectToSignIn();
+      return;
+    }
+
+    const errorState = toErrorState(error);
+
+    if (errorState.code === 'NO_EXPORT_DATA') {
+      setExportStatus(NO_EXPORT_DATA_MESSAGE, 'error');
+    } else {
+      setExportStatus(
+        errorState.isNetworkError
+          ? 'PriceLens could not reach the export service. Please try again.'
+          : 'PriceLens could not export the price history. Please try again.',
+        'error',
+      );
+    }
+  } finally {
+    isExporting = false;
+    exportButton.disabled = false;
+  }
+}
+
+exportButton.addEventListener('click', () => void handleExportHistory());
 retryButton.addEventListener('click', () => void loadProductDetails());
 signOutButton.addEventListener('click', () => void handleSignOut());
 alertForm.addEventListener('submit', (event) => void handleCreateAlert(event));

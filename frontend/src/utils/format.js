@@ -98,6 +98,38 @@ export function formatDateTime(value, locale, fallback = 'Time unavailable') {
   }
 }
 
+const MINUTE_IN_MS = 60 * 1000;
+const HOUR_IN_MS = 60 * MINUTE_IN_MS;
+const DAY_IN_MS = 24 * HOUR_IN_MS;
+
+function countOf(value, unit) {
+  return `${value} ${unit}${value === 1 ? '' : 's'}`;
+}
+
+export function formatUpdatedAgo(value, now = Date.now(), fallback = 'Update time unavailable') {
+  const date = toValidDate(value);
+
+  if (!date) {
+    return fallback;
+  }
+
+  const elapsed = now - date.getTime();
+
+  if (elapsed < MINUTE_IN_MS) {
+    return 'Updated just now';
+  }
+
+  if (elapsed < HOUR_IN_MS) {
+    return `Updated ${countOf(Math.floor(elapsed / MINUTE_IN_MS), 'minute')} ago`;
+  }
+
+  if (elapsed < DAY_IN_MS) {
+    return `Updated ${countOf(Math.floor(elapsed / HOUR_IN_MS), 'hour')} ago`;
+  }
+
+  return `Updated ${countOf(Math.floor(elapsed / DAY_IN_MS), 'day')} ago`;
+}
+
 export function formatCompactNumber(value, locale) {
   return new Intl.NumberFormat(locale, {
     notation: 'compact',

@@ -10,9 +10,16 @@ import {
   formatCurrency,
   formatDateTime,
   formatStatusLabel,
+  formatUpdatedAgo,
   getFreshnessBadge,
 } from '../utils/format.js';
 import { toErrorState } from '../utils/errors.js';
+import {
+  filterWatchlistItems,
+  getNoSearchResultsMessage,
+  getRemoveConfirmationMessage,
+  PRODUCT_REMOVED_MESSAGE,
+} from '../utils/helpers.js';
 
 initializePageShell();
 
@@ -30,11 +37,11 @@ const signOutButton = document.querySelector('#signout-button');
 const searchInput = document.querySelector('#watchlist-search');
 const noResults = document.querySelector('#watchlist-no-results');
 const removeDialog = document.querySelector('#remove-dialog');
+const removeTitle = document.querySelector('#remove-title');
 const removeMessage = document.querySelector('#remove-message');
 const removeStatus = document.querySelector('#remove-status');
 const removeConfirmButton = document.querySelector('#remove-confirm');
 const stateElements = {
-  placeholder: document.querySelector('#watchlist-placeholder'),
   loading: document.querySelector('#watchlist-loading'),
   empty: document.querySelector('#watchlist-empty'),
   error: document.querySelector('#watchlist-error'),
@@ -137,6 +144,7 @@ function setFreshness(element, freshnessStatus) {
   const { label, modifier } = getFreshnessBadge(freshnessStatus);
 
   element.textContent = label;
+  element.hidden = freshnessStatus === 'UNAVAILABLE';
 
   if (modifier) {
     element.classList.add(modifier);
@@ -163,17 +171,21 @@ function renderWatchlistItem(item) {
 
   setFreshness(freshness, item.freshness_status);
   trackingStatus.textContent = formatStatusLabel(item.tracking_status);
+  trackingStatus.hidden = item.tracking_status === 'TRACKING';
   retailer.textContent = item.source.retailer_name;
   brand.textContent = item.product.brand;
   name.textContent = item.product.display_name;
   variant.textContent = item.product.variant.display_name;
+
+  price.classList.toggle('money--unavailable', !item.current_price);
 
   if (item.current_price) {
     price.textContent = formatCurrency(
       item.current_price.amount,
       item.current_price.currency_code,
     );
-    updated.textContent = `Updated ${formatDateTime(item.current_price.observed_at)}`;
+    updated.textContent = formatUpdatedAgo(item.current_price.observed_at);
+    updated.title = formatDateTime(item.current_price.observed_at);
   } else {
     price.textContent = 'Price unavailable';
     updated.textContent = 'No in-stock price is currently available.';
@@ -191,20 +203,26 @@ function renderWatchlistItem(item) {
   return fragment;
 }
 
+function getWatchlistSummary(shownCount, totalCount) {
+  const total = `${totalCount} ${totalCount === 1 ? 'item' : 'items'}`;
+
+  return shownCount === totalCount
+    ? `${total} in your watchlist.`
+    : `Showing ${shownCount} of ${total} in your watchlist.`;
+}
+
 function renderWatchlist() {
-  const searchText = searchInput.value.trim();
-  const searchTerm = searchText.toLocaleLowerCase();
-  const items = watchlistItems.filter((item) => (
-    `${item.product.display_name} ${item.product.variant.display_name}`
-      .toLocaleLowerCase()
-      .includes(searchTerm)
-  ));
+  const items = filterWatchlistItems(watchlistItems, searchInput.value);
   const fragment = document.createDocumentFragment();
 
   items.forEach((item) => fragment.append(renderWatchlistItem(item)));
   itemsContainer.replaceChildren(fragment);
-  noResults.textContent = `No products found matching '${searchText}'`;
+  noResults.textContent = getNoSearchResultsMessage(searchInput.value);
   noResults.hidden = items.length > 0;
+
+  if (watchlistSummary) {
+    watchlistSummary.textContent = getWatchlistSummary(items.length, watchlistItems.length);
+  }
 }
 
 function getWatchlistErrorMessage(error) {
@@ -249,7 +267,7 @@ async function loadWatchlist() {
     const { count, items } = getWatchlistPayload(response);
 
     if (watchlistSummary) {
-      watchlistSummary.textContent = `${count} ${count === 1 ? 'item' : 'items'} in your watchlist.`;
+      watchlistSummary.textContent = getWatchlistSummary(count, count);
     }
 
     watchlistItems = items;
@@ -329,9 +347,8 @@ function openRemoveDialog(trackedProductId) {
     return;
   }
 
-  removeMessage.textContent = pendingRemoval.alert_count > 0
-    ? `Deleting this product will also delete ${pluralize(pendingRemoval.alert_count, 'price alert')}`
-    : `Remove ${pendingRemoval.product.display_name} — ${pendingRemoval.product.variant.display_name} from your watchlist?`;
+  removeTitle.textContent = `Remove ${pendingRemoval.product.display_name}?`;
+  removeMessage.textContent = getRemoveConfirmationMessage(pendingRemoval);
   removeStatus.className = 'status';
   removeStatus.textContent = '';
   removeDialog.showModal();
@@ -349,7 +366,7 @@ async function handleRemove() {
     await apiClient.delete(`/tracked-products/${encodeURIComponent(pendingRemoval.tracked_product_id)}`);
     removeDialog.close();
     await loadWatchlist();
-    setActionStatus('Product removed from your watchlist', 'success');
+    setActionStatus(PRODUCT_REMOVED_MESSAGE, 'success');
   } catch (error) {
     if (isAuthenticationRequiredError(error)) {
       redirectToSignIn();

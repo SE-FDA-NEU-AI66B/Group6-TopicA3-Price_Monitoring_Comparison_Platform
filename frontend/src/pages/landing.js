@@ -123,7 +123,7 @@ function validateRegistration() {
       password,
       password.input.value.length >= MIN_PASSWORD_LENGTH
         ? ''
-        : `Use at least ${MIN_PASSWORD_LENGTH} characters.`,
+        : `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`,
     ],
   ]);
 

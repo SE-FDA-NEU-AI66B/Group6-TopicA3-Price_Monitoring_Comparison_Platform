@@ -32,12 +32,10 @@
       <div id="product-content" hidden>
         <a class="back" href="/watchlist">← Back to watchlist</a>
         <section class="product-overview" aria-labelledby="product-title">
-          <div class="product-art product-art--compact" aria-hidden="true"></div>
           <div>
             <span class="item-label" data-field="product-brand"></span>
             <h1 id="product-title" data-field="product-name"></h1>
             <p class="muted" data-field="product-variant"></p>
-            <p class="product-reference">Tracked-product reference: <strong data-product-id></strong></p>
             <div id="product-badges" class="badges" aria-label="Product status"></div>
           </div>
         </section>
@@ -48,6 +46,7 @@
               <h2 id="current-price-title" class="section-title">Current observed price</h2>
               <p class="money" data-field="current-price"></p>
               <p class="observed" data-field="price-observed-at"></p>
+              <p class="stale-note" data-field="stale-note" hidden>This price is more than 24 hours old. Check the retailer before relying on it.</p>
               <a id="source-retailer-link" class="btn btn--light" target="_blank" rel="noopener noreferrer" hidden>View source retailer</a>
             </section>
 
@@ -58,8 +57,11 @@
               <dl id="history-summary" class="stat-grid" hidden>
                 <div class="stat"><dt>30-day low</dt><dd data-field="history-low"></dd></div>
                 <div class="stat"><dt>30-day high</dt><dd data-field="history-high"></dd></div>
-                <div class="stat"><dt>Current</dt><dd data-field="history-current"></dd></div>
               </dl>
+              <div class="history-export">
+                <button id="history-export" class="btn btn--light" type="button">Export CSV</button>
+                <p id="history-export-status" class="status" role="status" aria-live="polite"></p>
+              </div>
             </section>
 
             <section class="card card--solid compare-callout" aria-labelledby="compare-callout-title">
@@ -74,12 +76,7 @@
           <aside class="stack" aria-label="Price alerts">
             <section id="price-alert-region" class="card card--solid alert-card" aria-labelledby="alert-region-title">
               <h2 id="alert-region-title" class="section-title">Price alerts</h2>
-              <p class="muted">Choose a target and PriceLens will save an active alert for this tracked product.</p>
-              <div class="alert-price-context">
-                <span class="item-label">Current price</span>
-                <strong id="alert-current-price" class="alert-price-context__amount">Checking price…</strong>
-                <p id="alert-price-note" class="hint" hidden></p>
-              </div>
+              <p class="muted">Get an email when the price falls to your target.</p>
               <form id="price-alert-form" class="form-stack" novalidate>
                 <div class="field">
                   <label for="target-price">Target price</label>
