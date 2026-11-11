@@ -27,6 +27,7 @@ function pageRouteMiddleware(request, response, next) {
 }
 
 export default defineConfig({
+  envDir: resolve(projectRoot, '..'),
   plugins: [
     {
       name: 'pricelens-page-routes',

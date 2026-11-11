@@ -58,11 +58,23 @@ app.disable('x-powered-by');
 app.set('trust proxy', 1);
 app.use(helmet({
   contentSecurityPolicy: false,
-  crossOriginResourcePolicy: { policy: 'same-site' },
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
   strictTransportSecurity: config.nodeEnv === 'production',
 }));
+
+const allowedOrigins = config.frontendOrigins ?? [config.frontendOrigin];
+
 app.use(cors({
-  origin: config.frontendOrigin,
+  origin: allowedOrigins.includes('*')
+    ? true
+    : (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin.replace(/\/+$/, ''))) {
+        callback(null, true);
+        return;
+      }
+
+      callback(null, false);
+    },
   credentials: true,
   exposedHeaders: ['Retry-After', 'RateLimit', 'RateLimit-Policy'],
 }));

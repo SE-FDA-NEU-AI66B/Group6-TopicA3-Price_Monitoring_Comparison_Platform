@@ -14,6 +14,7 @@ export const pool = new Pool({
   database: config.database.name,
   user: config.database.user,
   password: config.database.password,
+  ...(config.database.ssl ? { ssl: config.database.ssl } : {}),
   max: config.database.max,
   idleTimeoutMillis: config.database.idleTimeoutMillis,
   connectionTimeoutMillis: config.database.connectionTimeoutMillis,

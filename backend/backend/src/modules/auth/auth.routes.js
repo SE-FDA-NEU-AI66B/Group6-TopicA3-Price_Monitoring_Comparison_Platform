@@ -38,10 +38,12 @@ function createCredentialAttemptLimit() {
 }
 
 function cookieOptions() {
+  const sameSite = config.cookieSameSite || 'lax';
+
   return {
     httpOnly: true,
-    sameSite: 'lax',
-    secure: config.nodeEnv === 'production',
+    sameSite,
+    secure: config.nodeEnv === 'production' || sameSite === 'none',
     path: '/',
   };
 }

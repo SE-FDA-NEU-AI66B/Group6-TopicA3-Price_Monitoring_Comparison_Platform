@@ -28,7 +28,7 @@ const EXPECTED_TRIGGERS = Object.freeze([
   'trg_price_alerts_set_updated_at',
 ]);
 
-const DATABASE_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const DATABASE_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_-]*$/;
 const DEMO_EMAIL = 'demo@pricelens.local';
 
 function connectionOptions(database) {
@@ -38,6 +38,7 @@ function connectionOptions(database) {
     database,
     user: config.database.user,
     password: config.database.password,
+    ...(config.database.ssl ? { ssl: config.database.ssl } : {}),
     connectionTimeoutMillis: config.database.connectionTimeoutMillis,
   };
 }
@@ -45,7 +46,7 @@ function connectionOptions(database) {
 function quoteIdentifier(identifier) {
   if (!DATABASE_NAME_PATTERN.test(identifier)) {
     throw new Error(
-      'DB_NAME must contain only letters, numbers and underscores and cannot start with a number.',
+      'DB_NAME must contain only letters, numbers, underscores or hyphens and cannot start with a number.',
     );
   }
 
@@ -55,6 +56,19 @@ function quoteIdentifier(identifier) {
 async function createDatabaseIfMissing() {
   const databaseName = config.database.name;
   const quotedDatabaseName = quoteIdentifier(databaseName);
+  const directClient = new Client(connectionOptions(databaseName));
+
+  try {
+    await directClient.connect();
+    return;
+  } catch (error) {
+    if (error.code !== '3D000') {
+      throw error;
+    }
+  } finally {
+    await directClient.end().catch(() => {});
+  }
+
   const maintenanceClient = new Client(connectionOptions('postgres'));
 
   try {

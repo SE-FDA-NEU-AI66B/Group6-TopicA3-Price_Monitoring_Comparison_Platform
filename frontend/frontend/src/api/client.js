@@ -1,7 +1,34 @@
 const LOCAL_API_BASE_URL = 'http://localhost:3000/api';
-const configuredBaseUrl = import.meta.env?.VITE_API_BASE_URL?.trim();
 
-export const API_BASE_URL = (configuredBaseUrl || LOCAL_API_BASE_URL).replace(/\/+$/, '');
+export function resolveApiBaseUrl({
+  envBaseUrl = import.meta.env?.VITE_API_BASE_URL,
+  location = typeof window !== 'undefined' ? window.location : null,
+} = {}) {
+  const configuredBaseUrl = String(envBaseUrl ?? '').trim().replace(/\/+$/, '');
+  const hostname = String(location?.hostname ?? '').trim().toLowerCase();
+  const origin = String(location?.origin ?? '').trim().replace(/\/+$/, '');
+  const isPublicBrowserOrigin = Boolean(
+    origin
+    && hostname
+    && hostname !== 'localhost'
+    && hostname !== '127.0.0.1',
+  );
+  const pointsToLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(
+    configuredBaseUrl,
+  );
+
+  if (configuredBaseUrl && (!isPublicBrowserOrigin || !pointsToLocalhost)) {
+    return configuredBaseUrl;
+  }
+
+  if (isPublicBrowserOrigin) {
+    return `${origin}/api`;
+  }
+
+  return configuredBaseUrl || LOCAL_API_BASE_URL;
+}
+
+export const API_BASE_URL = resolveApiBaseUrl();
 
 export class ApiError extends Error {
   constructor(message, {

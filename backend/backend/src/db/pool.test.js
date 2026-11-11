@@ -106,3 +106,29 @@ test('shared pool shutdown is idempotent', async () => {
   assert.equal(secondClose, firstClose);
   await firstClose;
 });
+
+test('loadConfig parses production DATABASE_URL, PORT, SSL and CORS origins', async () => {
+  const { loadConfig } = await import('../config.js');
+
+  const prodConfig = loadConfig({
+    NODE_ENV: 'production',
+    PORT: '10000',
+    DATABASE_URL: 'postgresql://neon_user:secret%40pass@ep-cool-cloud.aws.neon.tech:5432/pricelens_prod?sslmode=require',
+    FRONTEND_ORIGIN: 'https://pricelens.onrender.com, https://pricelens.vercel.app/',
+    COOKIE_SAME_SITE: 'none',
+  });
+
+  assert.equal(prodConfig.nodeEnv, 'production');
+  assert.equal(prodConfig.apiPort, 10000);
+  assert.equal(prodConfig.database.host, 'ep-cool-cloud.aws.neon.tech');
+  assert.equal(prodConfig.database.port, 5432);
+  assert.equal(prodConfig.database.name, 'pricelens_prod');
+  assert.equal(prodConfig.database.user, 'neon_user');
+  assert.equal(prodConfig.database.password, 'secret@pass');
+  assert.deepEqual(prodConfig.database.ssl, { rejectUnauthorized: false });
+  assert.deepEqual(prodConfig.frontendOrigins, [
+    'https://pricelens.onrender.com',
+    'https://pricelens.vercel.app',
+  ]);
+  assert.equal(prodConfig.cookieSameSite, 'none');
+});
