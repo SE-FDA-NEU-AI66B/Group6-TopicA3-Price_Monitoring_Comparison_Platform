@@ -4,7 +4,13 @@ services:
     runtime: node
     plan: free
     buildCommand: npm run build
-    startCommand: npm start
+    startCommand: npm run db:init && npm start
     envVars:
       - key: NODE_ENV
         value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: DB_SSL
+        value: "true"
+      - key: FRONTEND_ORIGIN
+        sync: false
