@@ -7,6 +7,7 @@ import {
   signOut,
 } from '../auth/session.js';
 import { toErrorState } from '../utils/errors.js';
+import { SELECT_VARIANT_MESSAGE } from '../utils/helpers.js';
 
 initializePageShell();
 
@@ -161,8 +162,17 @@ function setAuthenticatedUser(user) {
   }
 }
 
+const ATTRIBUTE_ORDER = ['storage', 'capacity', 'memory', 'size', 'lens', 'color'];
+
+function attributeRank(key) {
+  const rank = ATTRIBUTE_ORDER.indexOf(key);
+  return rank === -1 ? ATTRIBUTE_ORDER.length - 1 : rank;
+}
+
 function formatAttributes(attributes) {
-  return Object.values(attributes)
+  return Object.entries(attributes)
+    .sort(([left], [right]) => attributeRank(left) - attributeRank(right))
+    .map(([, value]) => value)
     .filter((value) => ['string', 'number', 'boolean'].includes(typeof value))
     .map(String)
     .filter(Boolean)
@@ -194,7 +204,7 @@ function setTrackingPending(isPending) {
   }
 
   if (confirmButton) {
-    confirmButton.disabled = isPending || !pageState.selectedOfferId;
+    confirmButton.disabled = isPending;
     confirmButton.textContent = isPending ? 'Adding to watchlist…' : 'Add to watchlist';
   }
 
@@ -274,7 +284,7 @@ function renderResolvedProduct(product, submittedUrl) {
   pageState.resolvedProduct = product;
   pageState.resolvedInputUrl = submittedUrl;
   pageState.selectedOfferId = null;
-  confirmButton.disabled = true;
+  confirmButton.disabled = false;
 
   if (resolvedVariant && !resolvedVariant.is_tracked) {
     variantOptions.querySelector(`input[value="${resolvedVariant.retailer_offer_id}"]`).checked = true;
@@ -419,11 +429,13 @@ async function handleResolve(event) {
 }
 
 async function handleTrack() {
-  if (
-    pageState.phase === 'tracking'
-    || !pageState.resolvedProduct
-    || !pageState.selectedOfferId
-  ) {
+  if (pageState.phase === 'tracking' || !pageState.resolvedProduct) {
+    return;
+  }
+
+  if (!pageState.selectedOfferId) {
+    setStatus(submissionFeedback, SELECT_VARIANT_MESSAGE, 'error');
+    variantOptions.querySelector('input:not(:disabled)')?.focus();
     return;
   }
 
@@ -444,7 +456,7 @@ async function handleTrack() {
     pageState.phase = 'success';
     resolvedSection.hidden = true;
     urlForm.hidden = true;
-    successMessage.textContent = `${trackedProduct.product.display_name} — ${trackedProduct.product.variant.display_name} is now Tracking.`;
+    successMessage.textContent = `${trackedProduct.product.display_name} — ${trackedProduct.product.variant.display_name} is now in your watchlist.`;
     detailLink.href = `/products/${encodeURIComponent(trackedProduct.tracked_product_id)}`;
     successSection.hidden = false;
     successSection.focus();

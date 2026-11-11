@@ -4,9 +4,13 @@ import {
   requireString,
 } from '../../shared/validation.js';
 
+export const SELECT_VARIANT_MESSAGE = 'Select 1 product variant to continue';
+
 export function parseCreateTrackedProductBody(value) {
   const body = requireObject(value);
-  const retailerOfferId = requireString(body, 'retailer_offer_id');
+  const retailerOfferId = requireString(body, 'retailer_offer_id', {
+    detail: SELECT_VARIANT_MESSAGE,
+  });
 
   return {
     retailerOfferId: parseIdentifier(retailerOfferId, 'retailer_offer_id'),

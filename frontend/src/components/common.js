@@ -43,7 +43,13 @@ function initializeHeader(header) {
   navigation.setAttribute('aria-label', 'Main navigation');
 
   if (isHome) {
-    navigation.append(createLink('Open watchlist', '/watchlist', 'btn btn--light'));
+    const signInButton = document.createElement('button');
+
+    signInButton.id = 'open-signin';
+    signInButton.className = 'btn btn--light';
+    signInButton.type = 'button';
+    signInButton.textContent = 'Sign in';
+    navigation.append(signInButton);
   } else {
     navigation.append(
       createLink('Watchlist', '/watchlist', 'nav-link', activeRoute === 'watchlist'),
@@ -55,7 +61,7 @@ function initializeHeader(header) {
       const signOutButton = document.createElement('button');
 
       userContext.id = 'authenticated-user';
-      userContext.className = 'nav-link';
+      userContext.className = 'header__user';
       userContext.hidden = true;
 
       signOutButton.id = 'signout-button';

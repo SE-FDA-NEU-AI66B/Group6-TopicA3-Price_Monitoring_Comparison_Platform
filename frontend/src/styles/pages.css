@@ -200,21 +200,6 @@
   font-size: 1.3rem;
 }
 
-.cta-panel {
-  padding: 4.5rem 1.5rem;
-  margin-top: 5rem;
-  text-align: center;
-  border: 1px solid #315041;
-  border-radius: 1.45rem;
-  background: radial-gradient(circle at center, #5b673125, transparent 50%), #153126;
-}
-
-.cta-panel p {
-  max-width: 36rem;
-  margin: 0 auto 2rem;
-  color: #b6c1b6;
-}
-
 /* Watchlist page */
 .products-grid {
   display: grid;
@@ -242,10 +227,10 @@
 
 .product-card__price {
   display: flex;
-  flex-wrap: wrap;
-  align-items: end;
-  justify-content: space-between;
-  gap: 0.75rem;
+  flex: 1;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.9rem;
   padding-top: 1rem;
   margin-top: 1.5rem;
   border-top: 1px solid var(--color-line);
@@ -263,8 +248,14 @@
 
 .product-card__actions {
   display: flex;
+  margin-top: auto;
   align-items: center;
   gap: var(--space-md);
+}
+
+.money--unavailable {
+  color: var(--color-muted);
+  font-size: 1.35rem;
 }
 
 .watchlist-search {
@@ -500,7 +491,7 @@
 
 .stat-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 0.9rem;
 }
 
@@ -524,8 +515,7 @@
   font-weight: 700;
 }
 
-.compare-callout,
-.best-summary {
+.compare-callout {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -538,22 +528,6 @@
 
 .alert-card {
   align-self: start;
-}
-
-.alert-price-context {
-  display: grid;
-  gap: 0.3rem;
-  padding: 1rem;
-  margin: 1.25rem 0;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-small);
-  background: #faf9f5;
-}
-
-.alert-price-context__amount {
-  overflow-wrap: anywhere;
-  font-family: var(--font-display);
-  font-size: clamp(1.35rem, 4vw, 1.8rem);
 }
 
 .alert-feedback {
@@ -663,7 +637,7 @@
     "retailer price link"
     "retailer difference availability"
     "retailer observed availability";
-  grid-template-columns: minmax(12rem, 1fr) auto auto;
+  grid-template-columns: minmax(12rem, 1fr) 19rem 7.5rem;
   align-items: center;
   gap: 0.45rem 1.6rem;
   padding: 1.5rem;
@@ -718,12 +692,15 @@
   font-weight: 700;
 }
 
+.offer__difference:empty {
+  display: none;
+}
+
 .offer__difference {
   grid-area: difference;
   margin: 0;
   color: var(--color-muted);
   font-size: 0.84rem;
-  text-align: right;
 }
 
 .offer [data-field="availability"] {
@@ -746,11 +723,6 @@
   margin-bottom: var(--space-lg);
   color: var(--color-ink);
   font-weight: 700;
-}
-
-.best-summary {
-  margin-top: 2rem;
-  background: #f5f8f4;
 }
 
 /* Responsive layout composition overrides */
@@ -779,7 +751,7 @@
   }
 
   .offer {
-    grid-template-columns: minmax(11rem, 1fr) auto auto;
+    grid-template-columns: minmax(11rem, 1fr) 18rem 7rem;
   }
 }
 
@@ -815,8 +787,7 @@
   }
 
   .page-head,
-  .compare-callout,
-  .best-summary {
+  .compare-callout {
     align-items: flex-start;
     flex-direction: column;
   }
@@ -874,4 +845,27 @@
   .offer__difference {
     text-align: left;
   }
+}
+
+.history-export {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-md);
+  margin-top: var(--space-lg);
+}
+
+.history-export .status:empty {
+  display: none;
+}
+
+.product-card__badges {
+  margin-top: 0;
+  margin-bottom: var(--space-md);
+}
+
+.stale-note {
+  margin: var(--space-sm) 0 var(--space-md);
+  color: var(--color-warning, #8a5a00);
+  font-size: 0.88rem;
 }

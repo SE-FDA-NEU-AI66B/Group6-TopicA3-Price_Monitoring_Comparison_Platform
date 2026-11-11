@@ -41,7 +41,6 @@ const emptyPanel = document.querySelector('#comparison-empty');
 const comparisonData = document.querySelector('#comparison-data');
 const offerList = document.querySelector('#retailer-offers');
 const offerTemplate = document.querySelector('#retailer-offer-template');
-const bestOfferSummary = document.querySelector('#best-offer-summary');
 let currentUser = null;
 let activeAttempt = 0;
 let isLoading = false;
@@ -224,7 +223,6 @@ function renderProductContext(comparison) {
   document.querySelector('[data-field="product-brand"]').textContent = comparison.product.brand;
   document.querySelector('[data-field="product-name"]').textContent = comparison.product.display_name;
   document.querySelector('[data-field="product-variant"]').textContent = comparison.product.variant.display_name;
-  document.querySelector('[data-product-id]').textContent = comparison.tracked_product_id;
   backLink.href = `/products/${encodeURIComponent(comparison.tracked_product_id)}`;
 }
 
@@ -251,7 +249,7 @@ function renderOffer(offer, lowestOfferId) {
     offer.amount,
     offer.currency_code,
   );
-  fragment.querySelector('[data-field="difference"]').textContent = inStock
+  fragment.querySelector('[data-field="difference"]').textContent = inStock && !isLowest
     ? `Difference from lowest: ${formatCurrency(offer.difference_from_lowest, offer.currency_code)}`
     : '';
   availability.textContent = formatStatusLabel(offer.availability_status);
@@ -263,14 +261,6 @@ function renderOffer(offer, lowestOfferId) {
   fragment.querySelector('[data-field="retailer-link"]').href = offer.url;
 
   return fragment;
-}
-
-function renderLowestOffer(lowestOffer) {
-  document.querySelector('[data-field="best-offer"]').textContent = [
-    lowestOffer.retailer.name,
-    formatCurrency(lowestOffer.amount, lowestOffer.currency_code),
-  ].join(' · ');
-  document.querySelector('[data-field="best-offer-link"]').href = lowestOffer.url;
 }
 
 function renderComparison(comparison) {
@@ -299,11 +289,6 @@ function renderComparison(comparison) {
     ));
   });
   offerList.append(fragment);
-  bestOfferSummary.hidden = comparison.lowest_offer === null;
-
-  if (comparison.lowest_offer) {
-    renderLowestOffer(comparison.lowest_offer);
-  }
 
   comparisonData.hidden = false;
 }

@@ -14,6 +14,7 @@ import {
   parseUpdatePriceAlertBody,
 } from './price-alert.validation.js';
 import { getPriceHistoryForUser } from './price-history.service.js';
+import { exportPriceHistoryForUser } from './price-history-export.service.js';
 import {
   createTrackedProductForUser,
   deleteTrackedProductForUser,
@@ -104,6 +105,30 @@ router.get('/:tracked_product_id/offers', authenticate, async (
     );
 
     response.json({ data });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/:tracked_product_id/price-history/export', authenticate, async (
+  request,
+  response,
+  next,
+) => {
+  try {
+    const trackedProductId = parseTrackedProductId(
+      request.params.tracked_product_id,
+    );
+    const { filename, csv } = await exportPriceHistoryForUser(
+      trackedProductId,
+      request.user.user_id,
+    );
+
+    response
+      .status(200)
+      .type('text/csv; charset=utf-8')
+      .attachment(filename)
+      .send(csv);
   } catch (error) {
     next(error);
   }

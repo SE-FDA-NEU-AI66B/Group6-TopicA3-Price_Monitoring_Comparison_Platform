@@ -103,15 +103,6 @@
   border-color: #d8d4c7;
 }
 
-.btn--gold {
-  color: var(--color-on-gold);
-  background: var(--color-gold);
-}
-
-.btn--gold:hover:not(:disabled) {
-  background: #dfaa2c;
-}
-
 .btn--ghost {
   color: inherit;
   background: transparent;
@@ -192,8 +183,25 @@
 
 .header__links {
   display: flex;
+  min-width: 0;
   align-items: center;
   gap: 0.9rem;
+}
+
+.header__links .btn,
+.header__links .nav-link {
+  flex: none;
+  white-space: nowrap;
+}
+
+.header__user {
+  overflow: hidden;
+  max-width: 22rem;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .nav-link {
@@ -238,6 +246,10 @@
 
 .footer--home .brand {
   color: #ffffff;
+}
+
+.footer--home .brand em {
+  color: #9fd3ac;
 }
 
 /* Reusable forms */
@@ -294,6 +306,14 @@
   margin: 0;
   color: var(--color-muted);
   font-size: 0.88rem;
+}
+
+.input[aria-invalid="true"] ~ .field-feedback {
+  color: var(--color-error);
+}
+
+.dialog .input[aria-invalid="true"] ~ .hint {
+  display: none;
 }
 
 .field-feedback,
@@ -481,55 +501,6 @@ button.text-link {
   font-size: 1.45rem;
 }
 
-/* Product art visuals */
-.product-art {
-  position: relative;
-  min-height: 15rem;
-  overflow: hidden;
-  background:
-    radial-gradient(circle at 70% 25%, #ebb53280, transparent 22%),
-    linear-gradient(145deg, #d7ebe0, #f3ead4 55%, #c8ddd2);
-}
-
-.product-art::after {
-  content: "⌕";
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  color: #194b365c;
-  font-size: 5rem;
-}
-
-.product-art--compact {
-  width: 12rem;
-  min-height: 12rem;
-  flex: none;
-  border-radius: var(--radius-medium);
-}
-
-.product-art--summary {
-  width: 5.3rem;
-  min-height: 5.3rem;
-  flex: none;
-  border-radius: 1rem;
-}
-
-.product-art--summary::after {
-  font-size: 2rem;
-}
-
-.art-badges {
-  position: absolute;
-  z-index: 1;
-  top: 0.9rem;
-  right: 0.9rem;
-  left: 0.9rem;
-  display: flex;
-  justify-content: space-between;
-  gap: 0.4rem;
-}
-
 /* Dialog/modal */
 .dialog {
   width: min(100% - 2rem, 27rem);
@@ -571,6 +542,12 @@ button.text-link {
 }
 
 /* Responsive component adjustments */
+@media (max-width: 60rem) {
+  .header__user {
+    display: none;
+  }
+}
+
 @media (max-width: 40rem) {
   .container,
   .narrow,
@@ -593,7 +570,8 @@ button.text-link {
     gap: 0.2rem;
   }
 
-  .header__links .nav-link {
+  .header__links .nav-link,
+  .header__user {
     display: none;
   }
 
@@ -606,14 +584,5 @@ button.text-link {
     align-items: flex-start;
     flex-direction: column;
     gap: 0.75rem;
-  }
-
-  .product-art--compact {
-    width: 6rem;
-    min-height: 6rem;
-  }
-
-  .product-art--compact::after {
-    font-size: 2.5rem;
   }
 }

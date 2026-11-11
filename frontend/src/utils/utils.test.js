@@ -50,3 +50,20 @@ test('VND amounts are shown without minor units', () => {
   assert.equal(formatCurrency('34990000.00', 'VND', 'en-US'), '34,990,000 VND');
   assert.equal(formatCurrency(null, 'VND', 'en-US'), 'Price unavailable');
 });
+
+test('price axis ticks are round values that cover the whole range', async () => {
+  const { getPriceAxisTicks } = await import('./helpers.js');
+
+  assert.deepEqual(getPriceAxisTicks(20890000, 23990000), [20000000, 22000000, 24000000]);
+  assert.deepEqual(getPriceAxisTicks(18200000, 18500000), [18200000, 18300000, 18400000, 18500000]);
+  assert.deepEqual(getPriceAxisTicks(7800000, 8500000), [7500000, 8000000, 8500000]);
+  assert.deepEqual(getPriceAxisTicks(34990000, 34990000), [34990000]);
+});
+
+test('target price example stays below the current price', async () => {
+  const { getTargetPriceExample } = await import('./helpers.js');
+
+  assert.equal(getTargetPriceExample('7950000.00'), '7100000');
+  assert.equal(getTargetPriceExample('20890000.00'), '18800000');
+  assert.equal(getTargetPriceExample(null), null);
+});

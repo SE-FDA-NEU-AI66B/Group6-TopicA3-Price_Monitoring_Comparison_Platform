@@ -21,16 +21,11 @@
           <p id="watchlist-summary" aria-live="polite">Review the products and exact variants you are tracking.</p>
           <p id="watchlist-action-status" class="status" role="status" aria-live="polite"></p>
         </div>
-        <a class="btn btn--primary" href="/products/add">Add product</a>
       </div>
 
       <section id="watchlist-state" class="state-region" aria-labelledby="watchlist-state-title" aria-live="polite">
         <h2 id="watchlist-state-title" class="visually-hidden">Watchlist status</h2>
-        <div id="watchlist-placeholder" class="card card--solid state-panel">
-          <h3>Your tracked products will appear here</h3>
-          <p>The page structure is ready for the database-backed watchlist.</p>
-        </div>
-        <div id="watchlist-loading" class="card card--solid state-panel" hidden>
+        <div id="watchlist-loading" class="card card--solid state-panel">
           <h3>Loading your watchlist</h3>
           <p>Please wait while PriceLens retrieves your tracked products.</p>
         </div>
@@ -56,14 +51,12 @@
 
       <template id="watchlist-item-template">
         <article class="card card--solid product-card">
-          <div class="product-art" aria-hidden="true">
-            <div class="art-badges">
+          <div class="product-card__body">
+            <div class="badges product-card__badges">
               <span class="badge" data-field="freshness"></span>
               <span class="badge" data-field="tracking-status"></span>
               <span class="badge badge--retailer" data-field="retailer"></span>
             </div>
-          </div>
-          <div class="product-card__body">
             <span class="item-label" data-field="brand"></span>
             <h3 data-field="name"></h3>
             <p class="muted" data-field="variant"></p>

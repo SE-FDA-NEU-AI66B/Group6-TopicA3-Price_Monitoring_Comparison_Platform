@@ -29,6 +29,12 @@ const PROBLEM_DEFINITIONS = Object.freeze({
     title: 'Price alert not found',
     detail: 'Price alert not found',
   }),
+  NO_EXPORT_DATA: Object.freeze({
+    status: 404,
+    type: '/problems/no-export-data',
+    title: 'No price history to export',
+    detail: 'No data to export',
+  }),
   ROUTE_NOT_FOUND: Object.freeze({
     status: 404,
     type: '/problems/route-not-found',
@@ -156,6 +162,10 @@ export function trackedProductNotFound() {
 
 export function priceAlertNotFound() {
   return problem('PRICE_ALERT_NOT_FOUND');
+}
+
+export function noExportData() {
+  return problem('NO_EXPORT_DATA');
 }
 
 export function routeNotFound() {
