@@ -1,0 +1,11 @@
+{
+  "rewrites": [
+    { "source": "/watchlist", "destination": "/watchlist/index.html" },
+    { "source": "/watchlist/", "destination": "/watchlist/index.html" },
+    { "source": "/products/add", "destination": "/products/add/index.html" },
+    { "source": "/products/add/", "destination": "/products/add/index.html" },
+    { "source": "/products/:id/compare", "destination": "/products/compare.html" },
+    { "source": "/products/:id", "destination": "/products/product.html" }
+  ]
+}
+
