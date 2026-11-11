@@ -615,3 +615,41 @@ export async function seedDemoData(
   );
   await client.query(demoSeedSql);
 }
+
+export async function inspectSeedSummary(client) {
+  const result = await client.query(
+    `SELECT
+       (SELECT COUNT(*)::INTEGER
+        FROM tracked_products AS tp
+        JOIN users AS u ON u.user_id = tp.user_id
+        WHERE u.email = 'demo@pricelens.local') AS demo_tracked_count,
+       (SELECT COUNT(*)::INTEGER
+        FROM price_observations AS po
+        JOIN retailer_offers AS ro ON ro.retailer_offer_id = po.retailer_offer_id
+        JOIN product_variants AS pv ON pv.product_variant_id = ro.product_variant_id
+        JOIN products AS p ON p.product_id = pv.product_id
+        WHERE p.canonical_key = 'apple-macbook-air-m2'
+          AND pv.variant_key = '8gb-256gb-midnight') AS history_30_count,
+       (SELECT COUNT(*)::INTEGER
+        FROM price_observations AS po
+        JOIN retailer_offers AS ro ON ro.retailer_offer_id = po.retailer_offer_id
+        WHERE ro.normalized_url = 'https://digital-hub.example/kindle-paperwhite-16gb-black') AS history_1_count,
+       (SELECT COUNT(*)::INTEGER
+        FROM price_observations AS po
+        JOIN retailer_offers AS ro ON ro.retailer_offer_id = po.retailer_offer_id
+        WHERE ro.normalized_url = 'https://digital-hub.example/sony-wh-1000xm5-black') AS history_0_count,
+       (SELECT COUNT(*)::INTEGER
+        FROM price_alerts AS pa
+        JOIN tracked_products AS tp ON tp.tracked_product_id = pa.tracked_product_id
+        JOIN users AS u ON u.user_id = tp.user_id
+        WHERE u.email = 'alert-boundary@pricelens.local'
+          AND pa.status = 'ACTIVE') AS boundary_alert_count,
+       (SELECT COUNT(*)::INTEGER
+        FROM notifications AS n
+        JOIN price_alerts AS pa ON pa.price_alert_id = n.price_alert_id
+        JOIN tracked_products AS tp ON tp.tracked_product_id = pa.tracked_product_id
+        WHERE tp.normalized_source_url = 'https://gadget-world.example/nintendo-switch-oled-white') AS us05_notification_count`,
+  );
+
+  return Object.freeze(result.rows[0]);
+}
