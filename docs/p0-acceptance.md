@@ -86,3 +86,44 @@ Error/state handoff for Issue #152:
 No genuine Issue #151 acceptance defect was discovered, so no product code or Acceptance Criterion was changed and no defect retest was necessary. The only Issue #151 repository change is this QA artifact. No screenshots, generated evidence files, new feature work, P1/P2 implementation, requirement rewrite or Issue #152 UI documentation were added.
 
 All 18 required P0 Acceptance Criteria passed. This acceptance task is ready for PR. Parent Issue #149 remains open because its separate documentation, fresh-machine, Sprint records and final submission deliverables are outside Issue #151.
+
+---
+
+## Milestone 5 production data preparation & P0 verification — Issue #207
+
+Verification date: 2026-11-11  
+Database: PostgreSQL production-seeded schema (`npm run db:init`)  
+Verification runner: [`scripts/verify-p0-production.js`](../scripts/verify-p0-production.js)
+
+### 1. Production sample dataset inventory
+
+Running `npm run db:init` populates the PostgreSQL database through [`backend/src/database/seeds/001-demo-data.js`](../backend/src/database/seeds/001-demo-data.js) and validates the dataset via `inspectSeedSummary()`:
+
+- **Test accounts:**
+  - `demo@pricelens.local` (`PriceLensDemo2026!`) — primary shopper account with **10 tracked products** across TechMart, Digital Hub and Gadget World.
+  - `alert-boundary@pricelens.local` (`PriceLensDemo2026!`) — boundary verification account with **20 active price alerts** on `Apple iPhone 15 512GB Black` for BR1 limit verification.
+- **P0 story data coverage:**
+  - **US02 (Price History):** `Apple MacBook Air M2` has **30 daily price observations** (`20,890,000 VND` minimum/current, `23,990,000 VND` maximum); `Kindle Paperwhite` has **1 observation** (`Insufficient data for a 30-day chart`); `Sony WH-1000XM5` has **0 observations** (`No price history available`).
+  - **US03 (Create Price Alert):** `Dell XPS 13 9340` has an active in-stock price of `34,990,000 VND` for valid alert creation (`14,000,000 VND`) and BR2 boundary/error checks (`36,000,000 VND` and `0`).
+  - **US04 (Add Product by URL):** `Apple iPhone 15` exposes 3 distinct variants (`128GB Black`, `256GB Black`, `512GB Black`) across supported retailers for URL normalization, variant selection and duplicate detection.
+  - **US05 (Price-Drop Notification):** `Nintendo Switch OLED` includes the 5-step price observation sequence (`8,500,000` $\rightarrow$ `7,900,000` $\rightarrow$ `7,800,000` $\rightarrow$ `8,200,000` $\rightarrow$ `7,950,000 VND`) against an `8,000,000 VND` target price with **2 `SENT` notification records** (`Price Drop Alert: Nintendo Switch OLED`).
+  - **US09 (Compare Prices Across Retailers):** `Apple iPhone 15 128GB Black` has 3 matching retailer offers (`TechMart` at `19,900,000 VND` in stock, `Digital Hub` at `20,200,000 VND` in stock, and `Gadget World` at `18,200,000 VND` out of stock for BR8), plus a separate `256GB Black` variant (`18,500,000 VND`) excluded from `128GB` comparisons.
+
+### 2. Automated P0 & persistence verification
+
+Run against the local or deployed environment:
+
+```bash
+node scripts/verify-p0-production.js
+# Or against a deployed public URL:
+VERIFY_BASE_URL=https://pricelens.onrender.com node scripts/verify-p0-production.js
+```
+
+| Check | Story / Rule | Verified outcome |
+|---|---|---|
+| Seed summary inspection | Database baseline | `10` demo products, `30/1/0` US02 observations, `20` active boundary alerts, `2` US05 notifications |
+| Price history retrieval | US02 | 30-point chart summary (`20890000.00` / `23990000.00`), 1-point insufficient data, and 0-point no-history states |
+| Alert creation & reload persistence | US03, BR1, BR2 | `POST /api/tracked-products/:id/alerts` persists in PostgreSQL across subsequent `GET` reloads; rejects `36,000,000`, `0`, and a 21st active alert |
+| URL resolution, tracking & reload persistence | US04, BR5, BR6 | Strips `?utm_source`, creates 11th watchlist item that persists on reload, rejects duplicate (`409`) and unsupported URLs (`422`), then restores 10-item baseline |
+| Threshold crossing & notification records | US05, BR4 | Active alert in `AT_OR_BELOW_TARGET` state with 2 persisted `SENT` notifications and exact subject line |
+| Multi-retailer comparison & OOS exclusion | US09, BR8 | Selects `TechMart` (`19,900,000 VND`) as lowest, computes `300,000 VND` difference for `Digital Hub`, excludes `OUT_OF_STOCK` and `256GB` offers |
