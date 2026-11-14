@@ -67,3 +67,36 @@ test('target price example stays below the current price', async () => {
   assert.equal(getTargetPriceExample('20890000.00'), '18800000');
   assert.equal(getTargetPriceExample(null), null);
 });
+
+test('API base URL uses VITE_API_BASE_URL or public origin and falls back to localhost locally', async () => {
+  const { resolveApiBaseUrl } = await import('../api/client.js');
+
+  assert.equal(
+    resolveApiBaseUrl({
+      envBaseUrl: 'https://pricelens-api.onrender.com/api/',
+      location: { hostname: 'pricelens.vercel.app', origin: 'https://pricelens.vercel.app' },
+    }),
+    'https://pricelens-api.onrender.com/api',
+  );
+  assert.equal(
+    resolveApiBaseUrl({
+      envBaseUrl: '',
+      location: { hostname: 'pricelens.onrender.com', origin: 'https://pricelens.onrender.com' },
+    }),
+    'https://pricelens.onrender.com/api',
+  );
+  assert.equal(
+    resolveApiBaseUrl({
+      envBaseUrl: 'http://localhost:3000/api',
+      location: { hostname: 'pricelens.onrender.com', origin: 'https://pricelens.onrender.com' },
+    }),
+    'https://pricelens.onrender.com/api',
+  );
+  assert.equal(
+    resolveApiBaseUrl({
+      envBaseUrl: '',
+      location: { hostname: 'localhost', origin: 'http://localhost:4173' },
+    }),
+    'http://localhost:3000/api',
+  );
+});
