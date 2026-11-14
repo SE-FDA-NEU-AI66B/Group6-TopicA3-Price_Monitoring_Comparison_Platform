@@ -13,8 +13,12 @@ dist/
 .local/
 
 # Local development and documentation
-.github/
+.github/*
+!.github/workflows/
+!.github/workflows/**
 .claude/
 .vscode/
 docs/milestone4-decisions.md
 docs/frontend-1-file-inventory.md
+
+!.github/pull_request_template.md
