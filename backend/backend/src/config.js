@@ -27,6 +27,14 @@ function parsePort(name, fallback) {
   return value;
 }
 
+function resolveServerPort() {
+  if (process.env.API_PORT?.trim()) {
+    return parsePort('API_PORT', '3000');
+  }
+
+  return parsePort('PORT', '3000');
+}
+
 const nodeEnv = requireString('NODE_ENV');
 
 if (!['development', 'test', 'production'].includes(nodeEnv)) {
@@ -44,7 +52,7 @@ export const config = Object.freeze({
     idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 5_000,
   }),
-  apiPort: parsePort('API_PORT', '3000'),
+  apiPort: resolveServerPort(),
   frontendOrigin: requireString('FRONTEND_ORIGIN'),
   email: Object.freeze({
     transport: process.env.EMAIL_TRANSPORT?.trim() || 'jsonl',

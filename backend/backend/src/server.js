@@ -2,7 +2,7 @@ import { app } from './app.js';
 import { config } from './config.js';
 import { closePool } from './db/pool.js';
 
-const server = app.listen(config.apiPort, () => {
+const server = app.listen(config.apiPort, '0.0.0.0', () => {
   console.log(`PriceLens API listening on port ${config.apiPort}`);
 });
 
