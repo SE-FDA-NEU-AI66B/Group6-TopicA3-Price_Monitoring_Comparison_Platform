@@ -160,3 +160,33 @@ The consolidated page gives the user one coherent product context for assessing 
 | Data model | No schema or identifier meaning changed. | [`design.md`](design.md), [`requirements.md`](requirements.md) |
 | QA | The integrated flow and all five P0 stories were verified through the normal UI. | [`p0-acceptance.md`](p0-acceptance.md) |
 
+# 5. Milestone 5 Public Accessibility & Cross-Device Verification (Issue #208)
+
+Verification runner: [`scripts/verify-accessibility-navigation.js`](../scripts/verify-accessibility-navigation.js)
+
+## 5.1 Click-only navigation paths to all five P0 User Stories
+
+Starting from the public landing page (`/`), every P0 User Story is reachable solely by clicking visible links and buttons without typing URLs manually:
+
+| Story | Click-only path from first screen (`/`) | Target route |
+|---|---|---|
+| **US02 — View Product Price History** | `/` $\rightarrow$ Click **Sign in** $\rightarrow$ Submit credentials $\rightarrow$ `/watchlist` $\rightarrow$ Click **View** on a tracked product card $\rightarrow$ Inspect **30-day price history** section | `/products/:trackedProductId` |
+| **US03 — Create a Price Alert** | `/` $\rightarrow$ Click **Sign in** $\rightarrow$ `/watchlist` $\rightarrow$ Click **View** on a tracked product card $\rightarrow$ Fill **Target price** & click **Create price alert** | `/products/:trackedProductId` |
+| **US04 — Add Product Using URL** | `/` $\rightarrow$ Click **Sign in** $\rightarrow$ `/watchlist` $\rightarrow$ Click **Add product** in header $\rightarrow$ Paste URL & click **Check product URL** $\rightarrow$ Select variant & click **Start tracking** | `/products/add` |
+| **US05 — Receive Price-Drop Notification** | `/` $\rightarrow$ Click **Sign in** $\rightarrow$ `/watchlist` $\rightarrow$ Click **View** on `Nintendo Switch OLED` (or product with active alert) $\rightarrow$ Review active alert status & triggered notification outcome | `/products/:trackedProductId` |
+| **US09 — Compare Prices Across Retailers** | `/` $\rightarrow$ Click **Sign in** $\rightarrow$ `/watchlist` $\rightarrow$ Click **View** on `Apple iPhone 15` $\rightarrow$ Click **Compare offers** $\rightarrow$ Inspect sorted retailer offers & click **← Back to product** | `/products/:trackedProductId/compare` |
+
+## 5.2 Private / Incognito browser & cross-device verification
+
+- **Private / Incognito sessions:** Authentication relies on a server-issued `HttpOnly`, `SameSite` session cookie (`pricelens_session`) with no dependency on pre-existing `localStorage`, browser extensions, VPN access, or local development servers.
+- **Cross-device viewports verified (`scrollWidth == clientWidth`, zero horizontal overflow):**
+  - **Desktop (`1280×800`):** Two-column hero, 3-column watchlist card grid, side-by-side Product Details and Price Alerts layout, aligned Compare offer columns.
+  - **Tablet (`768×1024` / `<60rem`):** Compact header navigation (`.header__user` hidden below `60rem` to prevent text wrapping or button clipping), 2-column watchlist grid, stacked detail panels.
+  - **Mobile (`390×844` / `<48rem`):** Single-column layout, full-width form controls and action buttons, touch-safe card footer actions (`View` / `Remove` pinned to card bottom).
+
+## 5.3 UI improvements after Milestone 3 feedback
+
+1. **Streamlined action hierarchy and removal of duplicated controls:** Reduced Landing page CTAs to a single header **Sign in** button and hero **Create a free account** button; removed redundant secondary **Add product** buttons, developer-only reference panels, and duplicate current-price boxes on Product Details and Compare.
+2. **Chart readability, dynamic target-price hints, and responsive card alignment:** Replaced uneven Y-axis chart labels with rounded `1 / 2 / 5` step ticks (`getPriceAxisTicks`), updated the target-price placeholder example dynamically to ~90% of the product's current price (`getTargetPriceExample`), and fixed Watchlist card footers and mobile header wrapping across narrow viewports.
+
+
