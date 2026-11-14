@@ -45,3 +45,21 @@ jobs:
       - name: Run automated test suite
         run: npm test
 
+  deploy:
+    name: Deploy to Production
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger production deployment after green CI
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -n "$RENDER_DEPLOY_HOOK_URL" ]; then
+            curl --fail --silent --show-error -X POST "$RENDER_DEPLOY_HOOK_URL"
+            echo "Triggered production deployment on Render."
+          else
+            echo "CI checks passed on main; platform auto-deploy after green check is ready."
+          fi
+
