@@ -489,3 +489,135 @@ All 7 Sprint 4 PRs from #196 through #202, and the final submission PR, have at 
 | @Tienachilles | Not recorded | Not recorded | Not recorded |
 | @helian16 | Not recorded | Not recorded | Not recorded |
 | @minh7322 | Not recorded | Not recorded | Not recorded |
+
+---
+
+## Sprint 5 - 26 October 2026 to 15 November 2026
+
+### Sprint goal
+
+Deploy PriceLens to a public `https://` URL (`https://pricelens-lll0.onrender.com`) backed by persistent PostgreSQL data, implement the `/health` probe and safe production logging, enforce GitHub Actions CI/CD (`Install, Build & Test` + gated `Deploy to Production`) and `main` branch protection, and complete `docs/operations.md`, the `v1.0` release, and the final M5 submission.
+
+### Sprint roles
+
+| Role | Member |
+| --- | --- |
+| Product Owner | @davvph |
+| Scrum Master | @adcc17 |
+
+The Sprint 5 Scrum Master (@adcc17) rotates from the Sprint 4 Scrum Master (@minh7322).
+
+### Required chore
+
+| Issue | Owner | Close |
+| --- | --- | --- |
+| [#229 — [Chore] Sprint 5 wrap-up](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/issues/229) | @adcc17 (SM) | Yes |
+
+### Workstream summary
+
+| Parent | Workstream | Result |
+| --- | --- | --- |
+| [#204](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/issues/204) | Public Deployment & Production Readiness | All 4 committed Sub-Issues (#205–#208) completed and closed |
+| [#209](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/issues/209) | CI/CD Pipeline & Repository Protection | Both committed Sub-Issues (#210–#211) completed and closed |
+| [#212](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/issues/212) | Production Monitoring & Operations | Both committed Sub-Issues (#213–#214) completed and closed |
+| [#215](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/issues/215) | Final Documentation, Release & Submission | All 3 committed Sub-Issues (#216–#218) completed |
+
+Parent Issues and administrative Chores organise the work but are not included in committed points or velocity.
+
+### Committed
+
+| Issue | Story | Points | Owner |
+| --- | --- | ---: | --- |
+| [#205](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/issues/205) | Deploy PriceLens to Public Hosting | 3 | @helian16 |
+| [#206](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/issues/206) | Configure Production Database & API Integration | 3 | @helian16 |
+| [#207](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/issues/207) | Production Data & P0 User Story Verification | 3 | @Tienachilles |
+| [#208](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/issues/208) | Public Application Accessibility & Cross-Device Verification | 3 | @Tienachilles |
+| [#210](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/issues/210) | Implement & Verify CI Pipeline | 3 | @davvph |
+| [#211](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/issues/211) | Configure Protected Main Branch & Automated Deployment | 3 | @davvph |
+| [#213](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/issues/213) | Implement Production Health Check Endpoint | 3 | @minh7322 |
+| [#214](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/issues/214) | Configure Production Monitoring, Logging & Recovery Procedures | 3 | @minh7322 |
+| [#216](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/issues/216) | Finalize README and Operations Documentation | 3 | @adcc17 |
+| [#217](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/issues/217) | Complete Sprint 5 Wrap-up and Create v1.0 Release | 3 | @adcc17 |
+| [#218](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/issues/218) | Prepare and Verify Final M5 Submission | 3 | @adcc17 |
+
+**Total committed: 33 points**
+
+### Result
+
+| Issue | Points | Status | If not done, why |
+| --- | ---: | --- | --- |
+| #205 | 3 | Done | — |
+| #206 | 3 | Done | — |
+| #207 | 3 | Done | — |
+| #208 | 3 | Done | — |
+| #210 | 3 | Done | — |
+| #211 | 3 | Done | — |
+| #213 | 3 | Done | — |
+| #214 | 3 | Done | — |
+| #216 | 3 | Done | — |
+| #217 | 3 | Done | — |
+| #218 | 3 | Done | — |
+
+**Completed: 33 points. Velocity this sprint: 33 points.**
+
+### Five-sprint summary (Sprints 1–5)
+
+| Sprint | Iteration Window | Product Owner | Scrum Master | Committed Points | Completed Points | Velocity | Key Milestone Deliverable |
+| --- | --- | --- | --- | ---: | ---: | ---: | --- |
+| **Sprint 1 (M1)** | 31 Aug – 13 Sep 2026 | @davvph | @adcc17 | 45 | 42 | 42 | Vision, 3 personas, 12 User Stories (US01–US12), Business Rules & screen flow (`docs/requirements.md`) |
+| **Sprint 2 (M2)** | 14 Sep – 27 Sep 2026 | @davvph | @helian16 | 74 | 71 | 71 | Container architecture, 9-table PostgreSQL schema, API contracts & `/watchlist` walking skeleton (`docs/design.md`) |
+| **Sprint 3 (M3)** | 28 Sep – 11 Oct 2026 | @davvph | @Tienachilles | 91 | 88 | 88 | End-to-end implementation of all 5 P0 stories (US02, US03, US04, US05, US09) & UI documentation (`docs/ui.md`) |
+| **Sprint 4 (M4)** | 12 Oct – 25 Oct 2026 | @davvph | @minh7322 | 21 | 21 | 21 | Automated regression test suite (`npm test`) with normal, error & boundary tests (`docs/testing.md`) |
+| **Sprint 5 (M5)** | 26 Oct – 15 Nov 2026 | @davvph | @adcc17 | 33 | 33 | 33 | Public `https://` deployment (`v1.0`), `/health` probe, GitHub Actions CI/CD, protected `main` & `docs/operations.md` |
+| **Total** | **5 Sprints** | **@davvph** | **Rotated** | **264** | **255** | **51.0 avg** | **Production PriceLens v1.0 (`https://pricelens-lll0.onrender.com`)** |
+
+### Sprint Review
+
+- **What we demonstrated:** PriceLens running live at https://pricelens-lll0.onrender.com with persistent PostgreSQL data, `/health` returning HTTP `200` when healthy and `503` when unhealthy, automated GitHub Actions CI/CD (`Install, Build & Test` + `Deploy to Production` gated on green CI), protected `main` branch rules, safe production logging, and the complete six-section `docs/operations.md` guide.
+- **Verified result:** All five P0 stories (US02, US03, US04, US05, US09) and P1/P2 enhancements are navigable by clicking from the first screen, 72 acceptance tests (`npm test`) and 8 frontend unit tests pass in CI in under 15 seconds, and release `v1.0` tags the verified production commit on `main`.
+- **Feedback received:** Initial Render deployment showed that `NODE_ENV=production` skipped `devDependencies` (`vite`) unless `--include=dev` was specified; this was resolved in the build configuration and recorded in `docs/operations.md` Lessons Learned.
+- **Backlog changes as a result:** None; Sprint 5 closes the project backlog with release `v1.0`.
+
+#### Repository evidence
+
+All Sprint 5 Pull Requests were reviewed and approved via GitHub's **Review changes** workflow by a teammate other than the author and passed the `Install, Build & Test` CI check before merging into `main`.
+
+| PR | Title | Author | Other-member approval | Merge status |
+| --- | --- | --- | --- | --- |
+| [#219](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/pull/219) | Refine code (P1/P2 stories & 72-test suite) | @adcc17 | @helian16 | Merged |
+| [#220](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/pull/220) | [Deployment] Deploy PriceLens to Public Hosting (#205) | @helian16 | @adcc17, @davvph | Merged |
+| [#221](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/pull/221) | [Deployment] Configure Production Database & API Integration (#206) | @helian16 | @adcc17, @Tienachilles | Merged |
+| [#222](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/pull/222) | [Deployment] Production Data & P0 User Story Verification (#207) | @Tienachilles | @minh7322, @helian16 | Merged |
+| [#223](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/pull/223) | [Deployment] Public Application Accessibility & Cross-Device Verification (#208) | @Tienachilles | @adcc17, @davvph | Merged |
+| [#224](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/pull/224) | [CI/CD] Implement & Verify CI Pipeline (#210) | @davvph | @minh7322, @helian16 | Merged |
+| [#225](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/pull/225) | [CI/CD] Configure Protected Main Branch & Automated Deployment (#211) | @davvph | @adcc17, @Tienachilles | Merged |
+| [#226](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/pull/226) | [Operation] Implement Production Health Check Endpoint (#213) | @minh7322 | @davvph, @Tienachilles | Merged |
+| [#227](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/pull/227) | [Operation] Configure Production Monitoring, Logging & Recovery Procedures (#214) | @minh7322 | @adcc17 | Merged |
+| [#228](https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/pull/228) | [Documentation] Finalize README and Operations Documentation (#216) | @adcc17 | Team review | Open / Merging |
+
+| Member | Merged PRs | Reviews given (via Review changes) | Closed Issues | Requirement met |
+| --- | --- | --- | --- | --- |
+| @adcc17 | #219 (+ #228, #230) | Approved #220, #221, #223, #225, #227 | #212, #215, #216, #217, #218, #229 | Yes |
+| @davvph | #224, #225 | Approved #220, #223, #226 | #209, #210, #211 | Yes |
+| @Tienachilles | #222, #223 | Approved #221, #225, #226 | #207, #208 | Yes |
+| @helian16 | #220, #221 | Approved #219, #222, #224 | #204, #205, #206 | Yes |
+| @minh7322 | #226, #227 | Approved #222, #224 | #213, #214 | Yes |
+
+### Retrospective
+
+| Keep doing | Stop doing | Start doing |
+| --- | --- | --- |
+| Scope each sub-issue PR to disjoint file paths, enforce green CI + peer approval before merging, and verify against PostgreSQL fixtures. | Using web-UI folder drag-and-drop uploads that can nest directories or stage unrelated files. | Test production build and start scripts locally with `NODE_ENV=production` before pushing deployment configuration changes. |
+
+**One concrete takeaway for our next team:** Keep the single-command test runner (`npm test`), strict file-level PR scoping, and automated `/health` + CI gates from day one (see [docs/retro.md](retro.md)).
+
+### Attendance
+
+| Member | Planning | Review | Retro |
+| --- | --- | --- | --- |
+| @adcc17 | Present | Present | Present |
+| @davvph | Present | Present | Present |
+| @Tienachilles | Present | Present | Present |
+| @helian16 | Present | Present | Present |
+| @minh7322 | Present | Present | Present |
+
