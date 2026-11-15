@@ -4,6 +4,11 @@ import {
   internalServerError,
   invalidRequest,
 } from '../shared/problems.js';
+import {
+  operationalMonitor,
+  sanitizeLogPath,
+  sanitizeLogText,
+} from './request-logger.js';
 
 export function errorHandler(error, request, response, next) {
   if (response.headersSent) {
@@ -50,12 +55,13 @@ function configForLog() {
 }
 
 function logUnexpectedError(error, request) {
+  operationalMonitor.recordUnexpectedError();
   console.error('Unexpected request failure', {
     method: request.method,
-    path: request.originalUrl,
-    name: error.name,
-    code: error.code,
-    message: error.message,
-    stack: configForLog() ? error.stack : undefined,
+    path: sanitizeLogPath(request.originalUrl ?? request.url),
+    name: error?.name,
+    code: error?.code,
+    message: sanitizeLogText(error?.message),
+    stack: configForLog() ? sanitizeLogText(error?.stack) : undefined,
   });
 }
