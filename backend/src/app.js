@@ -9,6 +9,7 @@ import helmet from 'helmet';
 import { config } from './config.js';
 import { errorHandler } from './middleware/error-handler.js';
 import { authRouter } from './modules/auth/auth.routes.js';
+import { healthRouter } from './modules/health/health.routes.js';
 import { productSourceRouter } from './modules/product-sources/product-source.routes.js';
 import { trackedProductRouter } from './modules/tracked-products/tracked-product.routes.js';
 import { watchlistRouter } from './modules/watchlist/watchlist.routes.js';
@@ -23,7 +24,8 @@ const frontendIndexHtml = fileURLToPath(
 
 function rewriteFrontendPageRoute(request, response, next) {
   if (
-    request.path.startsWith('/api')
+    request.path === '/health'
+    || request.path.startsWith('/api')
     || (request.method !== 'GET' && request.method !== 'HEAD')
   ) {
     next();
@@ -81,6 +83,8 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
+app.use('/health', healthRouter);
+app.use('/api/health', healthRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/watchlist', watchlistRouter);
 app.use('/api/product-sources', productSourceRouter);
