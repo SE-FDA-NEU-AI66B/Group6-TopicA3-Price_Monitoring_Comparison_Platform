@@ -1,80 +1,69 @@
-# PriceLens Operations Runbook
+# PriceLens Operations Guide
 
-## 1. Deployment
+## 1. How to run and release
 
-PriceLens runs as a full-stack Node.js 22 and Express 5 service on Render paired with managed PostgreSQL 16 (`render.yaml`).
+- **Public Production URL:** https://pricelens-lll0.onrender.com (Health probe: https://pricelens-lll0.onrender.com/health)
+- **Hosting Platform:** Render Web Service (Node.js 22, Express 5 serving the built Vite frontend and `/api/*` routes on `0.0.0.0:$PORT`) connected over TLS (`DB_SSL=true`) to managed PostgreSQL (`DATABASE_URL`). Secrets reside exclusively in Render Environment Variables and GitHub Secrets, never in Git.
+- **Release Pipeline (`merge → CI green → deploy`):** Every change is pushed to a feature branch and opened as a Pull Request into `main`. Once a teammate approves via **Review changes** and the `Install, Build & Test` CI workflow turns green, merging into `main` triggers the `Deploy to Production` job (`needs: test`) and Render deployment. Render executes `npm run build` (installing dependencies and compiling `frontend/dist`) followed by `npm start` (`npm run db:init && npm --prefix backend start`), which runs idempotent schema migrations, seeds the 10 demo products, and starts the server.
+- **How to Roll Back a Broken Release:**
+  1. **Platform Rollback (Immediate, < 1 minute):** Open Render Dashboard $\rightarrow$ `PriceLens` $\rightarrow$ **Deploys**, locate the previous green deployment commit (e.g., `v1.0`), and click **Rollback to this deploy**.
+  2. **Git Revert Rollback (Permanent on `main`):** Revert the faulty merge commit (`git revert -m 1 <merge-sha> --no-edit`), merge the revert PR after green CI so `main` redeploys cleanly, and confirm `GET https://pricelens-lll0.onrender.com/health` returns HTTP `200`.
 
-| Component | Platform | Runtime / Command | Public Endpoint |
+## 2. The CI pipeline
+
+GitHub Actions (`.github/workflows/ci.yml`) runs automatically on every `push` and `pull_request` to `main`. A full run takes **15–22 seconds**.
+
+- **Latest Green CI Run on `main`:** https://github.com/SE-FDA-NEU-AI66B/Group6-TopicA3-Price_Monitoring_Comparison_Platform/actions/runs/43717413894
+
+| Job / Step | Command / Action | What It Checks | Typical Duration |
 | :--- | :--- | :--- | :--- |
-| Web Application & API | Render Web Service | `npm run build` / `npm run db:init && npm start` | `<PUBLIC_URL>` |
-| Production Database | Render PostgreSQL | PostgreSQL 16 (`001` & `002` migrations + `001-demo-data.js`) | Internal TLS (`DB_SSL=true`) |
-| Health Probe | Render Health Check | `GET /health` (`SELECT 1 AS healthy`) | `<PUBLIC_URL>/health` |
+| Checkout & Node.js 22 | `actions/checkout@v4` + `actions/setup-node@v4` | Checks out commit and configures Node.js 22 with npm lockfile cache | ~3s |
+| Install dependencies | `npm ci` (`backend/` & `frontend/`) | Verifies lockfile integrity and installs exact dependency versions | ~4s |
+| Build frontend bundle | `npm --prefix frontend run build` | Verifies Vite compiles all 22 frontend modules into `frontend/dist` without error | ~2s |
+| Run frontend unit tests | `npm --prefix frontend test` | Executes 8 unit tests covering formatting, URL resolution, and validation | ~1s |
+| Run automated test suite | `npm test` | Executes all 72 acceptance tests across US01–US12 (normal, error, and boundary cases) | ~2s |
+| Deploy to Production | `deploy` job (`needs: test`, `main` push only) | Triggers production deployment only after `Install, Build & Test` passes on `main` | ~3s |
 
-## 2. CI/CD Pipeline
+![Branch protection settings for main](images/branch-protection-main.jpg)
 
-GitHub Actions (`.github/workflows/ci.yml`) enforces quality gates on every push and Pull Request targeting `main`.
+## 3. Monitoring
 
-| Job | Trigger | Steps | Gate |
+- **What the App Logs & Where to Read It:** `createRequestLogger` (`backend/src/middleware/request-logger.js`) and `errorHandler` (`backend/src/middleware/error-handler.js`) log HTTP `5xx` responses, slow requests ($\ge 1000\text{ ms}$), and unexpected server/database errors (`method`, sanitized `path`, `status`, `duration_ms`) to stdout/stderr. Team members inspect live and historical logs in **Render Dashboard $\rightarrow$ `PriceLens` $\rightarrow$ Logs**.
+- **What It Never Logs:** `sanitizeLogPath`, `sanitizeLogText`, and `redactSensitiveFields` strip URL query parameters and replace passwords, `password_hash`, session tokens, cookies, `Authorization` headers, `postgres://` database URIs, and user email addresses (PII) with `[REDACTED]`. Stack traces are suppressed when `NODE_ENV=production`.
+- **What `/health` Checks:** `GET /health` (`backend/src/modules/health/health.routes.js`) executes `SELECT 1 AS healthy` against the PostgreSQL connection pool with `Cache-Control: no-store`. It returns HTTP `200` (`{"status":"ok","checks":{"application":"up","database":"up"}}`) when healthy, and HTTP `503` (`{"status":"unhealthy","checks":{"application":"up","database":"down"}}`) without exposing credentials when the database fails.
+- **Two Watched Metrics:** We track **error rate** (`server_error_rate` target $< 1\%$) and **API response time** (`duration_ms` target $< 1000\text{ ms}$). If either degrades, `HTTP 5xx server error response` or `Slow HTTP response detected` warnings appear in Render Logs and `/health` alerts on `503`.
+
+## 4. Known risks and technical debt
+
+| Item | Layer | What could happen | Plan |
 | :--- | :--- | :--- | :--- |
-| `Install, Build & Test` | `push` & `pull_request` to `main` | `npm ci` (backend & frontend), `npm run build`, `npm --prefix frontend test` (8 tests), `npm test` (72 tests) | Required status check on `main` |
-| `Deploy to Production` | `push` to `main` only | Triggers `RENDER_DEPLOY_HOOK_URL` (or Render auto-deploy) | `needs: test` (runs only after green CI) |
+| Render free-tier cold start | `infrastructure` | After 15 minutes of inactivity, the free web instance spins down and the first request takes 30–50 seconds to wake up. | `accepted — Free hosting constraint for course demo; warming up `/health` 2 minutes before live presentations avoids cold-start delay.` |
+| In-memory operational metrics | `code` | Counters in `operationalMonitor` (`request-logger.js`) reset whenever the Node.js process restarts or redeploys. | `accepted — Render platform logs persist across restarts, providing sufficient history for single-instance operation.` |
+| Simulated retailer catalog adapters | `data` | URL resolution (`US04`) and price observation (`US05`) use deterministic adapter fixtures rather than scraping anti-bot live e-commerce HTML. | `accepted — Deterministic adapters guarantee repeatable CI and live demo behaviour without external scraper breakage.` |
+| JSONL file email outbox in demo mode | `infrastructure` | When SMTP credentials are not configured, `US05` notifications are persisted in PostgreSQL and written to `.local/pricelens-email-outbox.jsonl` instead of external inbox delivery. | `accepted — Database notification records and outbox logs prove threshold-crossing delivery without risking external spam filters.` |
+| Browser E2E tests use JSDOM/HTTP rather than headless Chromium | `tests` | Automated checks verify HTML landmarks, links, and live API flows via Node HTTP/DOM inspection rather than full GPU browser rendering. | `#208` |
 
-Branch protection on `main` requires a Pull Request, at least 1 approving review, and a passing `Install, Build & Test` check before merging.
+## 5. Maintenance plan
 
-## 3. Environment Configuration
-
-All production secrets are injected via platform environment variables and never committed to Git (`.env.example` documents safe placeholders).
-
-| Variable | Required | Production Value / Source | Purpose |
+| Area | What to do | Owner | How often |
 | :--- | :--- | :--- | :--- |
-| `NODE_ENV` | Yes | `production` | Enables secure cookies, HSTS, and stack-trace suppression |
-| `PORT` | Auto | Injected by Render (`10000`) | HTTP listener port bound on `0.0.0.0` |
-| `DATABASE_URL` | Yes | Render PostgreSQL connection URI | Configures `pg.Pool` connection parameters |
-| `DB_SSL` | Yes | `true` | Enables TLS with `rejectUnauthorized: false` for managed Postgres |
-| `FRONTEND_ORIGIN` | Optional | Public `https://` origin(s) | Configures CORS allow-list |
-| `RENDER_DEPLOY_HOOK_URL` | Optional | GitHub Actions Secret | Triggers production deploy after green CI on `main` |
+| **Bugs** | Triage newly reported issues on the GitHub Project Board, reproduce with a failing test in `tests/`, and merge a reviewed fix PR into `main`. | `@Tienachilles` & `@davvph` | Weekly / within 48h for P0 bugs |
+| **Dependency updates** | Review GitHub Dependabot alerts, run `npm audit` in `backend/` and `frontend/`, and test upgrades via the CI pipeline before merging. | `@helian16` | Bi-weekly |
+| **Backups of the data** | Verify PostgreSQL snapshot state, export critical tables via `pg_dump`, and test idempotent recovery with `npm run db:init`. | `@minh7322` | Weekly & before each release |
+| **Monitoring** | Check `https://pricelens-lll0.onrender.com/health`, inspect Render **Logs** for `5xx` errors or slow requests ($\ge 1000\text{ ms}$), and review latency metrics. | `@minh7322` | Daily during active demo weeks |
+| **Keeping the docs true** | Audit `README.md`, `docs/operations.md`, `docs/SETUP.md`, and `docs/testing.md` against current routes, scripts, and environment variables in every PR review. | `@adcc17` | Every Pull Request / Per release |
 
-## 4. Monitoring & Logging
+## 6. Lessons learned
 
-Operational visibility combines platform health probes, request metrics (`backend/src/middleware/request-logger.js`), and safe structured error logging (`backend/src/middleware/error-handler.js`).
-
-| Signal | Source / Mechanism | Target / Threshold | Investigation Trigger |
-| :--- | :--- | :--- | :--- |
-| Availability | `GET /health` & `GET /api/health` | HTTP `200` (`database: "up"`) | Any HTTP `503` response or failed Render health probe |
-| Error Rate | `operationalMonitor` & Render HTTP logs | `5xx` server error rate `< 1%` | Any `HTTP 5xx server error response` log entry |
-| API Response Time | `createRequestLogger` (`duration_ms`) | `< 1000 ms` per API request | `Slow HTTP response detected` warning (`duration_ms >= 1000`) |
-
-### Log Access & Safe Logging Policy
-
-1. Open the Render Dashboard, select the `pricelens` web service, and open the **Logs** tab to stream or search live application stdout/stderr logs.
-2. `sanitizeLogPath`, `sanitizeLogText`, and `redactSensitiveFields` automatically strip query strings and redact passwords, session tokens, cookies, `Authorization` headers, `postgres://` database URIs, and user email addresses (`[REDACTED]`).
-3. When `NODE_ENV=production`, stack traces and raw persistence details are suppressed from both HTTP responses and logs.
-
-## 5. Common Issues & Troubleshooting
-
-| Symptom / Failure Scenario | Primary Cause | Diagnosis & Resolution Steps |
-| :--- | :--- | :--- |
-| `GET /health` returns HTTP `503` (`database: "down"`) | PostgreSQL unreachable, invalid `DATABASE_URL`, or missing SSL | Check Render **Logs** for `Unexpected PostgreSQL pool error`; verify `DATABASE_URL` and `DB_SSL=true` in **Environment** settings; confirm PostgreSQL instance status is **Available**. |
-| `POST /api/auth/login` fails across domains or refreshes | Missing `trust proxy` or mismatched `FRONTEND_ORIGIN` | Confirm `NODE_ENV=production`, access via `https://`, and ensure the public frontend origin is listed in `FRONTEND_ORIGIN`. |
-| Empty watchlist or missing P0 demo fixtures | Seed script not executed after database reset | Run `npm run db:init` in the Render Shell (or redeploy) and verify with `node scripts/verify-p0-production.js`. |
-| Deployment build fails in CI or Render | Dependency mismatch or broken test/build | Inspect the failed step in GitHub Actions `Install, Build & Test`, reproduce locally with `npm run build && npm test`, and open a fix PR. |
-
-## 6. Rollback Procedure
-
-If a production deployment introduces critical regressions or fails `/health` checks after merge:
-
-1. **Immediate Platform Rollback (Render Dashboard):**
-   - Open the `pricelens` service in Render Dashboard $\rightarrow$ **Events** / **Deploys**.
-   - Locate the last known healthy deployment commit (prior to the faulty release) and click **Rollback to this deploy**.
-2. **Git Repository Rollback (Permanent Fix on `main`):**
-   - Identify the faulty merge commit with `git log --oneline -n 5 main`.
-   - Create a revert branch and open an emergency PR:
-     ```bash
-     git checkout -b fix/rollback-release main
-     git revert -m 1 <faulty-merge-commit-sha> --no-edit
-     git push origin fix/rollback-release
-     ```
-   - Merge the revert PR after `Install, Build & Test` passes so `main` and production stay synchronized.
-3. **Post-Rollback Verification:**
-   - Check `GET <PUBLIC_URL>/health` returns HTTP `200` (`status: "ok"`, `database: "up"`).
-   - Run `VERIFY_BASE_URL=<PUBLIC_URL> node scripts/verify-p0-production.js` to confirm all 5 P0 stories pass.
+1. **Nested Directory Uploads on GitHub Web UI Caused Cross-PR Merge Conflicts**
+   - **What happened:** During early Sprint 5 PR creation (#220, #221), uploading folders through the GitHub web interface accidentally nested `backend/backend/` and `frontend/frontend/` and staged overlapping files in #222, causing severe `CONFLICTING` states on GitHub.
+   - **What we changed:** We restored the flat root directory structure in a shared base commit, scoped each sub-issue PR to strictly disjoint file paths, and switched to CLI-verified `git add <explicit-files>` workflows.
+   - **What we would do differently next time:** Never use browser drag-and-drop uploads for multi-folder changes; always branch from `origin/main` via Git CLI and check `git status` / `git diff --stat` before opening a PR.
+2. **Production `NODE_ENV=production` Skipped Frontend Build Tooling (`vite: not found`)**
+   - **What happened:** On our first Render deployment with `NODE_ENV=production`, Render's default build skipped `devDependencies` where `vite` was declared, causing `vite build` to fail with exit code `127`.
+   - **What we changed:** We updated the build command and root `package.json` `build` script to explicitly run `npm --prefix frontend install --include=dev` and chained `npm --prefix backend run db:init` into `npm start`.
+   - **What we would do differently next time:** Test the exact production build and start commands locally with `NODE_ENV=production` in a clean environment before triggering the first cloud deployment.
+3. **Requirements and Story Issue Drift in Early Milestones**
+   - **What happened:** In Milestone 1 and Milestone 3, some User Story descriptions on GitHub Issues drifted from `docs/requirements.md` and P0 navigation entry points were not immediately obvious from the landing page.
+   - **What we changed:** We established `docs/requirements.md` and `docs/traceability.md` as the single source of truth, connected all 5 P0 flows with click-only links from the first screen, and added 72 automated acceptance tests (`npm test`).
+   - **What we would do differently next time:** Enforce a single traceability table and automated acceptance test IDs (`TC-USNN-XX`) from Sprint 1 whenever a story or business rule is edited.
